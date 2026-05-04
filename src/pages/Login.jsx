@@ -77,20 +77,21 @@ const Login = () => {
               </div>
             )}
 
-              <div className="col-12 mb-2">
-                <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGoogleLogin} disabled={loading}>
-                  <FcGoogle size={24} /> <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue with Google</span>
-                </button>
-              </div>
+            <div className="col-12 mb-2">
+              <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGoogleLogin} disabled={loading}>
+                <FcGoogle size={24} /> <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue with Google</span>
+              </button>
+            </div>
 
-              <div className="col-12 text-center my-3">
-                <div className="d-flex align-items-center gap-3">
-                  <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-                  <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', letterSpacing: '1px' }}>OR USE EMAIL</span>
-                  <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-                </div>
+            <div className="col-12 text-center my-3">
+              <div className="d-flex align-items-center gap-3">
+                <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
+                <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', letterSpacing: '1px' }}>OR USE EMAIL</span>
+                <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
               </div>
+            </div>
 
+            <form onSubmit={handleSubmit}>
               <div className="col-12">
                 <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>Email Address</label>
                 <input type="email" className="form-control premium-input" name="email" placeholder="john@example.com" value={formData.email} onChange={handleChange} required />
@@ -99,7 +100,7 @@ const Login = () => {
               <div className="col-12 mt-3">
                 <div className="d-flex justify-content-between align-items-center mb-1">
                   <label className="form-label fw-semibold mb-0" style={{ color: '#334155', fontSize: '0.85rem' }}>Password</label>
-                  <Link to="/forgot-password" size="sm" className="text-primary fw-semibold text-decoration-none premium-link" style={{ fontSize: '0.8rem' }}>Forgot Password?</Link>
+                  <Link to="/forgot-password" className="text-primary fw-semibold text-decoration-none premium-link" style={{ fontSize: '0.8rem' }}>Forgot Password?</Link>
                 </div>
                 <input type="password" className="form-control premium-input" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />
               </div>

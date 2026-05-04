@@ -109,20 +109,21 @@ const Register = () => {
               </div>
             )}
 
-              <div className="col-12 mb-2">
-                <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGoogleLogin} disabled={loading}>
-                  <FcGoogle size={24} /> <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue with Google</span>
-                </button>
-              </div>
+            <div className="col-12 mb-2">
+              <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGoogleLogin} disabled={loading}>
+                <FcGoogle size={24} /> <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue with Google</span>
+              </button>
+            </div>
 
-              <div className="col-12 text-center my-3">
-                <div className="d-flex align-items-center gap-3">
-                  <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-                  <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', letterSpacing: '1px' }}>OR CREATE MANUALLY</span>
-                  <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-                </div>
+            <div className="col-12 text-center my-3">
+              <div className="d-flex align-items-center gap-3">
+                <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
+                <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', letterSpacing: '1px' }}>OR CREATE MANUALLY</span>
+                <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
               </div>
+            </div>
 
+            <form onSubmit={handleSubmit}>
               <div className="col-sm-6">
                 <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>First Name</label>
                 <input type="text" className="form-control premium-input" name="firstName" placeholder="John" value={formData.firstName} onChange={handleChange} required />
