@@ -91,8 +91,8 @@ const TopNavbar = ({ toggleSidebar }) => {
           <MdMenu size={28} />
         </button>
         <div className="d-none d-md-flex align-items-center gap-2">
-          {localStorage.getItem('appLogo') && (
-            <img src={localStorage.getItem('appLogo')} alt="App Logo" className="rounded-2" style={{height: 32, width: 32, objectFit: 'contain'}} />
+          {user.appLogo && (
+            <img src={user.appLogo} alt="App Logo" className="rounded-2" style={{height: 32, width: 32, objectFit: 'contain'}} />
           )}
           <h4 className="mb-0 fw-bold text-primary">
             Account <span className="text-secondary">Manager</span>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MdNotifications, MdCheckCircle, MdClose } from 'react-icons/md';
+import { useAuth } from '../context/AuthContext';
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const getToday = () => {
@@ -102,15 +103,10 @@ const TAB_LABELS = { all: '🔔 All', pending: '🕐 Pending', success: '✅ Suc
 
 /* ─── Component ───────────────────────────────────────────── */
 const NotificationBell = ({ transactions = [] }) => {
+  const { userData, updateUserData } = useAuth();
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState([]);
-  const [dismissed, setDismissed] = useState(function() {
-    try {
-      return JSON.parse(localStorage.getItem('notif_dis') || '[]');
-    } catch (e) {
-      return [];
-    }
-  });
+  const dismissed = userData?.dismissedNotifications || [];
   const [tab, setTab] = useState('all');
   const dropRef = useRef(null);
 
@@ -136,9 +132,12 @@ const NotificationBell = ({ transactions = [] }) => {
     return function() { document.removeEventListener('mousedown', fn); };
   }, [open]);
 
-  var saveDis = function(arr) {
-    setDismissed(arr);
-    localStorage.setItem('notif_dis', JSON.stringify(arr));
+  var saveDis = async (arr) => {
+    try {
+      await updateUserData({ dismissedNotifications: arr });
+    } catch (err) {
+      console.error('Failed to save dismissed notifications:', err);
+    }
   };
 
   var visible = notifs.filter(function(n) { return dismissed.indexOf(n.id) === -1; });

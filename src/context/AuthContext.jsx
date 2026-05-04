@@ -44,6 +44,9 @@ export const AuthProvider = ({ children }) => {
       role: 'user', // Default role
       customCategories: [],
       customPaymentApps: [],
+      appLogo: '',
+      dismissedNotifications: [],
+      lastAutoSave: null,
       createdAt: new Date().toISOString()
     };
     await setDoc(doc(db, "users", user.uid), userDoc);
@@ -109,6 +112,9 @@ export const AuthProvider = ({ children }) => {
           profilePic: user.photoURL || '',
           customCategories: [],
           customPaymentApps: [],
+          appLogo: '',
+          dismissedNotifications: [],
+          lastAutoSave: null,
           role: 'user', // Default role
           createdAt: new Date().toISOString()
         };
@@ -179,7 +185,10 @@ export const AuthProvider = ({ children }) => {
     updateUserData,
     // Shorthand helpers for custom settings
     customCategories: userData?.customCategories || [],
-    customPaymentApps: userData?.customPaymentApps || []
+    customPaymentApps: userData?.customPaymentApps || [],
+    appLogo: userData?.appLogo || '',
+    dismissedNotifications: userData?.dismissedNotifications || [],
+    lastAutoSave: userData?.lastAutoSave || null
   };
 
   return (

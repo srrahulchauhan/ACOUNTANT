@@ -77,7 +77,20 @@ const Login = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="row g-3">
+              <div className="col-12 mb-2">
+                <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGoogleLogin} disabled={loading}>
+                  <FcGoogle size={24} /> <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue with Google</span>
+                </button>
+              </div>
+
+              <div className="col-12 text-center my-3">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
+                  <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', letterSpacing: '1px' }}>OR USE EMAIL</span>
+                  <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
+                </div>
+              </div>
+
               <div className="col-12">
                 <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>Email Address</label>
                 <input type="email" className="form-control premium-input" name="email" placeholder="john@example.com" value={formData.email} onChange={handleChange} required />
@@ -96,22 +109,8 @@ const Login = () => {
                   {loading ? (
                     <span className="spinner-border spinner-border-sm" role="status"></span>
                   ) : (
-                    <span className="fw-semibold" style={{ fontSize: '1rem' }}>Sign In</span>
+                    <span className="fw-semibold" style={{ fontSize: '1rem' }}>Sign In with Email</span>
                   )}
-                </button>
-              </div>
-
-              <div className="col-12 text-center my-3">
-                <div className="d-flex align-items-center gap-3">
-                  <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-                  <span style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: '500' }}>OR</span>
-                  <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-                </div>
-              </div>
-
-              <div className="col-12">
-                <button type="button" className="btn w-100 py-2 premium-btn-google d-flex align-items-center justify-content-center gap-2" onClick={handleGoogleLogin} disabled={loading}>
-                  <FcGoogle size={20} /> <span className="fw-semibold" style={{ fontSize: '0.95rem', color: '#334155' }}>Continue with Google</span>
                 </button>
               </div>
 

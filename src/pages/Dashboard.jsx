@@ -31,13 +31,15 @@ const StatCard = ({ title, value, prefix, suffix, icon, colorClass, description 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userData } = useAuth();
+  const { userData, customPaymentApps } = useAuth();
   const user = userData || {};
+
+  const getColor = (name) => getAppDetails(name, customPaymentApps).color;
   const [transactions, setTransactions] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [stats, setStats] = useState({ totalBalance: 0, totalCredit: 0, totalDebit: 0, count: 0 });
   const [loading, setLoading] = useState(true);
-  const [lastSave, setLastSave] = useState(null);
+  const lastSave = userData?.lastAutoSave || null;
   const [alerts, setAlerts] = useState([]);
   const [viewMode, setViewMode] = useState('Lifetime'); // 'Month' or 'Lifetime'
 
@@ -83,8 +85,7 @@ const Dashboard = () => {
       setStats({ totalBalance: totalCredit - totalDebit, totalCredit, totalDebit, count: filtered.length });
 
 
-      const saveInfo = localStorage.getItem(`lastAutoSave_${(await import('../firebase')).auth.currentUser?.uid}`);
-      if (saveInfo) setLastSave(JSON.parse(saveInfo));
+      // Removed localStorage call for lastSave as it's now in context
 
       // Check for EMI alerts (2 days before due date)
       const today = new Date();
@@ -275,7 +276,13 @@ const Dashboard = () => {
           </span>
           <span className="badge bg-primary bg-opacity-25 text-primary ms-2" style={{ fontSize: '0.65rem' }}>● LIVE</span>
         </div>
-        <button className="btn btn-success btn-sm d-flex align-items-center gap-1 px-3" onClick={() => downloadBackup(transactions, customers)}>
+        <button className="btn btn-success btn-sm d-flex align-items-center gap-1 px-3" onClick={async () => {
+          const info = downloadBackup(transactions, customers);
+          if (info) {
+            const { url, ...metadata } = info;
+            await updateUserData({ lastAutoSave: metadata });
+          }
+        }}>
           <MdDownload /> Download Backup
         </button>
       </div>
@@ -370,7 +377,7 @@ const Dashboard = () => {
                 {appBreakdown.map((app) => (
                   <div key={app.name} className="d-flex align-items-center gap-2 mb-2">
                     <div style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}>{getAppDetails(app.name).logo}</div>
+                      <div style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}>{getAppDetails(app.name, customPaymentApps).logo}</div>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div className="d-flex justify-content-between">
@@ -485,7 +492,7 @@ const Dashboard = () => {
                     <td>
                       <div className="d-flex align-items-center gap-1">
                         <div style={{ transform: 'scale(0.6)', transformOrigin: 'left center', width: 20 }}>
-                          {getAppDetails(t.paymentApp || t.paymentMethod || 'Cash').logo}
+                          {getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).logo}
                         </div>
                         <span className="small fw-semibold" style={{ color: getColor(t.paymentApp || t.paymentMethod || 'Cash') }}>
                           {t.paymentApp || t.paymentMethod || 'Cash'}

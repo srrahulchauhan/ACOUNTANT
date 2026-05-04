@@ -129,11 +129,7 @@ export const DEFAULT_APPS = [
 
 export const CUSTOM_COLORS = ['#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#009688', '#ff5722', '#795548', '#607d8b'];
 
-export const getCustomApps = () => JSON.parse(localStorage.getItem('customPaymentApps') || '[]');
-export const saveCustomApps = (apps) => localStorage.setItem('customPaymentApps', JSON.stringify(apps));
-
-export const getAllPaymentApps = () => {
-  const customApps = getCustomApps();
+export const getAllPaymentApps = (customApps = []) => {
   return [
     ...DEFAULT_APPS,
     ...customApps.map((app, i) => ({
@@ -152,7 +148,7 @@ export const getAllPaymentApps = () => {
   ];
 };
 
-export const getAppDetails = (appName) => {
+export const getAppDetails = (appName, customApps = []) => {
   if (!appName || appName === 'Cash') {
     return {
       id: 'Cash', label: 'Cash', color: '#2e7d32',
@@ -166,7 +162,7 @@ export const getAppDetails = (appName) => {
       )
     };
   }
-  const allApps = getAllPaymentApps();
+  const allApps = getAllPaymentApps(customApps);
   const app = allApps.find(a => a.id.toLowerCase() === appName.toLowerCase() || a.label.toLowerCase() === appName.toLowerCase());
   return app || {
     id: appName, label: appName, color: '#607d8b',

@@ -71,16 +71,12 @@ export const autoSaveToExcel = (transactions = [], customers = []) => {
     const url = URL.createObjectURL(blob);
     
     const userId = auth.currentUser?.uid;
-    if (userId) {
-      localStorage.setItem(`lastAutoSave_${userId}`, JSON.stringify({
-        url,
-        time: new Date().toISOString(),
-        entries: transactions.length,
-        customers: customers.length
-      }));
-    }
-
-    return url;
+    return {
+      url,
+      time: new Date().toISOString(),
+      entries: transactions.length,
+      customers: customers.length
+    };
   } catch (err) {
     console.error('Excel auto-save error:', err);
     return null;
@@ -88,11 +84,13 @@ export const autoSaveToExcel = (transactions = [], customers = []) => {
 };
 
 export const downloadBackup = (transactions, customers) => {
-  const url = autoSaveToExcel(transactions, customers);
-  if (url) {
+  const saveInfo = autoSaveToExcel(transactions, customers);
+  if (saveInfo && saveInfo.url) {
     const a = document.createElement('a');
-    a.href = url;
+    a.href = saveInfo.url;
     a.download = `AccountManager_Backup_${getLocalDateString()}.xlsx`;
     a.click();
+    return saveInfo;
   }
+  return null;
 };

@@ -11,6 +11,7 @@ import { getAppDetails } from '../utils/paymentApps';
 import AnimatedNumber from '../components/AnimatedNumber';
 
 const Statements = () => {
+  const { customPaymentApps } = useAuth();
   const [allTransactions, setAllTransactions] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -333,9 +334,9 @@ const Statements = () => {
                           <td>
                             <div className="d-flex align-items-center gap-1">
                               <div style={{ transform: 'scale(0.6)', transformOrigin: 'left center', width: 20 }}>
-                                {getAppDetails(t.paymentApp || t.paymentMethod || 'Cash').logo}
+                                {getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).logo}
                               </div>
-                              <span className="small fw-semibold" style={{ color: getAppDetails(t.paymentApp || t.paymentMethod || 'Cash').color }}>
+                              <span className="small fw-semibold" style={{ color: getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).color }}>
                                 {t.paymentApp || t.paymentMethod || 'Cash'}
                               </span>
                             </div>

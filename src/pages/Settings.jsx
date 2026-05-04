@@ -37,7 +37,7 @@ const Settings = () => {
         phone: userData.phone || '',
         profilePic: userData.profilePic || currentUser?.photoURL || ''
       });
-      setAppLogo(localStorage.getItem(`appLogo_${currentUser?.uid}`) || '');
+      setAppLogo(userData.appLogo || '');
     }
   }, [userData, currentUser]);
 
@@ -51,9 +51,9 @@ const Settings = () => {
         firstName: userForm.firstName,
         lastName: userForm.lastName,
         phone: userForm.phone,
-        profilePic: userForm.profilePic
+        profilePic: userForm.profilePic,
+        appLogo: appLogo
       });
-      localStorage.setItem(`appLogo_${currentUser?.uid}`, appLogo);
       setProfileStatus({ loading: false, message: 'Profile updated successfully!', error: '' });
       setTimeout(() => setProfileStatus({ loading: false, message: '', error: '' }), 3000);
     } catch (err) {
