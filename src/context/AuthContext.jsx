@@ -8,9 +8,11 @@ import {
   signInWithPopup,
   sendPasswordResetEmail,
   updatePassword as firebaseUpdatePassword,
-  sendEmailVerification
+  sendEmailVerification,
+  getRedirectResult
 } from "firebase/auth";
 import { auth, db, googleProvider } from "../firebase";
+import { signInWithRedirect } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const AuthContext = createContext();
@@ -138,6 +140,16 @@ export const AuthProvider = ({ children }) => {
         throw new Error("This domain is not authorized for Google Login. Please check Firebase console.");
       } else if (error.code === 'auth/operation-not-allowed') {
         throw new Error("Google login is not enabled in Firebase. Please enable it in the console.");
+      } else if (error.code === 'auth/popup-blocked') {
+        // Fallback to redirect flow if popup is blocked
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          // After redirect, the auth state listener will handle user data
+          return null;
+        } catch (redirectError) {
+          console.error("Redirect login failed:", redirectError);
+          throw redirectError;
+        }
       } else {
         throw error;
       }
@@ -155,6 +167,33 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // Handle redirect result
+    getRedirectResult(auth).then(async (result) => {
+      if (result) {
+        const user = result.user;
+        const docRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+           const names = user.displayName ? user.displayName.split(' ') : ['User'];
+           await setDoc(docRef, {
+            uid: user.uid,
+            firstName: names[0],
+            lastName: names.slice(1).join(' ') || '',
+            email: user.email,
+            phone: user.phoneNumber || '',
+            profilePic: user.photoURL || '',
+            customCategories: [],
+            customPaymentApps: [],
+            appLogo: '',
+            dismissedNotifications: [],
+            lastAutoSave: null,
+            role: 'user',
+            createdAt: new Date().toISOString()
+           });
+        }
+      }
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
