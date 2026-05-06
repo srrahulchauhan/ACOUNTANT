@@ -15,7 +15,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, loginAsGuest } = useAuth();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -28,6 +28,20 @@ const Login = () => {
     } catch (err) {
       console.error(err);
       setError('Google login failed: ' + (err.message || 'Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await loginAsGuest();
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+      setError('Free Use login failed: ' + (err.message || 'Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -80,6 +94,12 @@ const Login = () => {
             <div className="col-12 mb-2">
               <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGoogleLogin} disabled={loading}>
                 <FcGoogle size={24} /> <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue with Google</span>
+              </button>
+            </div>
+
+            <div className="col-12 mb-2 mt-3">
+              <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGuestLogin} disabled={loading} style={{ backgroundColor: '#f8fafc', borderColor: '#cbd5e1' }}>
+                <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue for Free (Guest)</span>
               </button>
             </div>
 

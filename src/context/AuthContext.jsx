@@ -161,6 +161,26 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
+  // Guest Login (Free Use)
+  const loginAsGuest = async () => {
+    const guestEmail = "freeuse@account.com";
+    const guestPass = "freeuse123";
+    try {
+      await signInWithEmailAndPassword(auth, guestEmail, guestPass);
+    } catch (error) {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+        try {
+          await register(guestEmail, guestPass, "Free", "User", "");
+        } catch (regError) {
+          console.error("Guest registration failed:", regError);
+          throw new Error("Failed to create free use account.");
+        }
+      } else {
+        throw error;
+      }
+    }
+  };
+
   // Logout
   const logout = () => {
     return signOut(auth);
@@ -170,43 +190,55 @@ export const AuthProvider = ({ children }) => {
     // Handle redirect result
     getRedirectResult(auth).then(async (result) => {
       if (result) {
-        const user = result.user;
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) {
-           const names = user.displayName ? user.displayName.split(' ') : ['User'];
-           await setDoc(docRef, {
-            uid: user.uid,
-            firstName: names[0],
-            lastName: names.slice(1).join(' ') || '',
-            email: user.email,
-            phone: user.phoneNumber || '',
-            profilePic: user.photoURL || '',
-            customCategories: [],
-            customPaymentApps: [],
-            appLogo: '',
-            dismissedNotifications: [],
-            lastAutoSave: null,
-            role: 'user',
-            createdAt: new Date().toISOString()
-           });
+        try {
+          const user = result.user;
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (!docSnap.exists()) {
+             const names = user.displayName ? user.displayName.split(' ') : ['User'];
+             await setDoc(docRef, {
+              uid: user.uid,
+              firstName: names[0],
+              lastName: names.slice(1).join(' ') || '',
+              email: user.email,
+              phone: user.phoneNumber || '',
+              profilePic: user.photoURL || '',
+              customCategories: [],
+              customPaymentApps: [],
+              appLogo: '',
+              dismissedNotifications: [],
+              lastAutoSave: null,
+              role: 'user',
+              createdAt: new Date().toISOString()
+             });
+          }
+        } catch (error) {
+          console.error("Error handling redirect result in Firestore:", error);
         }
       }
+    }).catch(error => {
+      console.error("Redirect Error:", error);
     });
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        // Fetch additional user data from Firestore
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserData(docSnap.data());
+        try {
+          // Fetch additional user data from Firestore
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setUserData(docSnap.data());
+          }
+        } catch (error) {
+          console.error("Error fetching user data on auth state change:", error);
+        } finally {
+          setLoading(false);
         }
       } else {
         setUserData(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return unsubscribe;
@@ -218,6 +250,7 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     loginWithGoogle,
+    loginAsGuest,
     logout,
     resetPassword,
     updatePassword,
