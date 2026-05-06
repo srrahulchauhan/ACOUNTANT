@@ -1,6 +1,5 @@
 import * as XLSX from 'xlsx';
 import { getLocalDateString } from './dateUtils';
-import { auth } from '../firebase';
 // Auto-save all data to Excel after every change
 const DATA_KEY_TRANSACTIONS = 'demo_transactions';
 const DATA_KEY_CUSTOMERS = 'demo_customers';
@@ -70,7 +69,6 @@ export const autoSaveToExcel = (transactions = [], customers = []) => {
     const blob = new Blob([wbout], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     
-    const userId = auth.currentUser?.uid;
     return {
       url,
       time: new Date().toISOString(),

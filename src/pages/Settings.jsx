@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MdPerson, MdLock, MdDeleteForever, MdSecurity, MdNotifications, MdLogout, MdCloud, MdCheckCircle } from 'react-icons/md';
-import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -148,22 +147,8 @@ const Settings = () => {
       try {
         const uid = currentUser.uid;
 
-        // 1. Delete all transactions
-        const transSnap = await getDocs(collection(db, "transactions"));
-        const userTrans = transSnap.docs.filter(d => d.data().userId === uid);
-        for (const t of userTrans) {
-          await deleteDoc(doc(db, "transactions", t.id));
-        }
-
-        // 2. Delete all customers
-        const custSnap = await getDocs(collection(db, "customers"));
-        const userCust = custSnap.docs.filter(d => d.data().userId === uid);
-        for (const c of userCust) {
-          await deleteDoc(doc(db, "customers", c.id));
-        }
-
-        // 3. Delete user profile doc
-        await deleteDoc(doc(db, "users", uid));
+        localStorage.removeItem('account_transactions');
+        localStorage.removeItem('account_customers');
 
         alert("Account and all data deleted successfully. We're sorry to see you go!");
         
@@ -343,7 +328,7 @@ const Settings = () => {
                 <div className="card bg-light border-0 rounded-4 p-4 p-md-5">
                   <h5 className="fw-700 mb-4">Change Password</h5>
                   <div className="row g-4">
-                    {/* Note: In Firebase Auth, if a user logged in recently, they can change password without old password. Otherwise they might need re-auth. We are keeping it simple. */}
+                    {/* Note: Password update is processed locally. We are keeping it simple. */}
                     <div className="col-md-6">
                       <label className="form-label small fw-700 text-muted text-uppercase mb-2">New Password</label>
                       <input type="password" name="newPassword" value={passwords.newPassword} onChange={handlePasswordChange} className="form-control form-control-lg bg-white border-0 rounded-3 fs-6 shadow-sm" placeholder="••••••••" />
