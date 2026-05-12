@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MdMenu, MdSearch, MdCloudDone, MdDownload } from 'react-icons/md';
+import { MdMenu, MdSearch, MdCloudDone, MdDownload, MdTrendingDown } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import NotificationBell from '../components/NotificationBell';
 import { fetchTransactions, fetchCustomers } from '../api';
@@ -214,6 +214,29 @@ const TopNavbar = ({ toggleSidebar }) => {
       </div>
 
       <div className="d-flex align-items-center gap-2 gap-md-3">
+        {/* Compact Daily Spend Tracker */}
+        <div 
+          className="d-none d-sm-flex align-items-center bg-danger bg-opacity-10 border border-danger border-opacity-10 rounded-pill px-3 py-1 cursor-pointer" 
+          style={{ fontSize: '0.8rem', cursor: 'pointer' }}
+          onClick={() => navigate('/dashboard')}
+          title="Today's Total Spend"
+        >
+          <MdTrendingDown className="text-danger me-1" size={16} />
+          <span className="text-danger fw-bold">
+            ₹{transactions
+              .filter(t => {
+                const d = new Date(t.date);
+                const today = new Date();
+                return d.getDate() === today.getDate() && 
+                       d.getMonth() === today.getMonth() && 
+                       d.getFullYear() === today.getFullYear() &&
+                       (t.type === 'Debit' || t.type === 'EMI');
+              })
+              .reduce((s, t) => s + Number(t.amount), 0)
+              .toLocaleString('en-IN')}
+          </span>
+        </div>
+
         {/* Compact Auto-Save Indicator */}
         <div className="d-none d-lg-flex align-items-center bg-success bg-opacity-10 border border-success border-opacity-10 rounded-pill px-2 py-1" style={{ fontSize: '0.7rem' }} title={lastSave ? `Last saved: ${new Date(lastSave.time).toLocaleTimeString('en-IN')}` : 'Auto-saving enabled'}>
           <div className="pulse-dot bg-success me-1"></div>
