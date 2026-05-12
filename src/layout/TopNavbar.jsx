@@ -200,8 +200,24 @@ const TopNavbar = ({ toggleSidebar }) => {
         `}</style>
       </div>
 
-      <div className="d-flex align-items-center gap-3 gap-md-4">
+      <div className="d-flex align-items-center gap-2 gap-md-3">
+        {/* Mini Auto-Save Icon */}
+        <div className="d-flex align-items-center gap-1 px-2 py-1 rounded-pill bg-light border" title="Auto-Save Live: Saved to cloud" style={{ cursor: 'help' }}>
+          <MdCloudDone className="text-success" size={18} />
+          <span className="d-none d-lg-inline fw-bold text-success" style={{ fontSize: '0.65rem' }}>LIVE</span>
+        </div>
+
+        {/* Mini Download Action */}
+        <button 
+          className="btn btn-link p-0 text-success border-0 box-shadow-none d-flex align-items-center justify-content-center" 
+          title="Download Backup"
+          style={{ width: '35px', height: '35px', backgroundColor: '#f0fdf4', borderRadius: '50%' }}
+        >
+          <MdDownload size={20} />
+        </button>
+
         <NotificationBell transactions={transactions} />
+        
         <div className="dropdown">
           <button 
             className="btn btn-link p-0 dropdown-toggle text-decoration-none d-flex align-items-center" 
