@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-
-import { MdDelete, MdEdit, MdSearch, MdFilterList, MdSave, MdClose, MdShare, MdPictureAsPdf, MdTableChart, MdWhatsapp, MdEmail, MdSms } from 'react-icons/md';
+import { useSearchParams, Link } from 'react-router-dom';
+import { 
+  MdDelete, MdEdit, MdSearch, MdFilterList, MdSave, MdClose, MdShare, 
+  MdPictureAsPdf, MdTableChart, MdWhatsapp, MdEmail, MdSms, MdArrowBack,
+  MdCheckCircle, MdTrendingUp, MdTrendingDown
+} from 'react-icons/md';
 import { fetchTransactions, deleteTransaction, updateTransaction } from '../api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -9,6 +12,7 @@ import * as XLSX from 'xlsx';
 import { getLocalDateString } from '../utils/dateUtils';
 import { getAppDetails } from '../utils/paymentApps';
 import AnimatedNumber from '../components/AnimatedNumber';
+import { useAuth } from '../context/AuthContext';
 
 const Statements = () => {
   const { customPaymentApps } = useAuth();
@@ -28,7 +32,6 @@ const Statements = () => {
     const s = searchParams.get('search');
     if (s) setSearch(s);
   }, [searchParams]);
-
 
   const loadData = async () => {
     setLoading(true);
@@ -55,9 +58,9 @@ const Statements = () => {
     setTransactions(data);
   }, [allTransactions, search, filterMonth, filterYear]);
 
-  const handleSearch = (e) => { e.preventDefault(); };
-  const handleDelete = async (id) => { if (!window.confirm('Delete?')) return; await deleteTransaction(id); setAllTransactions(p => p.filter(t => t._id !== id)); };
+  const handleDelete = async (id) => { if (!window.confirm('Delete this entry?')) return; await deleteTransaction(id); setAllTransactions(p => p.filter(t => t._id !== id)); };
   const handleDeleteSelected = async () => { if (!window.confirm(`Delete ${selected.length} entries?`)) return; for (const id of selected) await deleteTransaction(id); setAllTransactions(p => p.filter(t => !selected.includes(t._id))); setSelected([]); };
+  
   const startEdit = (t) => {
     setEditId(t._id);
     setEditData({
@@ -71,29 +74,17 @@ const Statements = () => {
     });
   };
   const saveEdit = async () => { await updateTransaction(editId, editData); setAllTransactions(p => p.map(t => t._id === editId ? { ...t, ...editData } : t)); setEditId(null); };
+  
   const toggleSelect = (id) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-  const toggleAll = () => setSelected(selected.length === transactions.length ? [] : transactions.map(t => t._id));
+  const toggleAll = () => setSelected(selected.length === transactions.length && transactions.length > 0 ? [] : transactions.map(t => t._id));
 
   const totalCredit = transactions.filter(t => t.type === 'Credit').reduce((s, t) => s + Number(t.amount), 0);
-  const totalDebit = transactions.filter(t => t.type === 'Debit' || t.type === 'EMI').reduce((s, t) => s + Number(t.amount), 0);
+  const totalDebit = transactions.filter(t => t.type === 'Debit' || t.type === 'EMI' || t.type === 'Loan').reduce((s, t) => s + Number(t.amount), 0);
 
-
-  // Build text summary for sharing
-  const buildSummary = () => {
-    let text = `📊 *Statement Report*\n\nTotal Entries: ${transactions.length}\nTotal Credit: ₹${totalCredit.toLocaleString('en-IN')}\nTotal Debit: ₹${totalDebit.toLocaleString('en-IN')}\nNet: ₹${(totalCredit - totalDebit).toLocaleString('en-IN')}\n\n`;
-    transactions.forEach((t, i) => {
-      text += `${i + 1}. ${t.name} ${t.lastName || ''} | ${t.type} | ₹${Number(t.amount).toLocaleString('en-IN')} | ${new Date(t.date).toLocaleDateString('en-IN')}\n`;
-    });
-    return text;
-  };
-
-  // Export PDF
   const exportPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text('Statement Report', 14, 20);
-    doc.setFontSize(10);
-    doc.text(`Credit: ₹${totalCredit.toLocaleString('en-IN')} | Debit: ₹${totalDebit.toLocaleString('en-IN')} | Net: ₹${(totalCredit - totalDebit).toLocaleString('en-IN')}`, 14, 28);
     autoTable(doc, {
       startY: 35,
       head: [['#', 'Name', 'Date', 'Type', 'Amount', 'Description']],
@@ -102,7 +93,6 @@ const Statements = () => {
     doc.save('statement-report.pdf');
   };
 
-  // Export Excel
   const exportExcel = () => {
     const data = transactions.map((t, i) => ({ 'S.No': i + 1, Name: `${t.name} ${t.lastName || ''}`, Date: new Date(t.date).toLocaleDateString('en-IN'), Type: t.type, Amount: Number(t.amount), Category: t.category || 'General', Description: t.description || '' }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -111,285 +101,229 @@ const Statements = () => {
     XLSX.writeFile(wb, 'statement-report.xlsx');
   };
 
-  // Share via WhatsApp
+  const buildSummary = () => {
+    let text = `📊 *Statement Report*\n\nCredit: ₹${totalCredit.toLocaleString()}\nDebit: ₹${totalDebit.toLocaleString()}\nNet: ₹${(totalCredit - totalDebit).toLocaleString()}\n\n`;
+    transactions.slice(0, 10).forEach((t, i) => {
+      text += `${i + 1}. ${t.name} | ${t.type} | ₹${Number(t.amount).toLocaleString()} | ${new Date(t.date).toLocaleDateString()}\n`;
+    });
+    if (transactions.length > 10) text += `... and ${transactions.length - 10} more entries.`;
+    return text;
+  };
+
   const shareWhatsApp = () => { window.open(`https://wa.me/?text=${encodeURIComponent(buildSummary())}`, '_blank'); };
-  // Share via Email
-  const shareEmail = () => { window.open(`mailto:?subject=Statement Report&body=${encodeURIComponent(buildSummary())}`, '_blank'); };
-  // Share via SMS
-  const shareSMS = () => { window.open(`sms:?body=${encodeURIComponent(buildSummary())}`, '_blank'); };
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h3 className="fw-bold mb-0">Statements</h3>
-        <div className="position-relative">
-          <button
-            className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 shadow-sm"
-            style={{ borderRadius: 20 }}
-            onClick={() => setShowShare(!showShare)}
-          >
-            <MdShare /> Share / Export
-          </button>
-
-          {showShare && (
-            <div
-              className="position-absolute end-0 mt-2 shadow-lg"
-              style={{
-                zIndex: 9999, minWidth: 260,
-                background: '#fff', borderRadius: 16,
-                border: '1px solid #e5e7eb',
-                padding: 16, animation: 'fadeInDown 0.2s ease',
-              }}
-            >
-              {/* PDF Row */}
-              <div style={{ marginBottom: 10 }}>
-                <div className="text-muted fw-bold mb-2" style={{ fontSize: 10, letterSpacing: 1 }}>📄 PDF</div>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 fw-bold"
-                    style={{ background: '#ef4444', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={exportPDF}
-                  >
-                    <MdPictureAsPdf size={16} /> Download
-                  </button>
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 fw-bold"
-                    style={{ background: '#25D366', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={() => { exportPDF(); setTimeout(shareWhatsApp, 800); }}
-                    title="PDF download karke WhatsApp open karega"
-                  >
-                    <MdWhatsapp size={16} /> WhatsApp
-                  </button>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Header Area */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+           <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors mb-2">
+              <MdArrowBack size={14} /> Back to Dashboard
+           </Link>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Statements</h2>
+          <p className="text-sm font-medium text-gray-500">Detailed transaction ledger and history</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+           <button 
+             onClick={() => setShowShare(!showShare)}
+             className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 rounded-2xl font-bold shadow-sm hover:bg-gray-50 transition-all text-sm relative"
+           >
+              <MdShare size={18} className="text-primary" /> Export / Share
+              {showShare && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-premium border border-gray-50 p-4 z-50 animate-in slide-in-from-top-2">
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Download Files</p>
+                   <div className="grid grid-cols-2 gap-2 mb-4">
+                      <button onClick={exportPDF} className="flex flex-col items-center gap-1 p-3 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors">
+                         <MdPictureAsPdf size={20} /> <span className="text-[9px] font-black uppercase">PDF</span>
+                      </button>
+                      <button onClick={exportExcel} className="flex flex-col items-center gap-1 p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors">
+                         <MdTableChart size={20} /> <span className="text-[9px] font-black uppercase">Excel</span>
+                      </button>
+                   </div>
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Share Report</p>
+                   <div className="grid grid-cols-3 gap-2">
+                      <button onClick={shareWhatsApp} className="p-2 bg-emerald-500 text-white rounded-xl flex justify-center hover:bg-emerald-600 transition-colors"><MdWhatsapp size={18}/></button>
+                      <button onClick={() => window.open(`mailto:?subject=Report&body=${encodeURIComponent(buildSummary())}`)} className="p-2 bg-blue-500 text-white rounded-xl flex justify-center hover:bg-blue-600 transition-colors"><MdEmail size={18}/></button>
+                      <button onClick={() => window.open(`sms:?body=${encodeURIComponent(buildSummary())}`)} className="p-2 bg-gray-700 text-white rounded-xl flex justify-center hover:bg-gray-800 transition-colors"><MdSms size={18}/></button>
+                   </div>
                 </div>
-              </div>
+              )}
+           </button>
+        </div>
+      </div>
 
-              {/* Excel Row */}
-              <div style={{ marginBottom: 12 }}>
-                <div className="text-muted fw-bold mb-2" style={{ fontSize: 10, letterSpacing: 1 }}>📊 EXCEL</div>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 fw-bold"
-                    style={{ background: '#10b981', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={exportExcel}
-                  >
-                    <MdTableChart size={16} /> Download
-                  </button>
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 fw-bold"
-                    style={{ background: '#25D366', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={() => { exportExcel(); setTimeout(shareWhatsApp, 800); }}
-                    title="Excel download karke WhatsApp open karega"
-                  >
-                    <MdWhatsapp size={16} /> WhatsApp
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10 }}>
-                <div className="text-muted fw-bold mb-2" style={{ fontSize: 10, letterSpacing: 1 }}>📤 TEXT SHARE</div>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1"
-                    style={{ background: '#25D366', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={shareWhatsApp}
-                  >
-                    <MdWhatsapp size={15} /> WhatsApp
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-primary flex-fill d-flex align-items-center justify-content-center gap-1"
-                    style={{ borderRadius: 10, fontSize: 12 }}
-                    onClick={shareEmail}
-                  >
-                    <MdEmail size={15} /> Email
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1"
-                    style={{ borderRadius: 10, fontSize: 12 }}
-                    onClick={shareSMS}
-                  >
-                    <MdSms size={15} /> SMS
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-muted mb-0 mt-2" style={{ fontSize: 9, lineHeight: 1.4 }}>
-                💡 WhatsApp button: pehle file download hogi, phir WhatsApp mein summary open hogi. File manually attach karein.
-              </p>
-
-              <style>{`
-                @keyframes fadeInDown {
-                  from { opacity:0; transform:translateY(-8px); }
-                  to   { opacity:1; transform:translateY(0); }
-                }
-              `}</style>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+         <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Entries</p>
+               <h4 className="text-2xl font-black text-gray-900"><AnimatedNumber value={transactions.length} /></h4>
             </div>
-          )}
-        </div>
+            <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400"><MdSearch size={24}/></div>
+         </div>
+         <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Credit</p>
+               <h4 className="text-2xl font-black text-emerald-600"><AnimatedNumber prefix="₹" value={totalCredit} isCurrency={true} /></h4>
+            </div>
+            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500"><MdTrendingUp size={24}/></div>
+         </div>
+         <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between">
+            <div>
+               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Debit</p>
+               <h4 className="text-2xl font-black text-rose-600"><AnimatedNumber prefix="₹" value={totalDebit} isCurrency={true} /></h4>
+            </div>
+            <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500"><MdTrendingDown size={24}/></div>
+         </div>
       </div>
 
-      {/* Summary */}
-      <div className="row g-3 mb-4">
-        <div className="col-4"><div className="card modern-card p-3 text-center"><small className="text-muted">Entries</small><h5 className="fw-bold mb-0"><AnimatedNumber value={transactions.length} /></h5></div></div>
-        <div className="col-4"><div className="card modern-card p-3 text-center"><small className="text-muted">Credit</small><h5 className="fw-bold text-success mb-0"><AnimatedNumber prefix="₹" value={totalCredit} isCurrency={true} /></h5></div></div>
-        <div className="col-4"><div className="card modern-card p-3 text-center"><small className="text-muted">Debit</small><h5 className="fw-bold text-danger mb-0"><AnimatedNumber prefix="₹" value={totalDebit} isCurrency={true} /></h5></div></div>
+      {/* Toolbar & Filters */}
+      <div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row items-center gap-4">
+         <div className="relative flex-grow w-full">
+            <MdSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={20} />
+            <input 
+              type="text" 
+              placeholder="Search name, category, notes..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl text-sm font-bold focus:bg-white focus:border-primary transition-all outline-none"
+            />
+         </div>
+         <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="flex-1 md:w-32">
+               <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl text-xs font-bold focus:bg-white focus:border-primary outline-none">
+                  <option value="">All Months</option>
+                  {[...Array(12)].map((_, i) => <option key={i} value={i + 1}>{new Date(0, i).toLocaleString('en', { month: 'short' })}</option>)}
+               </select>
+            </div>
+            <div className="flex-1 md:w-32">
+               <select value={filterYear} onChange={e => setFilterYear(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl text-xs font-bold focus:bg-white focus:border-primary outline-none">
+                  <option value="">All Years</option>
+                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+               </select>
+            </div>
+         </div>
+         {selected.length > 0 && (
+           <button onClick={handleDeleteSelected} className="flex items-center gap-2 px-4 py-3 bg-rose-500 text-white rounded-xl text-sm font-black shadow-lg shadow-rose-100 animate-in slide-in-from-right-4">
+              <MdDelete size={18} /> Delete {selected.length}
+           </button>
+         )}
       </div>
 
-      {/* Filters */}
-      <div className="card modern-card p-3 mb-4">
-        <div className="row g-2 align-items-end">
-          <div className="col-12 col-md-4">
-            <form onSubmit={handleSearch} className="input-group">
-              <span className="input-group-text bg-transparent"><MdSearch /></span>
-              <input type="text" className="form-control" placeholder="Search name, description..." value={search} onChange={e => setSearch(e.target.value)} />
-              <button className="btn btn-primary" type="submit">Search</button>
-            </form>
-          </div>
-          <div className="col-6 col-md-2">
-            <label className="form-label small text-muted mb-1"><MdFilterList /> Month</label>
-            <select className="form-select form-select-sm" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
-              <option value="">All</option>
-              {[...Array(12)].map((_, i) => <option key={i} value={i + 1}>{new Date(0, i).toLocaleString('en', { month: 'short' })}</option>)}
-            </select>
-          </div>
-          <div className="col-6 col-md-2">
-            <label className="form-label small text-muted mb-1">Year</label>
-            <select className="form-select form-select-sm" value={filterYear} onChange={e => setFilterYear(e.target.value)}>
-              <option value="">All</option>
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <div className="col-12 col-md-4 text-end">
-            {selected.length > 0 && <button className="btn btn-danger btn-sm" onClick={handleDeleteSelected}><MdDelete /> Delete {selected.length}</button>}
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="card modern-card p-0 overflow-hidden">
-        {loading ? (
-          <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
-        ) : transactions.length === 0 ? (
-          <p className="text-center text-muted py-5">No transactions found.</p>
-        ) : (
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0">
-              <thead className="bg-light">
-                <tr className="small text-muted">
-                  <th><input type="checkbox" checked={selected.length === transactions.length && transactions.length > 0} onChange={toggleAll} /></th>
-                  <th>Name</th><th>Date</th><th>Payment</th><th>Type</th><th className="text-end">Amount</th><th>Description</th><th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  let lastMonth = null;
-                  return transactions.map((t, idx) => {
-                    const date = new Date(t.date);
-                    const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-                    const isNewMonth = monthYear !== lastMonth;
-                    lastMonth = monthYear;
-                    
-                    const isEmiPaid = ['EMI', 'Loan', 'Advance Payment'].includes(t.type) && ['Paid', 'Success', 'Advance Paid', 'EMI Paid'].includes(t.status);
-                    
-                    return (
-                      <React.Fragment key={t._id}>
-                        {isNewMonth && (
-                          <tr className="bg-light bg-opacity-50">
-                            <td colSpan="8" className="py-2 px-3">
-                              <span className="badge bg-secondary bg-opacity-10 text-secondary fw-bold text-uppercase" style={{ letterSpacing: 1, fontSize: '0.65rem' }}>
-                                📅 {monthYear}
-                              </span>
-                            </td>
-                          </tr>
-                        )}
-                        <tr className={`${selected.includes(t._id) ? 'table-active ' : ''}${isEmiPaid ? 'table-success' : ''}`}>
-                          <td><input type="checkbox" checked={selected.includes(t._id)} onChange={() => toggleSelect(t._id)} /></td>
-                          <td className="fw-semibold">
-                            {editId === t._id ? (
-                              <div className="d-flex gap-1">
-                                <input className="form-control form-control-sm" value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} style={{width:80}} />
-                                <input className="form-control form-control-sm" value={editData.lastName} onChange={e => setEditData({...editData, lastName: e.target.value})} style={{width:80}} />
-                              </div>
-                            ) : `${t.name} ${t.lastName || ''}`}
-                          </td>
-                          <td className="small text-muted" style={{minWidth: 120}}>
-                            {editId === t._id ? (
-                              <div className="d-flex flex-column gap-1">
-                                <input type="date" className="form-control form-control-sm" value={editData.date} onChange={e => setEditData({...editData, date: e.target.value})} title="Entry Date" />
-                                {editData.type === 'EMI' && (
-                                  <input type="date" className="form-control form-control-sm mt-1 border-danger" value={editData.dueDate || ''} onChange={e => setEditData({...editData, dueDate: e.target.value})} title="Due Date" />
-                                )}
-                              </div>
-                            ) : (
-                              <div>
-                                {new Date(t.date).toLocaleDateString('en-IN')}
-                                {(t.type === 'EMI' || t.type === 'Loan') && t.dueDate && (
-                                  <div className="text-danger mt-1 fw-bold" style={{fontSize: '0.7rem'}}>
-                                    {t.type === 'Loan' ? 'Interest Due: ' : 'Due: '}
-                                    {new Date(t.dueDate).toLocaleDateString('en-IN')}
+      {/* Main Table */}
+      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+         {loading ? (
+           <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Compiling history...</p>
+           </div>
+         ) : transactions.length === 0 ? (
+           <div className="text-center py-20 text-gray-400">
+              <MdSearch size={48} className="mx-auto mb-4 opacity-20" />
+              <p className="font-bold">No transactions found matching your criteria</p>
+           </div>
+         ) : (
+           <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                 <thead>
+                    <tr className="border-b border-gray-50 bg-gray-50/50">
+                       <th className="py-5 px-6">
+                          <input type="checkbox" checked={selected.length === transactions.length && transactions.length > 0} onChange={toggleAll} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                       </th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Details</th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category / Mode</th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Actions</th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-50">
+                    {(() => {
+                      let lastMonth = null;
+                      return transactions.map((t) => {
+                        const date = new Date(t.date);
+                        const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                        const isNewMonth = monthYear !== lastMonth;
+                        lastMonth = monthYear;
+                        const isEditing = editId === t._id;
+                        
+                        return (
+                          <React.Fragment key={t._id}>
+                            {isNewMonth && (
+                               <tr className="bg-gray-50/30">
+                                  <td colSpan="6" className="py-3 px-6">
+                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{monthYear}</span>
+                                  </td>
+                               </tr>
+                            )}
+                            <tr className={`hover:bg-gray-50/80 transition-colors ${selected.includes(t._id) ? 'bg-primary/5' : ''}`}>
+                               <td className="py-4 px-6">
+                                  <input type="checkbox" checked={selected.includes(t._id)} onChange={() => toggleSelect(t._id)} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                               </td>
+                               <td className="py-4 px-4 min-w-[200px]">
+                                  {isEditing ? (
+                                    <div className="flex gap-1 mb-1">
+                                       <input className="px-2 py-1 bg-gray-50 border rounded text-xs font-bold" value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} />
+                                       <input className="px-2 py-1 bg-gray-50 border rounded text-xs font-bold" value={editData.lastName} onChange={e => setEditData({...editData, lastName: e.target.value})} />
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm font-black text-gray-900 mb-0.5">{t.name} {t.lastName || ''}</p>
+                                  )}
+                                  <div className="flex items-center gap-2">
+                                     <span className="text-[10px] font-bold text-gray-400">{new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
+                                     {t.description && <span className="text-[10px] text-gray-300 italic truncate max-w-[150px]">" {t.description} "</span>}
                                   </div>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center gap-1">
-                              <div style={{ transform: 'scale(0.6)', transformOrigin: 'left center', width: 20 }}>
-                                {getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).logo}
-                              </div>
-                              <span className="small fw-semibold" style={{ color: getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).color }}>
-                                {t.paymentApp || t.paymentMethod || 'Cash'}
-                              </span>
-                            </div>
-                          </td>
-                          <td>
-                            {editId === t._id ? (
-                              <select className="form-select form-select-sm" value={editData.type} onChange={e => setEditData({...editData, type: e.target.value})} style={{width:90}}>
-                                <option>Credit</option>
-                                <option>Debit</option>
-                                <option>EMI</option>
-                                <option>Loan</option>
-                                <option>Advance Payment</option>
-                              </select>
-                            ) : (
-                              <span className={`badge bg-${
-                                t.type === 'Credit' ? 'success' : 
-                                t.type === 'Debit' ? 'danger' : 
-                                t.type === 'EMI' ? 'warning' : 'info'
-                              } bg-opacity-10 text-${
-                                t.type === 'Credit' ? 'success' : 
-                                t.type === 'Debit' ? 'danger' : 
-                                t.type === 'EMI' ? 'warning' : 'info'
-                              } px-2 py-1 rounded-pill`}>
-                                {t.type} { (t.type === 'EMI' || t.type === 'Loan') && `- ${t.status || 'Pending'}`}
-                              </span>
-                            )}
-                          </td>
-                          <td className={`text-end fw-bold text-${
-                            t.type === 'Credit' ? 'success' : 
-                            (t.type === 'Debit' || t.type === 'EMI' || t.type === 'Loan') ? 'danger' : 'warning'
-                          }`}>
-                            {editId === t._id ? <input type="number" className="form-control form-control-sm text-end" value={editData.amount} onChange={e => setEditData({...editData, amount: e.target.value})} style={{width:100}} /> : `${(t.type==='Debit' || t.type === 'EMI' || t.type === 'Loan') ?'-':'+'}₹${Number(t.amount).toLocaleString('en-IN')}`}
-                          </td>
-                          <td className="small text-muted text-truncate" style={{maxWidth:150}}>
-                            {editId === t._id ? <input className="form-control form-control-sm" value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} /> : (t.description || '-')}
-                          </td>
-                          <td className="text-center">
-                            {editId === t._id ? (
-                              <div className="d-flex gap-1 justify-content-center"><button className="btn btn-success btn-sm" onClick={saveEdit}><MdSave /></button><button className="btn btn-secondary btn-sm" onClick={() => setEditId(null)}><MdClose /></button></div>
-                            ) : (
-                              <div className="d-flex gap-1 justify-content-center"><button className="btn btn-outline-primary btn-sm" onClick={() => startEdit(t)}><MdEdit /></button><button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete(t._id)}><MdDelete /></button></div>
-                            )}
-                          </td>
-                        </tr>
-                      </React.Fragment>
-                    );
-                  });
-                })()}
-              </tbody>
-
-            </table>
-          </div>
-        )}
+                               </td>
+                               <td className="py-4 px-4">
+                                  <div className="flex items-center gap-2">
+                                     <div className="scale-75 -ml-2">{getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).logo}</div>
+                                     <div>
+                                        <p className="text-[10px] font-black text-gray-700 uppercase tracking-tighter leading-none mb-1">{t.category || 'General'}</p>
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{t.paymentApp || t.paymentMethod || 'Cash'}</p>
+                                     </div>
+                                  </div>
+                               </td>
+                               <td className="py-4 px-4">
+                                  <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter ${
+                                    t.type === 'Credit' ? 'bg-emerald-100 text-emerald-700' : 
+                                    t.type === 'Debit' ? 'bg-rose-100 text-rose-700' : 
+                                    'bg-amber-100 text-amber-700'
+                                  }`}>
+                                     {t.type}
+                                  </span>
+                               </td>
+                               <td className="py-4 px-4 text-right">
+                                  <p className={`text-sm font-black ${
+                                    t.type === 'Credit' ? 'text-emerald-600' : 'text-rose-600'
+                                  }`}>
+                                     {t.type === 'Credit' ? '+' : '-'}₹{Number(t.amount).toLocaleString()}
+                                  </p>
+                               </td>
+                               <td className="py-4 px-4">
+                                  <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                     {isEditing ? (
+                                        <div className="flex gap-1">
+                                           <button onClick={saveEdit} className="p-2 bg-emerald-500 text-white rounded-lg"><MdSave size={14}/></button>
+                                           <button onClick={() => setEditId(null)} className="p-2 bg-gray-200 text-gray-500 rounded-lg"><MdClose size={14}/></button>
+                                        </div>
+                                     ) : (
+                                        <div className="flex gap-1">
+                                           <button onClick={() => startEdit(t)} className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-all"><MdEdit size={16}/></button>
+                                           <button onClick={() => handleDelete(t._id)} className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"><MdDelete size={16}/></button>
+                                        </div>
+                                     )}
+                                  </div>
+                               </td>
+                            </tr>
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
+                 </tbody>
+              </table>
+           </div>
+         )}
       </div>
     </div>
   );

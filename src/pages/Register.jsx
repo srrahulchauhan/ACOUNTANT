@@ -6,8 +6,8 @@ import {
   MdPhone, 
   MdLock, 
   MdCheckCircle, 
-  MdArrowForward,
-  MdShield
+  MdShield,
+  MdArrowBack
 } from 'react-icons/md';
 import { FcGoogle } from 'react-icons/fc';
 import { useAuth } from '../context/AuthContext';
@@ -38,7 +38,7 @@ const Register = () => {
       navigate('/');
     } catch (err) {
       console.error(err);
-      setError('Google registration failed: ' + (err.message || 'Please try again.'));
+      setError('Google registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ const Register = () => {
         formData.phone
       );
       setSuccess(true);
-      setTimeout(() => navigate('/'), 3000);
+      setTimeout(() => navigate('/'), 2000);
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {
@@ -73,176 +73,179 @@ const Register = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center py-5 px-3" style={{ backgroundColor: '#ffffff', fontFamily: "'Inter', sans-serif" }}>
-      
-      {/* Very subtle background glow */}
-      <div className="position-absolute top-0 start-50 translate-middle-x w-100 overflow-hidden" style={{ height: '500px', zIndex: 0, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '-200px', left: '50%', transform: 'translateX(-50%)', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(13,110,253,0.03) 0%, rgba(255,255,255,0) 70%)', borderRadius: '50%' }}></div>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Ornaments */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="container" style={{ position: 'relative', zIndex: 1, maxWidth: '540px' }}>
-        
-        {/* Logo/Brand */}
-        <div className="text-center mb-4">
-          <div className="d-inline-flex align-items-center justify-content-center bg-white rounded-4 shadow-sm mb-3 overflow-hidden" style={{ width: '64px', height: '64px' }}>
-            <img src={logo} alt="R Accounts Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <div className="w-full max-w-xl relative z-10">
+        {/* Logo and Welcome Section */}
+        <div className="text-center mb-8">
+           <Link to="/login" className="inline-flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors mb-4">
+              <MdArrowBack size={14} /> Back to Login
+           </Link>
+          <div className="flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-white rounded-2xl shadow-premium p-2.5">
+              <img src={logo} alt="Account Manager" className="w-full h-full object-contain" />
+            </div>
           </div>
-          <h2 className="fw-bold mb-1" style={{ color: '#0f172a', letterSpacing: '-0.5px', fontSize: '1.75rem' }}>Create an account</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Start your financial journey with R Accounts.</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Create Account</h1>
+          <p className="text-gray-500 font-medium mt-1">Join the ultimate finance suite today</p>
         </div>
 
-        <div className="card border-0 shadow-none" style={{ background: 'transparent' }}>
-          <div className="card-body p-0">
-            
-            {error && (
-              <div className="alert border-0 d-flex align-items-center gap-3 py-3 mb-4" 
-                   style={{ backgroundColor: '#fef2f2', color: '#dc2626', borderRadius: '12px' }}>
-                <MdLock size={20} className="flex-shrink-0" />
-                <div className="fw-medium small m-0">{error}</div>
-              </div>
-            )}
-
-            {success && (
-              <div className="alert border-0 d-flex align-items-center gap-3 py-3 mb-4" 
-                   style={{ backgroundColor: '#f0fdf4', color: '#16a34a', borderRadius: '12px' }}>
-                <MdCheckCircle size={20} className="flex-shrink-0" />
-                <div className="fw-medium small m-0">Account created successfully! Redirecting...</div>
-              </div>
-            )}
-
-            <div className="col-12 mb-2">
-              <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGoogleLogin} disabled={loading}>
-                <FcGoogle size={24} /> <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue with Google</span>
-              </button>
+        {/* Register Card */}
+        <div className="bg-white p-8 sm:p-10 rounded-[2.5rem] shadow-premium border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {error && (
+            <div className="mb-6 flex items-center gap-3 p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl text-sm font-bold">
+              <MdShield size={20} className="flex-shrink-0" />
+              {error}
             </div>
+          )}
 
-            <div className="col-12 text-center my-3">
-              <div className="d-flex align-items-center gap-3">
-                <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-                <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', letterSpacing: '1px' }}>OR CREATE MANUALLY</span>
-                <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-              </div>
+          {success && (
+            <div className="mb-6 flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-2xl text-sm font-bold">
+              <MdCheckCircle size={20} className="flex-shrink-0" />
+              Registration successful! Redirecting...
             </div>
+          )}
 
-            <form onSubmit={handleSubmit}>
-              <div className="col-sm-6">
-                <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>First Name</label>
-                <input type="text" className="form-control premium-input" name="firstName" placeholder="John" value={formData.firstName} onChange={handleChange} required />
-              </div>
-              <div className="col-sm-6">
-                <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>Last Name</label>
-                <input type="text" className="form-control premium-input" name="lastName" placeholder="Doe" value={formData.lastName} onChange={handleChange} required />
-              </div>
+          <button 
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 py-4 bg-white border-2 border-gray-100 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-200 transition-all active:scale-[0.98]"
+          >
+            <FcGoogle size={24} />
+            Sign up with Google
+          </button>
 
-              <div className="col-12 mt-3">
-                <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>Email Address</label>
-                <input type="email" className="form-control premium-input" name="email" placeholder="john@example.com" value={formData.email} onChange={handleChange} required />
-              </div>
-
-              <div className="col-12 mt-3">
-                <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>Phone Number</label>
-                <input type="tel" className="form-control premium-input" name="phone" placeholder="+91 00000 00000" value={formData.phone} onChange={handleChange} required />
-              </div>
-
-              <div className="col-sm-6 mt-3">
-                <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>Password</label>
-                <input type="password" className="form-control premium-input" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />
-              </div>
-              <div className="col-sm-6 mt-3">
-                <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>Confirm Password</label>
-                <input type="password" className="form-control premium-input" name="confirmPassword" placeholder="••••••••" value={formData.confirmPassword} onChange={handleChange} required />
-              </div>
-
-              <div className="col-12 mt-4 pt-2">
-                <button type="submit" className="btn btn-primary w-100 py-2 premium-btn d-flex align-items-center justify-content-center gap-2" disabled={loading}>
-                  {loading ? (
-                    <span className="spinner-border spinner-border-sm" role="status"></span>
-                  ) : (
-                    <span className="fw-semibold" style={{ fontSize: '1rem' }}>Create Account</span>
-                  )}
-                </button>
-              </div>
-
-              <div className="col-12 text-center mt-4 pt-2">
-                <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-                  Already have an account? <Link to="/login" className="text-primary fw-semibold text-decoration-none premium-link">Sign in</Link>
-                </p>
-              </div>
-            </form>
+          <div className="flex items-center gap-4 my-8">
+            <div className="h-px flex-grow bg-gray-100"></div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">or create manually</span>
+            <div className="h-px flex-grow bg-gray-100"></div>
           </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">First Name</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <MdPerson size={20} className="text-gray-300 group-focus-within:text-primary transition-colors" />
+                  </div>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
+                    placeholder="John"
+                    className="block w-full pl-11 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold placeholder-gray-300 focus:bg-white focus:border-primary transition-all outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Last Name</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  required
+                  placeholder="Doe"
+                  className="block w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold placeholder-gray-300 focus:bg-white focus:border-primary transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Email Address</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <MdEmail size={20} className="text-gray-300 group-focus-within:text-primary transition-colors" />
+                  </div>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    placeholder="john@example.com"
+                    className="block w-full pl-11 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold placeholder-gray-300 focus:bg-white focus:border-primary transition-all outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone Number</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <MdPhone size={20} className="text-gray-300 group-focus-within:text-primary transition-colors" />
+                  </div>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    required
+                    placeholder="+91 00000 00000"
+                    className="block w-full pl-11 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold placeholder-gray-300 focus:bg-white focus:border-primary transition-all outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Password</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <MdLock size={20} className="text-gray-300 group-focus-within:text-primary transition-colors" />
+                  </div>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    placeholder="••••••••"
+                    className="block w-full pl-11 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold placeholder-gray-300 focus:bg-white focus:border-primary transition-all outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Confirm Password</label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  placeholder="••••••••"
+                  className="block w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold placeholder-gray-300 focus:bg-white focus:border-primary transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/25 hover:bg-primary-dark hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:translate-y-0"
+            >
+              {loading ? "Creating Account..." : "Create Free Account"}
+            </button>
+          </form>
+
+          <p className="text-center mt-8 text-sm font-bold text-gray-500">
+            Already have an account? <Link to="/login" className="text-primary hover:underline">Sign in instead</Link>
+          </p>
         </div>
-        
-        <div className="text-center mt-5">
-          <p style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>© 2026 R Accounts Inc. All rights reserved.</p>
+
+        <div className="text-center mt-10">
+          <p className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">© 2026 Account Manager Inc. • Secure Platform</p>
         </div>
       </div>
-
-      <style>{`
-        .premium-input {
-          background-color: #ffffff;
-          border: 1px solid #cbd5e1;
-          border-radius: 10px;
-          padding: 0.65rem 1rem;
-          color: #0f172a;
-          font-weight: 500;
-          font-size: 0.95rem;
-          transition: all 0.2s ease;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-        }
-        
-        .premium-input::placeholder {
-          color: #94a3b8;
-          font-weight: 400;
-        }
-        
-        .premium-input:focus {
-          border-color: #0d6efd;
-          box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
-          outline: none;
-        }
-        
-        .premium-btn {
-          background-color: #0d6efd;
-          border: none;
-          border-radius: 10px;
-          padding: 0.75rem;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 6px -1px rgba(13, 110, 253, 0.2), 0 2px 4px -1px rgba(13, 110, 253, 0.1);
-        }
-        
-        .premium-btn:hover {
-          background-color: #0b5ed7;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 8px -1px rgba(13, 110, 253, 0.25), 0 3px 6px -1px rgba(13, 110, 253, 0.15);
-        }
-        
-        .premium-btn:active {
-          transform: translateY(0);
-        }
-        
-        .premium-btn-google {
-          background-color: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          padding: 0.75rem;
-          transition: all 0.2s ease;
-          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-        }
-        
-        .premium-btn-google:hover {
-          background-color: #f8fafc;
-          border-color: #cbd5e1;
-        }
-        
-        .premium-link {
-          transition: color 0.2s ease;
-        }
-        
-        .premium-link:hover {
-          color: #0b5ed7 !important;
-          text-decoration: underline !important;
-        }
-      `}</style>
     </div>
   );
 };

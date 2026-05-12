@@ -1,24 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MdPayment, MdCheckCircle, MdSchedule, MdWarning } from 'react-icons/md';
+import { MdPayment, MdCheckCircle, MdSchedule, MdWarning, MdArrowBack, MdFilterList, MdEdit, MdSave, MdClose } from 'react-icons/md';
 import { fetchTransactions, updateTransaction } from '../api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getLocalDateString } from '../utils/dateUtils';
-import { getAppDetails } from '../utils/paymentApps';
 import AnimatedNumber from '../components/AnimatedNumber';
 
 const StatCard = ({ title, value, prefix = '', suffix = '', icon, colorClass, description, isCurrency = false, decimals = 0 }) => (
-  <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm">
-    <div className="d-flex justify-content-between align-items-start">
-      <div>
-        <p className="text-muted small mb-1 fw-semibold">{title}</p>
-        <h3 className="fw-bold mb-0">
-          <AnimatedNumber value={value} prefix={prefix} suffix={suffix} isCurrency={isCurrency} decimals={decimals} />
-        </h3>
-        <small className="text-muted">{description}</small>
-      </div>
-      <div className={`bg-${colorClass} bg-opacity-10 text-${colorClass} p-2 p-lg-3 rounded-3`}>
-        {icon}
-      </div>
+  <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-premium transition-all">
+    <div className="space-y-1">
+      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{title}</p>
+      <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+        <AnimatedNumber value={value} prefix={prefix} suffix={suffix} isCurrency={isCurrency} decimals={decimals} />
+      </h3>
+      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{description}</p>
+    </div>
+    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${
+      colorClass === 'emerald' ? 'bg-emerald-50 text-emerald-500' :
+      colorClass === 'rose' ? 'bg-rose-50 text-rose-500' :
+      colorClass === 'blue' ? 'bg-blue-50 text-blue-500' : 'bg-gray-50 text-gray-500'
+    }`}>
+      {icon}
     </div>
   </div>
 );
@@ -33,32 +34,12 @@ const EmiDashboard = () => {
   const [editData, setEditData] = useState({});
   const [filterStatus, setFilterStatus] = useState('All');
 
-  const playRingAlert = useCallback(() => {
-    try {
-      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtxClass) return;
-      const audioCtx = new AudioCtxClass();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); 
-      oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5);
-      gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.5);
-    } catch(e) { console.error(e); }
-  }, []);
-
   const loadData = useCallback(async () => {
     try {
       const res = await fetchTransactions();
       const data = res.data;
       const financialEntries = data.filter(t => t.type === 'EMI' || t.type === 'Loan');
       
-      // Sort: Next Due first, then Taken Date
       const sortedEntries = [...financialEntries].sort((a, b) => {
         if (a.status === 'Pending' && b.status !== 'Pending') return -1;
         if (a.status !== 'Pending' && b.status === 'Pending') return 1;
@@ -67,7 +48,6 @@ const EmiDashboard = () => {
 
       setEntries(sortedEntries);
 
-      // Global Stats
       let pCount = 0, sCount = 0, pAmt = 0, sAmt = 0;
       financialEntries.forEach(t => {
         if (['Paid', 'Success', 'Advance Paid', 'EMI Paid'].includes(t.status)) {
@@ -80,33 +60,21 @@ const EmiDashboard = () => {
       });
       setStats({ pendingCount: pCount, successCount: sCount, pendingAmount: pAmt, successAmount: sAmt });
 
-      // Alerts
       const today = new Date();
       const thresholdDate = new Date(today);
       thresholdDate.setDate(today.getDate() + 2);
       const thresholdStr = getLocalDateString(thresholdDate);
-      const pendingAlerts = financialEntries.filter(t => t.status === 'Pending' && (!t.dueDate || t.dueDate <= thresholdStr));
-      
-      if (pendingAlerts.length > 0) {
-        setAlerts(pendingAlerts);
-        if (!sessionStorage.getItem('emi_ring_played_emidash')) {
-          playRingAlert();
-          sessionStorage.setItem('emi_ring_played_emidash', 'true');
-        }
-      }
+      const pendingAlerts = financialEntries.filter(t => (t.status === 'Pending' || !t.status) && (!t.dueDate || t.dueDate <= thresholdStr));
+      setAlerts(pendingAlerts);
 
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [playRingAlert]);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleQuickPay = async (id, amount, name, itemType) => {
     if (!window.confirm(`Mark payment of ₹${amount} for ${name} as Paid?`)) return;
-
     try {
       const newStatus = itemType === 'Loan' ? 'Advance Paid' : 'EMI Paid';
       await updateTransaction(id, { status: newStatus, emiPaidDate: getLocalDateString() });
@@ -114,240 +82,181 @@ const EmiDashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  const handleEdit = (entry) => {
-    setEditId(entry._id);
-    setEditData({ ...entry });
-  };
-
   const handleSave = async () => {
     try {
-      // Ensure amount is stored as a number
-      const finalData = { ...editData, amount: Number(editData.amount) };
-      await updateTransaction(editId, finalData);
+      await updateTransaction(editId, { ...editData, amount: Number(editData.amount) });
       setEditId(null);
       loadData();
     } catch (err) { console.error(err); }
   };
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
-      {/* Alerts */}
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Alert Notification */}
       {alerts.length > 0 && (
-         <div className="alert alert-danger border-0 shadow-sm rounded-4 mb-4 d-flex align-items-center justify-content-between p-3">
-            <div className="d-flex align-items-center gap-3">
-              <div className="bg-danger bg-opacity-10 p-2 rounded-circle text-danger"><MdWarning size={24} /></div>
-              <div>
-                <h6 className="fw-bold mb-0">Upcoming Payments Alert</h6>
-                <p className="small mb-0 text-muted">{alerts.length} payments due within 48 hours.</p>
-              </div>
+         <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 flex items-center justify-between animate-in slide-in-from-top-4">
+            <div className="flex items-center gap-3">
+               <div className="w-10 h-10 bg-rose-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-rose-200">
+                  <MdWarning size={20} />
+               </div>
+               <div>
+                  <h4 className="text-sm font-black text-rose-900">Payment Overdue Alert</h4>
+                  <p className="text-[10px] font-bold text-rose-700 uppercase tracking-widest">{alerts.length} accounts require immediate attention</p>
+               </div>
             </div>
-            <button className="btn btn-danger btn-sm rounded-pill px-3" onClick={() => navigate('/statements?search=Pending')}>Fix Now</button>
+            <Link to="/statements?search=Pending" className="px-4 py-2 bg-rose-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md">Review Now</Link>
          </div>
       )}
 
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="fw-bold mb-0 text-primary">Finance & Loan Registry</h3>
-          <p className="text-muted mb-0 small">Consolidated borrower profiles and due tracking</p>
+           <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors mb-2">
+              <MdArrowBack size={14} /> Back
+           </Link>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Finance Registry</h2>
+          <p className="text-sm font-medium text-gray-500">Consolidated tracking for Loans & EMIs</p>
         </div>
-        <div className="d-flex gap-2">
-          <button className="btn btn-outline-primary px-4 py-2 fw-bold shadow-sm rounded-pill" onClick={() => navigate('/new-entry')}>+ New Entry</button>
-        </div>
+        <button onClick={() => navigate('/new-entry')} className="px-8 py-3 bg-primary text-white rounded-2xl font-black shadow-xl shadow-primary/25 hover:bg-primary-dark transition-all">
+           + New Finance Entry
+        </button>
       </div>
 
-      {/* Global Stats */}
-      <div className="row g-3 g-lg-4 mb-4">
-        <div className="col-6 col-md-3">
-          <StatCard title="Total Entries" value={entries.length} icon={<MdSchedule size={24} />} colorClass="primary" description="EMI & Loan records" />
-        </div>
-        <div className="col-6 col-md-3">
-          <StatCard title="Total Recovery" value={stats.pendingAmount} isCurrency={true} prefix="₹" icon={<MdWarning size={24} />} colorClass="danger" description="To be collected" />
-        </div>
-        <div className="col-6 col-md-3">
-          <StatCard title="Successful Collection" value={stats.successAmount} isCurrency={true} prefix="₹" icon={<MdCheckCircle size={24} />} colorClass="success" description="Payment received" />
-        </div>
-        <div className="col-6 col-md-3">
-          <StatCard title="Paid Count" value={stats.successCount} icon={<MdPayment size={24} />} colorClass="info" description="Cleared entries" />
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+         <StatCard title="Total Records" value={entries.length} icon={<MdSchedule size={20}/>} colorClass="blue" description="EMI / Loan Profiles" />
+         <StatCard title="To Recover" value={stats.pendingAmount} isCurrency={true} prefix="₹" icon={<MdWarning size={20}/>} colorClass="rose" description="Pending Collections" />
+         <StatCard title="Recovered" value={stats.successAmount} isCurrency={true} prefix="₹" icon={<MdCheckCircle size={20}/>} colorClass="emerald" description="Successful Collection" />
+         <StatCard title="Paid Entries" value={stats.successCount} icon={<MdPayment size={20}/>} colorClass="gray" description="Cleared History" />
       </div>
 
-      {/* EMI & Loan Statement Table */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-3">
-        <h5 className="fw-bold mb-0 d-flex align-items-center gap-2">
-          <MdPayment className="text-primary" /> Detailed EMI Statements
-        </h5>
-        
-        {/* One-Click Filters */}
-        <div className="d-flex gap-2 overflow-auto pb-1" style={{ maxWidth: '100%', scrollbarWidth: 'none' }}>
-          {['All', 'Pending', 'EMI Paid', 'Advance Paid', 'Success', 'Paid'].map(s => {
-            // Count occurrences for each status
-            const cnt = entries.filter(t => {
-              if (s === 'All') return true;
-              if (s === 'Pending') return !t.status || t.status === 'Pending';
-              return t.status === s;
-            }).length;
-            
-            // Only show button if count > 0 or it's 'All'
-            if (s !== 'All' && cnt === 0) return null;
-            
-            return (
-              <button 
-                key={s} 
-                onClick={() => setFilterStatus(s)} 
-                className={`btn btn-sm rounded-pill px-3 fw-semibold shadow-sm text-nowrap ${filterStatus === s ? 'btn-primary' : 'btn-light border text-muted'}`}
-                style={{ fontSize: '0.8rem' }}
-              >
-                {s} <span className="badge bg-secondary bg-opacity-25 text-dark ms-1">{cnt}</span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Toolbar */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+         <h4 className="text-lg font-black text-gray-900 flex items-center gap-2">
+            <MdFilterList className="text-primary" /> Active Statements
+         </h4>
+         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full pb-1">
+            {['All', 'Pending', 'EMI Paid', 'Advance Paid', 'Success'].map(status => {
+               const count = entries.filter(t => status === 'All' ? true : (status === 'Pending' ? (!t.status || t.status === 'Pending') : t.status === status)).length;
+               if (status !== 'All' && count === 0) return null;
+               return (
+                  <button 
+                    key={status} 
+                    onClick={() => setFilterStatus(status)}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterStatus === status ? 'bg-gray-900 text-white shadow-lg' : 'bg-white text-gray-400 border border-gray-100 hover:bg-gray-50'}`}
+                  >
+                     {status} <span className="ml-1 opacity-50">{count}</span>
+                  </button>
+               );
+            })}
+         </div>
       </div>
-      
-      {loading ? (
-        <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
-      ) : entries.length === 0 ? (
-        <div className="text-center py-5 card modern-card text-muted">No records found.</div>
-      ) : (
-        <div className="card modern-card border-0 shadow-sm overflow-hidden animate-fadeIn">
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0">
-              <thead className="bg-light">
-                <tr className="text-muted small text-uppercase fw-bold">
-                  <th className="px-4 py-3">Borrower Name</th>
-                  <th className="py-3">Type</th>
-                  <th className="py-3">Taken Date</th>
-                  <th className="py-3">Due Date</th>
-                  <th className="py-3">Amount</th>
-                  <th className="py-3">Status</th>
-                  <th className="py-3 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.filter(t => {
-                  if (filterStatus === 'All') return true;
-                  if (filterStatus === 'Pending') return !t.status || t.status === 'Pending';
-                  return t.status === filterStatus;
-                }).length === 0 ? (
-                  <tr><td colSpan="7" className="text-center py-4 text-muted">No entries match the selected filter.</td></tr>
-                ) : entries.filter(t => {
-                  if (filterStatus === 'All') return true;
-                  if (filterStatus === 'Pending') return !t.status || t.status === 'Pending';
-                  return t.status === filterStatus;
-                }).map((t) => {
-                  const isPaid = ['Paid', 'Success', 'Advance Paid', 'EMI Paid'].includes(t.status);
-                  const isEditing = editId === t._id;
-                  
-                  return (
-                    <tr key={t._id} className={`${(isPaid && !isEditing) ? 'table-success opacity-75' : ''} ${isEditing ? 'table-info shadow-sm' : ''}`}>
-                      <td className="px-4 py-3">
-                        {isEditing ? (
-                          <div className="d-flex flex-column gap-1">
-                            <div className="d-flex gap-1">
-                              <input type="text" className="form-control form-control-sm" value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} placeholder="First Name" />
-                              <input type="text" className="form-control form-control-sm" value={editData.lastName} onChange={e => setEditData({...editData, lastName: e.target.value})} placeholder="Last Name" />
-                            </div>
-                            <input type="text" className="form-control form-control-sm" value={editData.category || ''} onChange={e => setEditData({...editData, category: e.target.value})} placeholder="Category (e.g. Car EMI)" />
-                          </div>
-                        ) : (
-                          <div className="d-flex align-items-center gap-2">
-                            <div className={`rounded-circle bg-${t.type === 'Loan' ? 'info' : 'warning'} bg-opacity-10 text-${t.type === 'Loan' ? 'info' : 'warning'} d-flex align-items-center justify-content-center fw-bold`} style={{width: 32, height: 32, fontSize: '0.8rem'}}>
-                              {t.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <span className="fw-bold d-block">{t.name} {t.lastName}</span>
-                              <small className="text-muted" style={{fontSize: '0.7rem'}}>{t.category || 'Finance'}</small>
-                            </div>
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        {isEditing ? (
-                          <select className="form-select form-select-sm" value={editData.type} onChange={e => setEditData({...editData, type: e.target.value})}>
-                            <option>EMI</option>
-                            <option>Loan</option>
-                          </select>
-                        ) : (
-                          <span className={`badge bg-${t.type === 'Loan' ? 'info' : 'warning'} bg-opacity-10 text-${t.type === 'Loan' ? 'info' : 'warning'} small px-2`}>
-                            {t.type}
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        {isEditing ? (
-                          <input type="date" className="form-control form-control-sm" value={editData.date ? editData.date.split('T')[0] : ''} onChange={e => setEditData({...editData, date: e.target.value})} />
-                        ) : (
-                          <span className="text-muted small">{new Date(t.date).toLocaleDateString('en-IN')}</span>
-                        )}
-                      </td>
-                      <td>
-                        {isEditing ? (
-                          <input type="date" className="form-control form-control-sm" value={editData.dueDate ? editData.dueDate.split('T')[0] : ''} onChange={e => setEditData({...editData, dueDate: e.target.value})} />
-                        ) : (
-                          <span className="fw-semibold small">{t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN') : 'N/A'}</span>
-                        )}
-                      </td>
-                      <td>
-                        {isEditing ? (
-                          <input type="number" className="form-control form-control-sm" value={editData.amount} onChange={e => setEditData({...editData, amount: e.target.value})} />
-                        ) : (
-                          <span className="fw-bold text-danger">₹{Number(t.amount).toLocaleString('en-IN')}</span>
-                        )}
-                      </td>
-                      <td>
-                        {isEditing ? (
-                          <div className="d-flex flex-column gap-1">
-                            <select className="form-select form-select-sm" value={editData.status} onChange={e => setEditData({...editData, status: e.target.value})}>
-                              <option>Pending</option>
-                              <option>Success</option>
-                              <option>Paid</option>
-                              <option>Advance Paid</option>
-                              <option>EMI Paid</option>
-                            </select>
-                            {['Paid', 'Success', 'Advance Paid', 'EMI Paid'].includes(editData.status) && (
-                              <input type="date" className="form-control form-control-sm" value={editData.emiPaidDate ? editData.emiPaidDate.split('T')[0] : ''} onChange={e => setEditData({...editData, emiPaidDate: e.target.value})} title="Paid Date" />
-                            )}
-                          </div>
-                        ) : (
-                          <span className={`badge bg-${isPaid ? 'success' : 'danger'} bg-opacity-10 text-${isPaid ? 'success' : 'danger'} rounded-pill px-3 py-1`}>
-                            {t.status || 'Pending'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="text-center">
-                        {isEditing ? (
-                          <div className="d-flex gap-1 justify-content-center">
-                            <button className="btn btn-primary btn-sm rounded-pill px-3" onClick={handleSave}>Save</button>
-                            <button className="btn btn-light btn-sm rounded-pill px-3" onClick={() => setEditId(null)}>Cancel</button>
-                          </div>
-                        ) : (
-                          <div className="d-flex gap-2 justify-content-center">
-                            {!isPaid && (
-                              <button className="btn btn-success btn-sm rounded-pill px-3 py-1 fw-bold" style={{fontSize: '0.75rem'}} onClick={() => handleQuickPay(t._id, t.amount, t.name, t.type)}>Quick Pay</button>
-                            )}
-                            <button className="btn btn-outline-primary btn-sm rounded-circle p-1" style={{width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center'}} onClick={() => handleEdit(t)} title="Edit Row">✎</button>
-                            {isPaid && (
-                              <div className="d-flex flex-column align-items-center">
-                                <span className="text-success small fw-bold text-uppercase" style={{letterSpacing: '0.5px', fontSize: '0.65rem'}}>✓ Paid</span>
-                                {t.emiPaidDate && (
-                                  <small className="text-muted fw-semibold" style={{fontSize: '0.55rem'}}>on {new Date(t.emiPaidDate).toLocaleDateString('en-IN')}</small>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </td>
+
+      {/* Table */}
+      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+         {loading ? (
+           <div className="py-20 text-center"><div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto"></div></div>
+         ) : entries.length === 0 ? (
+           <div className="py-20 text-center text-gray-400 font-bold">No records found.</div>
+         ) : (
+           <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                 <thead>
+                    <tr className="bg-gray-50/50">
+                       <th className="py-5 px-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">Borrower</th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Due Date</th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
+                       <th className="py-5 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                       <th className="py-5 px-8 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Actions</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                 </thead>
+                 <tbody className="divide-y divide-gray-50">
+                    {entries.filter(t => filterStatus === 'All' ? true : (filterStatus === 'Pending' ? (!t.status || t.status === 'Pending') : t.status === filterStatus)).map(t => {
+                       const isPaid = ['Paid', 'Success', 'Advance Paid', 'EMI Paid'].includes(t.status);
+                       const isEditing = editId === t._id;
+                       return (
+                          <tr key={t._id} className={`hover:bg-gray-50/50 transition-colors ${isPaid ? 'opacity-70 bg-emerald-50/10' : ''}`}>
+                             <td className="py-4 px-8">
+                                {isEditing ? (
+                                   <div className="flex gap-2">
+                                      <input className="px-3 py-1 bg-gray-50 border rounded-lg text-xs font-bold w-24" value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} />
+                                      <input className="px-3 py-1 bg-gray-50 border rounded-lg text-xs font-bold w-24" value={editData.lastName} onChange={e => setEditData({...editData, lastName: e.target.value})} />
+                                   </div>
+                                ) : (
+                                   <div className="flex items-center gap-3">
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] ${t.type === 'Loan' ? 'bg-blue-500 text-white' : 'bg-amber-500 text-white'}`}>
+                                         {t.name.charAt(0)}
+                                      </div>
+                                      <div>
+                                         <p className="text-sm font-black text-gray-900">{t.name} {t.lastName || ''}</p>
+                                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{t.category || 'Personal'}</p>
+                                      </div>
+                                   </div>
+                                )}
+                             </td>
+                             <td className="py-4 px-4">
+                                <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-tighter ${t.type === 'Loan' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                   {t.type}
+                                </span>
+                             </td>
+                             <td className="py-4 px-4">
+                                {isEditing ? (
+                                   <input type="date" className="px-2 py-1 bg-gray-50 border rounded-lg text-xs font-bold" value={editData.dueDate?.split('T')[0]} onChange={e => setEditData({...editData, dueDate: e.target.value})} />
+                                ) : (
+                                   <p className="text-xs font-bold text-gray-600">{t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN') : '---'}</p>
+                                )}
+                             </td>
+                             <td className="py-4 px-4 text-sm font-black text-rose-600">
+                                {isEditing ? (
+                                   <input type="number" className="px-2 py-1 bg-gray-50 border rounded-lg text-xs font-bold w-24" value={editData.amount} onChange={e => setEditData({...editData, amount: e.target.value})} />
+                                ) : `₹${Number(t.amount).toLocaleString()}`}
+                             </td>
+                             <td className="py-4 px-4">
+                                {isEditing ? (
+                                   <select className="px-2 py-1 bg-gray-50 border rounded-lg text-xs font-bold" value={editData.status} onChange={e => setEditData({...editData, status: e.target.value})}>
+                                      <option>Pending</option>
+                                      <option>Success</option>
+                                      <option>EMI Paid</option>
+                                      <option>Advance Paid</option>
+                                   </select>
+                                ) : (
+                                   <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter ${isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                      {t.status || 'Pending'}
+                                   </span>
+                                )}
+                             </td>
+                             <td className="py-4 px-8">
+                                <div className="flex items-center justify-center gap-2">
+                                   {isEditing ? (
+                                      <>
+                                         <button onClick={handleSave} className="p-2 bg-emerald-500 text-white rounded-lg"><MdSave size={14}/></button>
+                                         <button onClick={() => setEditId(null)} className="p-2 bg-gray-200 text-gray-500 rounded-lg"><MdClose size={14}/></button>
+                                      </>
+                                   ) : (
+                                      <>
+                                         {!isPaid && (
+                                            <button onClick={() => handleQuickPay(t._id, t.amount, t.name, t.type)} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
+                                               Quick Pay
+                                            </button>
+                                         )}
+                                         <button onClick={() => { setEditId(t._id); setEditData(t); }} className="p-2 text-gray-300 hover:text-primary hover:bg-blue-50 rounded-lg transition-all">
+                                            <MdEdit size={16} />
+                                         </button>
+                                      </>
+                                   )}
+                                </div>
+                             </td>
+                          </tr>
+                       );
+                    })}
+                 </tbody>
+              </table>
+           </div>
+         )}
+      </div>
     </div>
   );
 };
 
 export default EmiDashboard;
-

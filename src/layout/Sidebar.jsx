@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     MdDashboard, MdPeople, MdAddCircle, MdListAlt, MdBarChart, 
-    MdEvent, MdSettings, MdLogout, MdPayment 
+    MdEvent, MdSettings, MdLogout, MdPayment, MdClose
 } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
@@ -30,50 +30,70 @@ const Sidebar = ({ closeMobileSidebar }) => {
   ];
 
   return (
-    <div className="d-flex flex-column h-100 text-white p-3">
-      <div className="d-flex align-items-center mb-4 mt-2 px-2">
-        <div className="bg-white rounded-3 p-1 shadow-sm overflow-hidden" style={{ width: '40px', height: '40px' }}>
-          <img src={logo} alt="R Accounts" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    <div className="flex flex-col h-full bg-white border-r border-gray-100 shadow-sm w-[var(--sidebar-width)]">
+      {/* Sidebar Header */}
+      <div className="flex items-center justify-between px-6 h-[var(--navbar-height)] border-b border-gray-50">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center p-1.5 shadow-sm">
+            <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+          </div>
+          <h2 className="text-xl font-bold tracking-tight text-gray-900">Account <span className="text-primary">M.</span></h2>
         </div>
-        <div className="ms-2">
-          <h5 className="mb-0 fw-bold" style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>R Accounts</h5>
-        </div>
-        <button className="btn btn-sm btn-outline-secondary ms-auto d-lg-none border-0" onClick={closeMobileSidebar}>✖</button>
+        <button 
+          onClick={closeMobileSidebar}
+          className="p-1.5 text-gray-400 hover:text-gray-600 lg:hidden rounded-lg hover:bg-gray-100 transition-colors"
+        >
+          <MdClose size={20} />
+        </button>
       </div>
 
-      <div className="flex-grow-1 overflow-auto">
-        <ul className="nav nav-pills flex-column mb-auto">
+      {/* Navigation Links */}
+      <div className="flex-grow overflow-y-auto py-6 px-4">
+        <p className="px-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Main Menu</p>
+        <nav className="space-y-1">
           {menuItems.map((item) => (
-            <li className="nav-item" key={item.name}>
-              <NavLink 
-                to={item.path} 
-                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-                onClick={closeMobileSidebar}
-              >
+            <NavLink 
+              key={item.name}
+              to={item.path} 
+              onClick={closeMobileSidebar}
+              className={({ isActive }) => `
+                flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group
+                ${isActive 
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-primary'}
+              `}
+            >
+              <span className={`transition-transform duration-300 group-hover:scale-110`}>
                 {item.icon}
-                <span>{item.name}</span>
-              </NavLink>
-            </li>
+              </span>
+              <span>{item.name}</span>
+            </NavLink>
           ))}
-        </ul>
+        </nav>
       </div>
 
-      <div className="mt-auto px-2 pb-3 pt-4 border-top" style={{ borderColor: 'var(--border-color) !important' }}>
-        <div className="d-flex align-items-center mb-3">
-          {userData?.profilePic || currentUser?.photoURL ? (
-             <img src={userData?.profilePic || currentUser?.photoURL} alt="Profile" className="rounded-circle border border-2 border-primary" style={{width: 40, height: 40, objectFit: 'cover', flexShrink: 0}} />
-          ) : (
-            <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style={{width: 40, height: 40, flexShrink: 0}}>
-              {userData?.firstName ? userData.firstName.charAt(0).toUpperCase() : 'U'}
-            </div>
-          )}
-          <div className="ms-3 flex-grow-1 overflow-hidden">
-            <h6 className="mb-0 text-truncate" style={{color: 'var(--text-main)'}}>{userData?.firstName || 'User'} {userData?.lastName || ''}</h6>
-            <small className="text-muted">{currentUser?.email || 'Accountant'}</small>
+      {/* Sidebar Footer - User Profile */}
+      <div className="p-4 border-t border-gray-50 mt-auto bg-gray-50/50">
+        <div className="flex items-center gap-3 mb-4 px-2">
+          <div className="relative">
+            <img 
+              src={userData?.profilePic || currentUser?.photoURL || `https://ui-avatars.com/api/?name=${userData?.firstName || 'User'}&background=0d6efd&color=fff`} 
+              alt="User" 
+              className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm"
+            />
+            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
+          </div>
+          <div className="flex-grow min-w-0">
+            <p className="text-sm font-bold text-gray-900 truncate">{userData?.firstName || 'Accountant'}</p>
+            <p className="text-[11px] text-gray-500 truncate">{currentUser?.email}</p>
           </div>
         </div>
-        <button className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 rounded-3 py-2" onClick={handleLogout}>
-          <MdLogout size={18} /> Logout
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors group"
+        >
+          <MdLogout size={18} className="group-hover:-translate-x-1 transition-transform" />
+          Logout
         </button>
       </div>
     </div>

@@ -1,77 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import TopNavbar from './TopNavbar';
 import Sidebar from './Sidebar';
-import ScrollArrows from '../components/ScrollArrows';
+import TopNavbar from './TopNavbar';
 
 const Layout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 992);
-      if (window.innerWidth < 992) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
-      }
-    };
-
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const closeSidebar = () => setIsSidebarOpen(false);
 
   return (
-    <div className="d-flex" style={{ minHeight: '100vh', backgroundColor: 'var(--bg-color)' }}>
-      {/* Sidebar Overlay for Mobile */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="position-fixed w-100 h-100"
-          style={{ background: 'rgba(0,0,0,0.5)', zIndex: 1040 }}
-          onClick={() => setSidebarOpen(false)}
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-sm lg:hidden transition-opacity"
+          onClick={closeSidebar}
         ></div>
       )}
 
-      {/* Sidebar */}
-      <div
-        className={`position-fixed h-100 bg-card overflow-auto transition-all`}
-        style={{
-          width: 'var(--sidebar-width)',
-          zIndex: 1045,
-          left: sidebarOpen ? 0 : 'calc(-1 * var(--sidebar-width))',
-          backgroundColor: 'var(--card-bg)',
-          borderRight: '1px solid var(--border-color)',
-          transition: 'left 0.3s ease'
-        }}
-      >
-        <Sidebar closeMobileSidebar={() => isMobile && setSidebarOpen(false)} />
-      </div>
+      {/* Sidebar - Desktop Always, Mobile Drawer */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 lg:static lg:block transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <Sidebar closeMobileSidebar={closeSidebar} />
+      </aside>
 
       {/* Main Content Area */}
-      <div
-        className="flex-grow-1 d-flex flex-column"
-        style={{
-          marginLeft: !isMobile && sidebarOpen ? 'var(--sidebar-width)' : 0,
-          transition: 'margin-left 0.3s ease',
-          height: '100vh',
-          overflow: 'hidden',
-        }}
-      >
+      <div className="flex flex-col flex-grow min-w-0 overflow-hidden">
         <TopNavbar toggleSidebar={toggleSidebar} />
-
-        <div
-          className="flex-grow-1 position-relative"
-          style={{ overflowY: 'auto', overflowX: 'hidden' }}
-        >
-          <Outlet />
-          <ScrollArrows />
-        </div>
+        
+        <main className="flex-grow overflow-y-auto overflow-x-hidden p-4 lg:p-8">
+          <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <Outlet />
+          </div>
+        </main>
       </div>
     </div>
   );
