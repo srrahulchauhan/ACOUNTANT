@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MdMenu, MdSearch, MdCloudDone, MdDownload, MdTrendingDown } from 'react-icons/md';
+import { MdMenu, MdSearch, MdCloudDone, MdDownload } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import NotificationBell from '../components/NotificationBell';
-import { fetchTransactions, fetchCustomers } from '../api';
+import { fetchTransactions } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { downloadBackup } from '../utils/autoSave';
 
 
 const TopNavbar = ({ toggleSidebar }) => {
-  const { currentUser, userData, logout, updateUserData } = useAuth();
+  const { currentUser, userData, logout } = useAuth();
   const user = userData || {};
   const navigate = useNavigate();
-  const lastSave = user?.lastAutoSave || null;
 
   // Smart Search States
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,14 +90,25 @@ const TopNavbar = ({ toggleSidebar }) => {
         <button className="btn btn-link text-main p-0 me-3" onClick={toggleSidebar} style={{ color: 'var(--text-main)' }}>
           <MdMenu size={28} />
         </button>
-        <div className="d-none d-md-flex align-items-center gap-2">
-          {user.appLogo && (
-            <img src={user.appLogo} alt="App Logo" className="rounded-2" style={{height: 32, width: 32, objectFit: 'contain'}} />
-          )}
+        <div className="d-none d-lg-flex align-items-center gap-2">
           <h4 className="mb-0 fw-bold text-primary">
-            Account <span className="text-secondary">Manager</span>
+            R <span className="text-secondary">Accounts</span>
           </h4>
         </div>
+      </div>
+
+      {/* Auto-Save & Backup - Desktop Only */}
+      <div className="d-none d-xl-flex align-items-center gap-3 px-3 py-1 rounded-pill" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
+        <div className="d-flex align-items-center gap-2">
+          <MdCloudDone className="text-success" size={20} />
+          <span className="fw-medium text-success" style={{ fontSize: '0.85rem' }}>Auto-Save: Data auto-saves on every change</span>
+          <span className="badge rounded-pill bg-primary px-2" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>• LIVE</span>
+        </div>
+        <div style={{ width: '1px', height: '20px', backgroundColor: '#dcfce7' }}></div>
+        <button className="btn btn-success btn-sm d-flex align-items-center gap-2 px-3 py-1 rounded-pill shadow-sm" style={{ fontSize: '0.85rem', transition: 'all 0.2s ease' }}>
+          <MdDownload size={18} />
+          <span className="fw-semibold">Download Backup</span>
+        </button>
       </div>
 
       <div className="d-flex flex-grow-1 justify-content-center px-4">
@@ -199,69 +208,10 @@ const TopNavbar = ({ toggleSidebar }) => {
             to { opacity: 1; transform: translateY(0) scale(1); }
           }
           .form-control:focus { background-color: transparent !important; }
-          .pulse-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            animation: pulse-green 2s infinite;
-          }
-          @keyframes pulse-green {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(46, 125, 50, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
-          }
         `}</style>
       </div>
 
-      <div className="d-flex align-items-center gap-2 gap-md-3">
-        {/* Compact Daily Spend Tracker */}
-        <div 
-          className="d-none d-sm-flex align-items-center bg-danger bg-opacity-10 border border-danger border-opacity-10 rounded-pill px-3 py-1 cursor-pointer" 
-          style={{ fontSize: '0.8rem', cursor: 'pointer' }}
-          onClick={() => navigate('/dashboard')}
-          title="Today's Total Spend"
-        >
-          <MdTrendingDown className="text-danger me-1" size={16} />
-          <span className="text-danger fw-bold">
-            ₹{transactions
-              .filter(t => {
-                const d = new Date(t.date);
-                const today = new Date();
-                return d.getDate() === today.getDate() && 
-                       d.getMonth() === today.getMonth() && 
-                       d.getFullYear() === today.getFullYear() &&
-                       (t.type === 'Debit' || t.type === 'EMI');
-              })
-              .reduce((s, t) => s + Number(t.amount), 0)
-              .toLocaleString('en-IN')}
-          </span>
-        </div>
-
-        {/* Compact Auto-Save Indicator */}
-        <div className="d-none d-lg-flex align-items-center bg-success bg-opacity-10 border border-success border-opacity-10 rounded-pill px-2 py-1" style={{ fontSize: '0.7rem' }} title={lastSave ? `Last saved: ${new Date(lastSave.time).toLocaleTimeString('en-IN')}` : 'Auto-saving enabled'}>
-          <div className="pulse-dot bg-success me-1"></div>
-          <span className="text-success fw-bold">SAVED</span>
-        </div>
-
-        {/* Mini Download Backup Button */}
-        <button 
-          className="btn btn-outline-success border-0 rounded-circle p-2 d-flex align-items-center justify-content-center shadow-sm"
-          title="Download Backup (Excel)"
-          style={{ width: 36, height: 36 }}
-          onClick={async () => {
-            try {
-              const [transRes, custRes] = await Promise.all([fetchTransactions(), fetchCustomers()]);
-              const info = downloadBackup(transRes.data, custRes.data);
-              if (info) {
-                const { url, ...metadata } = info;
-                await updateUserData({ lastAutoSave: metadata });
-              }
-            } catch (err) { console.error('Backup error:', err); }
-          }}
-        >
-          <MdDownload size={20} />
-        </button>
-
+      <div className="d-flex align-items-center gap-3 gap-md-4">
         <NotificationBell transactions={transactions} />
         <div className="dropdown">
           <button 

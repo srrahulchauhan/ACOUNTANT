@@ -124,49 +124,6 @@ const Customers = () => {
         </div>
       )}
 
-      {/* Special Tracking Accounts */}
-      <div className="row g-3 mb-4">
-        <div className="col-12 col-md-6 col-xl-4">
-          <div className="card modern-card p-4 h-100 border-0 shadow-sm" style={{ borderLeft: '4px solid #0d6efd' }}>
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <div className="d-flex align-items-center gap-3">
-                <div className="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style={{ width: 50, height: 50 }}>
-                  <MdTrendingDown size={24} />
-                </div>
-                <div>
-                  <h6 className="fw-bold mb-0">Daily Spend</h6>
-                  <span className="badge bg-primary bg-opacity-10 text-primary small" style={{ fontSize: '0.65rem' }}>INTERNAL TRACKING</span>
-                </div>
-              </div>
-              <button className="btn btn-primary btn-sm rounded-pill px-3" onClick={() => navigate('/new-entry')}>
-                Add Entry
-              </button>
-            </div>
-            <div className="row g-2 mb-2">
-              <div className="col-12">
-                <small className="text-muted d-block small">Today's Total Spend</small>
-                <h4 className="fw-bold text-danger mb-0">
-                  ₹{transactions
-                    .filter(t => {
-                      const d = new Date(t.date);
-                      const today = new Date();
-                      return d.getDate() === today.getDate() && 
-                             d.getMonth() === today.getMonth() && 
-                             d.getFullYear() === today.getFullYear() &&
-                             (t.type === 'Debit' || t.type === 'EMI');
-                    })
-                    .reduce((s, t) => s + Number(t.amount), 0)
-                    .toLocaleString('en-IN')}
-                </h4>
-              </div>
-            </div>
-            <button className="btn btn-outline-primary btn-sm w-100 mt-2" onClick={() => navigate('/statements')}>
-              View Spend History
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Customer Cards */}
       {loading ? (
         <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
