@@ -289,6 +289,45 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Daily Spend Live Tracker */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card modern-card border-0 shadow-sm overflow-hidden" style={{ background: 'linear-gradient(135deg, #0d6efd, #0a58ca)' }}>
+            <div className="card-body p-4 text-white">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 className="text-white text-opacity-75 text-uppercase fw-bold mb-2" style={{ letterSpacing: '1px', fontSize: '0.75rem' }}>Live Daily Spend Tracker</h6>
+                  <h2 className="fw-bold mb-1">
+                    ₹{transactions
+                      .filter(t => {
+                        const d = new Date(t.date);
+                        const today = new Date();
+                        return d.getDate() === today.getDate() && 
+                               d.getMonth() === today.getMonth() && 
+                               d.getFullYear() === today.getFullYear() &&
+                               (t.type === 'Debit' || t.type === 'EMI');
+                      })
+                      .reduce((s, t) => s + Number(t.amount), 0)
+                      .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </h2>
+                  <p className="mb-0 text-white text-opacity-75 small">Total spent today from all accounts</p>
+                </div>
+                <div className="d-flex flex-column align-items-end">
+                  <div className="bg-white bg-opacity-20 p-3 rounded-circle mb-2">
+                    <MdTrendingDown size={32} />
+                  </div>
+                  <button className="btn btn-light btn-sm fw-bold px-3 rounded-pill" onClick={() => navigate('/new-entry')}>
+                    + Add Spend
+                  </button>
+                </div>
+              </div>
+            </div>
+            {/* Simple sparkline-like background decoration */}
+            <div className="position-absolute bottom-0 start-0 w-100 h-25 bg-white bg-opacity-10" style={{ clipPath: 'polygon(0 100%, 0 45%, 15% 75%, 30% 25%, 45% 85%, 60% 40%, 75% 65%, 90% 15%, 100% 50%, 100% 100%)' }}></div>
+          </div>
+        </div>
+      </div>
+
       {/* Stat Cards */}
       <div className="row g-3 g-lg-4 mb-4">
         <div className="col-6 col-xl-3">
