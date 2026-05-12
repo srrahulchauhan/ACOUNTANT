@@ -1,15 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  updatePassword as firebaseUpdatePassword
-} from "firebase/auth";
-import { ref, get, set, update, child } from "firebase/database";
-import { auth, db, googleProvider } from "../firebase";
 
 const AuthContext = createContext();
 
@@ -21,36 +10,25 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        // Fetch additional user data from Realtime Database
-        try {
-          const dbRef = ref(db);
-          const snapshot = await get(child(dbRef, `users/${user.uid}`));
-          if (snapshot.exists()) {
-            setUserData(snapshot.val());
-          } else {
-            setUserData(null);
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
-      } else {
-        setUserData(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
+    // Load mock user from localStorage on init
+    const storedUser = localStorage.getItem('account_mock_user');
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      setCurrentUser({ uid: parsed.uid, email: parsed.email });
+      setUserData(parsed);
+    }
+    setLoading(false);
   }, []);
 
-  const register = async (email, password, firstName, lastName, phone) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+  const persistUser = (user) => {
+    localStorage.setItem('account_mock_user', JSON.stringify(user));
+    setCurrentUser({ uid: user.uid, email: user.email });
+    setUserData(user);
+  };
 
-    const data = {
-      uid: user.uid,
+  const register = async (email, password, firstName, lastName, phone) => {
+    const user = {
+      uid: Date.now().toString(),
       firstName,
       lastName,
       email,
@@ -63,67 +41,74 @@ export const AuthProvider = ({ children }) => {
       lastAutoSave: null,
       createdAt: new Date().toISOString()
     };
-
-    await set(ref(db, 'users/' + user.uid), data);
-    setUserData(data);
-    return userCredential;
+    persistUser(user);
+    return { user: { uid: user.uid } };
   };
 
   const login = async (email, password) => {
-    return await signInWithEmailAndPassword(auth, email, password);
-  };
-
-  const loginWithGoogle = async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-
-    // Check if user data exists, if not create it
-    const dbRef = ref(db);
-    const snapshot = await get(child(dbRef, `users/${user.uid}`));
-    
-    if (!snapshot.exists()) {
-      const names = user.displayName ? user.displayName.split(' ') : ['Google', 'User'];
-      const data = {
-        uid: user.uid,
-        firstName: names[0],
-        lastName: names.slice(1).join(' ') || '',
-        email: user.email,
-        phone: user.phoneNumber || '',
-        profilePic: user.photoURL || '',
+    // Mock login just simulates finding a user.
+    let user = localStorage.getItem('account_mock_user');
+    if (!user) {
+      user = {
+        uid: Date.now().toString(),
+        firstName: "Mock",
+        lastName: "User",
+        email: email,
+        phone: "",
+        role: 'user',
         customCategories: [],
         customPaymentApps: [],
         appLogo: '',
         dismissedNotifications: [],
         lastAutoSave: null,
-        role: 'user',
         createdAt: new Date().toISOString()
       };
-      await set(ref(db, 'users/' + user.uid), data);
-      setUserData(data);
+      persistUser(user);
     } else {
-      setUserData(snapshot.val());
+      user = JSON.parse(user);
+      persistUser(user);
     }
+  };
+
+  const loginWithGoogle = async () => {
+    const user = {
+      uid: Date.now().toString(),
+      firstName: "Google",
+      lastName: "User",
+      email: "google@example.com",
+      phone: "",
+      profilePic: "",
+      customCategories: [],
+      customPaymentApps: [],
+      appLogo: '',
+      dismissedNotifications: [],
+      lastAutoSave: null,
+      role: 'user',
+      createdAt: new Date().toISOString()
+    };
+    persistUser(user);
   };
 
   const logout = async () => {
-    await signOut(auth);
+    localStorage.removeItem('account_mock_user');
+    setCurrentUser(null);
+    setUserData(null);
   };
 
   const resetPassword = async (email) => {
-    return await sendPasswordResetEmail(auth, email);
+    // mock
+    return true;
   };
 
   const updatePassword = async (newPassword) => {
-    if (currentUser) {
-      return await firebaseUpdatePassword(currentUser, newPassword);
-    }
+    // mock
+    return true;
   };
 
   const updateUserData = async (data) => {
-    if (!currentUser) return;
-    const userRef = ref(db, 'users/' + currentUser.uid);
-    await update(userRef, data);
-    setUserData(prev => ({ ...prev, ...data }));
+    if (!userData) return;
+    const updated = { ...userData, ...data };
+    persistUser(updated);
   };
 
   const value = {
