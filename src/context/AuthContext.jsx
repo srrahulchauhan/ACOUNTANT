@@ -104,23 +104,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginAsGuest = async () => {
-    // Note: Firebase has an Anonymous Auth feature, but for simplicity 
-    // we can keep a local mock or use signInAnonymously if configured.
-    // Given the user asked for DB, we'll just mock it or skip if not essential.
-    // For now, keeping it as is but it won't be "real" firebase unless using signInAnonymously.
-    const guestUid = "guest_" + Date.now().toString();
-    const user = { uid: guestUid, isGuest: true };
-    setCurrentUser(user);
-    setUserData({
-      uid: guestUid,
-      firstName: "Free",
-      lastName: "User",
-      email: "freeuse@account.com",
-      role: 'user',
-      isGuest: true
-    });
-  };
 
   const logout = async () => {
     await signOut(auth);
@@ -149,7 +132,6 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     loginWithGoogle,
-    loginAsGuest,
     logout,
     resetPassword,
     updatePassword,
