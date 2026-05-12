@@ -267,25 +267,6 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Auto-Save Status Bar */}
-      <div className="d-flex align-items-center justify-content-between bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 px-3 py-2 mb-4">
-        <div className="d-flex align-items-center gap-2">
-          <MdSave className="text-success" />
-          <span className="small text-success fw-semibold">
-            Auto-Save: {lastSave ? `Last saved ${new Date(lastSave.time).toLocaleTimeString('en-IN')} (${lastSave.entries} entries)` : 'Data auto-saves to Excel on every change'}
-          </span>
-          <span className="badge bg-primary bg-opacity-25 text-primary ms-2" style={{ fontSize: '0.65rem' }}>● LIVE</span>
-        </div>
-        <button className="btn btn-success btn-sm d-flex align-items-center gap-1 px-3" onClick={async () => {
-          const info = downloadBackup(transactions, customers);
-          if (info) {
-            const { url, ...metadata } = info;
-            await updateUserData({ lastAutoSave: metadata });
-          }
-        }}>
-          <MdDownload /> Download Backup
-        </button>
-      </div>
 
       {/* Monthly Budget Progress (Only in Month View) */}
       {viewMode === 'Month' && stats.totalCredit > 0 && (

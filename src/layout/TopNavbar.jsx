@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MdMenu, MdSearch, MdCloudDone, MdDownload } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import NotificationBell from '../components/NotificationBell';
-import { fetchTransactions } from '../api';
+import { fetchTransactions, fetchCustomers } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { downloadBackup } from '../utils/autoSave';
 
 
 const TopNavbar = ({ toggleSidebar }) => {
-  const { currentUser, userData, logout } = useAuth();
+  const { currentUser, userData, logout, updateUserData } = useAuth();
   const user = userData || {};
   const navigate = useNavigate();
+  const lastSave = user?.lastAutoSave || null;
 
   // Smart Search States
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,10 +199,46 @@ const TopNavbar = ({ toggleSidebar }) => {
             to { opacity: 1; transform: translateY(0) scale(1); }
           }
           .form-control:focus { background-color: transparent !important; }
+          .pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            animation: pulse-green 2s infinite;
+          }
+          @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(46, 125, 50, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
+          }
         `}</style>
       </div>
 
-      <div className="d-flex align-items-center gap-3 gap-md-4">
+      <div className="d-flex align-items-center gap-2 gap-md-3">
+        {/* Compact Auto-Save Indicator */}
+        <div className="d-none d-lg-flex align-items-center bg-success bg-opacity-10 border border-success border-opacity-10 rounded-pill px-2 py-1" style={{ fontSize: '0.7rem' }} title={lastSave ? `Last saved: ${new Date(lastSave.time).toLocaleTimeString('en-IN')}` : 'Auto-saving enabled'}>
+          <div className="pulse-dot bg-success me-1"></div>
+          <span className="text-success fw-bold">SAVED</span>
+        </div>
+
+        {/* Mini Download Backup Button */}
+        <button 
+          className="btn btn-outline-success border-0 rounded-circle p-2 d-flex align-items-center justify-content-center shadow-sm"
+          title="Download Backup (Excel)"
+          style={{ width: 36, height: 36 }}
+          onClick={async () => {
+            try {
+              const [transRes, custRes] = await Promise.all([fetchTransactions(), fetchCustomers()]);
+              const info = downloadBackup(transRes.data, custRes.data);
+              if (info) {
+                const { url, ...metadata } = info;
+                await updateUserData({ lastAutoSave: metadata });
+              }
+            } catch (err) { console.error('Backup error:', err); }
+          }}
+        >
+          <MdDownload size={20} />
+        </button>
+
         <NotificationBell transactions={transactions} />
         <div className="dropdown">
           <button 
