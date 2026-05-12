@@ -1,23 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MdMenu, MdSearch, MdCloudDone, MdDownload, MdPerson, MdSettings, MdLogout } from 'react-icons/md';
-import { useNavigate, Link } from 'react-router-dom';
+import { MdMenu, MdSearch, MdCloudDone, MdDownload } from 'react-icons/md';
+import { useNavigate } from 'react-router-dom';
 import NotificationBell from '../components/NotificationBell';
 import { fetchTransactions } from '../api';
 import { useAuth } from '../context/AuthContext';
-import logo from '../assets/logo.png';
+
 
 const TopNavbar = ({ toggleSidebar }) => {
   const { currentUser, userData, logout } = useAuth();
   const user = userData || {};
   const navigate = useNavigate();
 
+  // Smart Search States
   const [searchQuery, setSearchQuery] = useState('');
   const [transactions, setTransactions] = useState([]);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef(null);
-  const profileRef = useRef(null);
 
   useEffect(() => {
+    // Fetch all transactions once for smart search
     const getTxns = async () => {
       try {
         const res = await fetchTransactions();
@@ -28,20 +30,46 @@ const TopNavbar = ({ toggleSidebar }) => {
   }, []);
 
   useEffect(() => {
+    // Click outside to close search dropdown
     const handleClickOutside = (event) => {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
-        setShowProfileMenu(false);
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    if (query.trim().length > 0) {
+      const lowerQuery = query.toLowerCase();
+      const results = transactions.filter(t => 
+        (t.name && t.name.toLowerCase().includes(lowerQuery)) ||
+        (t.lastName && t.lastName.toLowerCase().includes(lowerQuery)) ||
+        (t.description && t.description.toLowerCase().includes(lowerQuery)) ||
+        (t.amount && t.amount.toString().includes(lowerQuery))
+      ).slice(0, 6); // Keep top 6 results
+      setSearchResults(results);
+      setShowDropdown(true);
+    } else {
+      setShowDropdown(false);
+    }
+  };
+
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
+      setShowDropdown(false);
       navigate(`/statements?search=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery('');
     }
+  };
+
+  const handleResultClick = (item) => {
+    setShowDropdown(false);
+    navigate(`/statements?search=${encodeURIComponent(item.name)}`);
+    setSearchQuery('');
   };
 
   const handleLogout = async () => {
@@ -54,100 +82,74 @@ const TopNavbar = ({ toggleSidebar }) => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 flex items-center justify-between px-6 bg-white border-b border-gray-100 shadow-sm h-[var(--navbar-height)]">
-      {/* Left Section */}
-      <div className="flex items-center gap-4">
-        <button 
-          onClick={toggleSidebar}
-          className="p-2 text-gray-500 transition-colors rounded-lg hover:bg-gray-100 hover:text-primary lg:hidden"
-        >
-          <MdMenu size={24} />
+    <nav 
+      className="navbar navbar-expand bg-card sticky-top px-4 align-items-center justify-content-between"
+      style={{ height: 'var(--navbar-height)', borderBottom: '1px solid var(--border-color)', zIndex: 1030 }}
+    >
+      <div className="d-flex align-items-center">
+        <button className="btn btn-link text-main p-0 me-3" onClick={toggleSidebar} style={{ color: 'var(--text-main)' }}>
+          <MdMenu size={28} />
         </button>
-        
-        <div className="hidden lg:flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 p-1.5 bg-blue-50 rounded-xl">
-            <img src={logo} alt="Account Manager" className="w-full h-full object-contain" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight text-gray-900 leading-none">Account <span className="text-primary font-semibold">Manager</span></h1>
-            <p className="text-[10px] font-medium text-gray-400 tracking-widest uppercase mt-0.5">Finance Suite</p>
-          </div>
+        <div className="d-none d-lg-flex align-items-center gap-2">
+          <img src="/src/assets/logo.png" alt="R Logo" style={{ height: '32px', width: '32px', objectFit: 'contain' }} />
+          <h4 className="mb-0 fw-bold text-dark" style={{ letterSpacing: '-0.5px' }}>
+            Account <span className="text-secondary" style={{ fontWeight: 500 }}>Manager</span>
+          </h4>
         </div>
       </div>
 
-      {/* Middle Section - Search */}
-      <div className="flex-grow max-w-xl px-4">
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <MdSearch size={20} className="text-gray-400 group-focus-within:text-primary transition-colors" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-transparent rounded-2xl text-sm placeholder-gray-400 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-            placeholder="Search transactions, customers..."
+      <div className="d-flex flex-grow-1 justify-content-center px-4">
+        <div className="input-group position-relative shadow-sm" style={{ maxWidth: '400px', borderRadius: '24px', background: '#f8f9fa' }} ref={searchRef}>
+          <span className="input-group-text bg-transparent border-0 pe-2">
+            <MdSearch size={20} className="text-primary" />
+          </span>
+          <input 
+            type="text" 
+            className="form-control bg-transparent border-0 ps-1 box-shadow-none" 
+            placeholder="Search by name, ₹ amount..." 
+            style={{ boxShadow: 'none', fontSize: '0.9rem' }}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             onKeyDown={handleSearchSubmit}
           />
         </div>
       </div>
 
-      {/* Right Section */}
-      <div className="flex items-center gap-4">
-        {/* Status Badge */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-full">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span className="text-[10px] font-bold text-emerald-700 tracking-wider">LIVE</span>
+      <div className="d-flex align-items-center gap-3">
+        {/* Screenshot Style LIVE Badge */}
+        <div className="d-flex align-items-center gap-2 px-2 py-1 rounded-pill" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
+          <div style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%' }}></div>
+          <span className="fw-bold text-success" style={{ fontSize: '0.65rem' }}>LIVE</span>
         </div>
 
-        {/* Action Icons */}
-        <button className="p-2.5 text-gray-500 bg-gray-50 rounded-xl hover:bg-gray-100 hover:text-primary transition-all relative">
-           <MdDownload size={20} />
+        {/* Screenshot Style Download Icon */}
+        <button 
+          className="btn btn-link p-0 text-success border-0 box-shadow-none d-flex align-items-center justify-content-center" 
+          title="Download Backup"
+          style={{ width: '32px', height: '32px', backgroundColor: '#f0fdf4', borderRadius: '8px' }}
+        >
+          <MdDownload size={18} />
         </button>
 
         <NotificationBell transactions={transactions} />
-
-        {/* Profile Dropdown */}
-        <div className="relative" ref={profileRef}>
+        
+        <div className="dropdown">
           <button 
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 p-1 rounded-full border border-gray-100 hover:border-primary/30 transition-all focus:ring-4 focus:ring-primary/10"
+            className="btn btn-link p-0 dropdown-toggle text-decoration-none d-flex align-items-center" 
+            type="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+            style={{ color: 'var(--text-main)' }}
           >
             <img 
-              src={user.profilePic || `https://ui-avatars.com/api/?name=${user.firstName ? encodeURIComponent(user.firstName) : 'User'}&background=0d6efd&color=fff`} 
-              alt="Profile" 
-              className="w-9 h-9 rounded-full object-cover border border-white shadow-sm"
+              src={user.profilePic || `https://ui-avatars.com/api/?name=${user.firstName ? encodeURIComponent(user.firstName + ' ' + (user.lastName || '')) : 'User'}&background=0d6efd&color=fff`} 
+              alt="Profile" className="rounded-circle border border-2 border-primary" width="35" height="35" style={{objectFit: 'cover'}}
             />
           </button>
-
-          {showProfileMenu && (
-            <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-premium border border-gray-100 py-2 animate-in fade-in slide-in-from-top-2">
-              <div className="px-4 py-3 border-b border-gray-50 mb-1">
-                <p className="text-sm font-semibold text-gray-900 truncate">{user.firstName} {user.lastName}</p>
-                <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
-              </div>
-              
-              <Link to="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
-                <MdPerson size={18} />
-                Profile
-              </Link>
-              <Link to="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
-                <MdSettings size={18} />
-                Settings
-              </Link>
-              <hr className="my-1 border-gray-50" />
-              <button 
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <MdLogout size={18} />
-                Logout
-              </button>
-            </div>
-          )}
+          <ul className="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
+            <li><button className="dropdown-item">Profile</button></li>
+            <li><button className="dropdown-item">Settings</button></li>
+            <li><hr className="dropdown-divider" /></li>
+            <li><button className="dropdown-item text-danger" onClick={handleLogout}>Logout</button></li>
+          </ul>
         </div>
       </div>
     </nav>

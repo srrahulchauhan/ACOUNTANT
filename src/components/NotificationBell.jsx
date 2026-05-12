@@ -36,7 +36,7 @@ const buildNotifs = (txns) => {
       if (paid) {
         notifs.push({
           id: 'suc_' + t._id, cat: 'success', urgent: false,
-          icon: '✅', colorClass: 'text-emerald-500', borderClass: 'border-emerald-500', bgClass: 'bg-emerald-50',
+          icon: '✅', color: '#10b981', border: '#10b981', bg: 'rgba(16,185,129,0.09)',
           title: 'Payment Received',
           body: name + ' — ' + fmtAmt(t.amount),
           sub: t.emiPaidDate ? 'Paid: ' + fmtDate(t.emiPaidDate) : 'Entry: ' + fmtDate(t.date),
@@ -48,7 +48,7 @@ const buildNotifs = (txns) => {
       if (diff !== null && diff < 0) {
         notifs.push({
           id: 'del_' + t._id, cat: 'delayed', urgent: true,
-          icon: '⚠️', colorClass: 'text-rose-500', borderClass: 'border-rose-500', bgClass: 'bg-rose-50',
+          icon: '⚠️', color: '#ef4444', border: '#ef4444', bg: 'rgba(239,68,68,0.09)',
           title: 'Overdue by ' + Math.abs(diff) + ' day' + (Math.abs(diff) > 1 ? 's' : ''),
           body: name + ' — ' + fmtAmt(t.amount),
           sub: 'Was due ' + fmtDate(dueStr),
@@ -62,9 +62,9 @@ const buildNotifs = (txns) => {
         notifs.push({
           id: 'up_' + t._id, cat: 'upcoming', urgent: diff <= 2,
           icon: diff <= 2 ? '🔔' : '📅',
-          colorClass: diff <= 2 ? 'text-amber-500' : 'text-indigo-500',
-          borderClass: diff <= 2 ? 'border-amber-500' : 'border-indigo-500',
-          bgClass: diff <= 2 ? 'bg-amber-50' : 'bg-indigo-50',
+          color: diff <= 2 ? '#f59e0b' : '#6366f1',
+          border: diff <= 2 ? '#f59e0b' : '#6366f1',
+          bg: diff <= 2 ? 'rgba(245,158,11,0.09)' : 'rgba(99,102,241,0.09)',
           title: 'Due ' + when,
           body: name + ' — ' + fmtAmt(t.amount),
           sub: 'Due Date: ' + fmtDate(dueStr),
@@ -76,7 +76,7 @@ const buildNotifs = (txns) => {
       if (!paid) {
         notifs.push({
           id: 'pen_' + t._id, cat: 'pending', urgent: false,
-          icon: '🕐', colorClass: 'text-amber-500', borderClass: 'border-amber-500', bgClass: 'bg-amber-50',
+          icon: '🕐', color: '#f59e0b', border: '#f59e0b', bg: 'rgba(245,158,11,0.07)',
           title: 'Pending Payment',
           body: name + ' — ' + fmtAmt(t.amount),
           sub: dueStr ? 'Due: ' + fmtDate(dueStr) : 'No due date',
@@ -85,10 +85,10 @@ const buildNotifs = (txns) => {
       }
     });
 
-    notifs.sort((a, b) => {
+    notifs.sort(function(a, b) {
       if (a.urgent && !b.urgent) return -1;
       if (!a.urgent && b.urgent) return 1;
-      return new Date(b.time || 0) - new Date(a.time || 0);
+      return new Date(a.time || 0) - new Date(b.time || 0);
     });
 
     return notifs;
@@ -99,8 +99,9 @@ const buildNotifs = (txns) => {
 };
 
 const TABS = ['all', 'pending', 'success', 'delayed', 'upcoming'];
-const TAB_LABELS = { all: 'All', pending: 'Pending', success: 'Success', delayed: 'Delayed', upcoming: 'Upcoming' };
+const TAB_LABELS = { all: '🔔 All', pending: '🕐 Pending', success: '✅ Success', delayed: '⚠️ Delayed', upcoming: '📅 Upcoming' };
 
+/* ─── Component ───────────────────────────────────────────── */
 const NotificationBell = ({ transactions = [] }) => {
   const { userData, updateUserData } = useAuth();
   const [open, setOpen] = useState(false);
@@ -109,26 +110,29 @@ const NotificationBell = ({ transactions = [] }) => {
   const [tab, setTab] = useState('all');
   const dropRef = useRef(null);
 
+  // Load notifications
   const reload = () => {
-    setNotifs(buildNotifs(transactions));
+    var n = buildNotifs(transactions);
+    setNotifs(n);
   };
 
-  useEffect(() => {
+  useEffect(function() {
     reload();
   }, [transactions]);
 
-  useEffect(() => {
+  // Outside click
+  useEffect(function() {
     if (!open) return;
-    const handleClick = (e) => {
+    var fn = function(e) {
       if (dropRef.current && !dropRef.current.contains(e.target)) {
         setOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', fn);
+    return function() { document.removeEventListener('mousedown', fn); };
   }, [open]);
 
-  const saveDis = async (arr) => {
+  var saveDis = async (arr) => {
     try {
       await updateUserData({ dismissedNotifications: arr });
     } catch (err) {
@@ -136,104 +140,173 @@ const NotificationBell = ({ transactions = [] }) => {
     }
   };
 
-  const visible = notifs.filter(n => dismissed.indexOf(n.id) === -1);
-  const filtered = tab === 'all' ? visible : visible.filter(n => n.cat === tab);
-  const urgentCount = visible.filter(n => n.urgent).length;
-  const totalCount = visible.length;
+  var visible = notifs.filter(function(n) { return dismissed.indexOf(n.id) === -1; });
+  var filtered = tab === 'all' ? visible : visible.filter(function(n) { return n.cat === tab; });
+  var urgentCount = visible.filter(function(n) { return n.urgent; }).length;
+  var totalCount = visible.length;
+
+  var counts = {};
+  TABS.forEach(function(k) {
+    counts[k] = k === 'all' ? visible.length : visible.filter(function(n) { return n.cat === k; }).length;
+  });
 
   return (
-    <div ref={dropRef} className="relative inline-flex items-center">
+    <div ref={dropRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+
       {/* Bell Button */}
       <button
-        onClick={() => { reload(); setOpen(!open); }}
-        className="p-2.5 text-gray-500 bg-gray-50 rounded-xl hover:bg-gray-100 hover:text-primary transition-all relative"
+        className="btn btn-link p-0 position-relative"
+        style={{ color: 'var(--text-main)', outline: 'none', border: 'none' }}
+        onClick={function() { reload(); setOpen(function(o) { return !o; }); }}
+        title="Notifications"
       >
-        <MdNotifications size={22} />
+        <MdNotifications size={24} />
         {totalCount > 0 && (
-          <span className={`absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-[10px] font-bold text-white rounded-full border-2 border-white ${urgentCount > 0 ? 'bg-rose-500' : 'bg-primary'}`}>
-            {totalCount > 9 ? '9+' : totalCount}
+          <span style={{
+            position: 'absolute', top: -4, right: -5,
+            background: urgentCount > 0 ? '#ef4444' : '#6366f1',
+            color: '#fff', borderRadius: '50%',
+            fontSize: '0.58rem', fontWeight: 'bold',
+            width: 17, height: 17,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '2px solid var(--bg-card, #fff)',
+          }}>
+            {totalCount > 99 ? '99+' : totalCount}
           </span>
         )}
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute top-14 right-0 w-80 sm:w-96 bg-white rounded-2xl shadow-premium border border-gray-100 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2">
+        <div style={{
+          position: 'fixed',
+          top: 60, right: 16,
+          width: 360, maxWidth: 'calc(100vw - 32px)',
+          background: 'var(--bg-card, #fff)',
+          borderRadius: 16,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.22)',
+          border: '1px solid var(--border-color, #e5e7eb)',
+          zIndex: 99999,
+          overflow: 'hidden',
+        }}>
+
           {/* Header */}
-          <div className="bg-primary px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MdNotifications className="text-white" size={18} />
-              <span className="text-white font-bold text-sm">Notifications</span>
+          <div style={{
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            padding: '12px 14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <MdNotifications color="#fff" size={18} />
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Notifications</span>
               {urgentCount > 0 && (
-                <span className="bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter animate-pulse">
-                  {urgentCount} Urgent
+                <span style={{
+                  background: '#ef4444', color: '#fff',
+                  borderRadius: 20, fontSize: 9, padding: '1px 6px', fontWeight: 700,
+                }}>
+                  {urgentCount} URGENT
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => saveDis(notifs.map(n => n.id))}
-                className="text-[10px] font-bold text-white/80 hover:text-white uppercase tracking-wider"
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {visible.length > 0 && (
+                <button
+                  onClick={function() { saveDis(notifs.map(function(n) { return n.id; })); }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.85)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}
+                >Clear all</button>
+              )}
+              {dismissed.length > 0 && (
+                <button
+                  onClick={function() { saveDis([]); }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}
+                >Restore</button>
+              )}
+              <button
+                onClick={function() { setOpen(false); }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', lineHeight: 1, padding: 0 }}
               >
-                Clear
-              </button>
-              <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white">
                 <MdClose size={18} />
               </button>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex overflow-x-auto px-2 pt-2 gap-1 border-b border-gray-50 bg-gray-50/30">
-            {TABS.map(k => (
-              <button
-                key={k}
-                onClick={() => setTab(k)}
-                className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider rounded-t-lg transition-all whitespace-nowrap ${tab === k ? 'bg-white text-primary' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                {TAB_LABELS[k]}
-              </button>
-            ))}
+          <div style={{
+            display: 'flex', overflowX: 'auto', padding: '6px 6px 0', gap: 3,
+            borderBottom: '1px solid var(--border-color, #e5e7eb)',
+          }}>
+            {TABS.map(function(k) {
+              return (
+                <button
+                  key={k}
+                  onClick={function() { setTab(k); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 3,
+                    padding: '5px 9px', borderRadius: '7px 7px 0 0',
+                    border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                    fontSize: 11, fontWeight: 600,
+                    background: tab === k ? '#6366f1' : 'transparent',
+                    color: tab === k ? '#fff' : '#6b7280',
+                  }}
+                >
+                  {TAB_LABELS[k]}
+                  {counts[k] > 0 && (
+                    <span style={{
+                      background: tab === k ? 'rgba(255,255,255,0.25)' : '#e5e7eb',
+                      color: tab === k ? '#fff' : '#374151',
+                      borderRadius: 10, fontSize: 9, padding: '0 5px', fontWeight: 700,
+                    }}>{counts[k]}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
-          {/* List */}
-          <div className="max-h-[400px] overflow-y-auto py-2">
+          {/* Notification List */}
+          <div style={{ maxHeight: 350, overflowY: 'auto', padding: '6px 0' }}>
             {filtered.length === 0 ? (
-              <div className="py-12 text-center">
-                <MdCheckCircle size={40} className="mx-auto text-emerald-100 mb-2" />
-                <p className="text-sm font-bold text-gray-900">All clear!</p>
-                <p className="text-xs text-gray-400">No notifications to show.</p>
+              <div style={{ textAlign: 'center', padding: '28px 16px', color: '#9ca3af' }}>
+                <MdCheckCircle size={32} style={{ opacity: 0.3, marginBottom: 6 }} />
+                <div style={{ fontSize: 13, fontWeight: 600 }}>All clear!</div>
+                <div style={{ fontSize: 11 }}>No notifications here.</div>
               </div>
             ) : (
-              filtered.map(n => (
-                <div 
-                  key={n.id} 
-                  className={`mx-3 my-2 p-3 rounded-xl border-l-4 transition-all hover:translate-x-1 ${n.bgClass} ${n.borderClass}`}
-                >
-                  <div className="flex gap-3">
-                    <span className="text-xl flex-shrink-0">{n.icon}</span>
-                    <div className="flex-grow min-w-0">
-                      <p className={`text-[10px] font-black uppercase tracking-wider mb-0.5 ${n.colorClass}`}>{n.title}</p>
-                      <p className="text-xs font-bold text-gray-800 truncate">{n.body}</p>
-                      <p className="text-[10px] text-gray-400 mt-1">{n.sub}</p>
+              filtered.map(function(n) {
+                return (
+                  <div
+                    key={n.id}
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10,
+                      margin: '3px 7px', padding: '9px 10px',
+                      borderRadius: 10, background: n.bg,
+                      borderLeft: '3px solid ' + n.border,
+                    }}
+                  >
+                    <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0, marginTop: 2 }}>{n.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: n.color }}>{n.title}</div>
+                      <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-main, #111827)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.body}</div>
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>{n.sub}</div>
                     </div>
-                    <button 
-                      onClick={() => saveDis([...dismissed, n.id])}
-                      className="text-gray-300 hover:text-gray-500"
+                    <button
+                      onClick={function() { saveDis(dismissed.concat([n.id])); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db', padding: 0, flexShrink: 0, lineHeight: 1 }}
+                      title="Dismiss"
                     >
-                      <MdClose size={14} />
+                      <MdClose size={13} />
                     </button>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
           {/* Footer */}
-          <div className="bg-gray-50 px-4 py-2 border-t border-gray-100">
-             <p className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-widest">
-               Showing {filtered.length} of {totalCount} notifications
-             </p>
+          <div style={{
+            padding: '7px 14px', borderTop: '1px solid var(--border-color, #e5e7eb)',
+            textAlign: 'center', fontSize: 10, color: '#9ca3af',
+          }}>
+            {totalCount} notifications · refreshes every 5 min
           </div>
         </div>
       )}
