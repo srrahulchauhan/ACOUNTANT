@@ -90,130 +90,45 @@ const TopNavbar = ({ toggleSidebar }) => {
         <button className="btn btn-link text-main p-0 me-3" onClick={toggleSidebar} style={{ color: 'var(--text-main)' }}>
           <MdMenu size={28} />
         </button>
-        <div className="d-none d-md-flex align-items-center gap-2">
-          {user.appLogo && (
-            <img src={user.appLogo} alt="App Logo" className="rounded-2" style={{height: 32, width: 32, objectFit: 'contain'}} />
-          )}
-          <h4 className="mb-0 fw-bold text-primary">
-            Account <span className="text-secondary">Manager</span>
+        <div className="d-none d-lg-flex align-items-center gap-2">
+          <img src="/src/assets/logo.png" alt="R Logo" style={{ height: '32px', width: '32px', objectFit: 'contain' }} />
+          <h4 className="mb-0 fw-bold text-dark" style={{ letterSpacing: '-0.5px' }}>
+            Account <span className="text-secondary" style={{ fontWeight: 500 }}>Manager</span>
           </h4>
         </div>
       </div>
 
       <div className="d-flex flex-grow-1 justify-content-center px-4">
-        <div className="input-group position-relative shadow-sm" style={{ maxWidth: '400px', borderRadius: '24px', background: 'var(--bg-light)' }} ref={searchRef}>
-          <span className="input-group-text bg-transparent border-0 pe-2" style={{ borderRadius: '24px 0 0 24px' }}>
-            <MdSearch size={22} className="text-primary" />
+        <div className="input-group position-relative shadow-sm" style={{ maxWidth: '400px', borderRadius: '24px', background: '#f8f9fa' }} ref={searchRef}>
+          <span className="input-group-text bg-transparent border-0 pe-2">
+            <MdSearch size={20} className="text-primary" />
           </span>
           <input 
             type="text" 
             className="form-control bg-transparent border-0 ps-1 box-shadow-none" 
             placeholder="Search by name, ₹ amount..." 
-            style={{ boxShadow: 'none', fontSize: '0.9rem', fontWeight: 500 }}
+            style={{ boxShadow: 'none', fontSize: '0.9rem' }}
             value={searchQuery}
             onChange={handleSearchChange}
             onKeyDown={handleSearchSubmit}
-            onFocus={() => { if(searchQuery.trim().length > 0) setShowDropdown(true); }}
           />
-          {/* Quick Clear Button */}
-          {searchQuery && (
-            <button 
-              className="btn btn-link text-muted pe-3 text-decoration-none border-0 box-shadow-none"
-              onClick={() => { setSearchQuery(''); setShowDropdown(false); document.querySelector('input[placeholder="Search by name, ₹ amount..."]').focus(); }}
-            >
-              ×
-            </button>
-          )}
-
-          {/* Premium Smart Search Dropdown */}
-          {showDropdown && (
-            <div 
-              className="position-absolute w-100 shadow" 
-              style={{ 
-                top: 'calc(100% + 8px)', left: 0, zIndex: 1050, 
-                backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                backdropFilter: 'blur(12px)',
-                borderRadius: '16px',
-                border: '1px solid rgba(0,0,0,0.05)',
-                overflow: 'hidden',
-                animation: 'fadeInDownSearch 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-              }}
-            >
-              {searchResults.length > 0 ? (
-                <div className="list-group list-group-flush pt-2 pb-1">
-                  {searchResults.map((t) => (
-                    <button 
-                      key={t._id} 
-                      className="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 px-3 border-0 bg-transparent"
-                      onClick={() => handleResultClick(t)}
-                      style={{ transition: 'all 0.15s ease' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(13, 110, 253, 0.04)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    >
-                      <div className="d-flex align-items-center gap-2" style={{ overflow: 'hidden' }}>
-                        <div style={{
-                          width: 8, height: 8, borderRadius: '50%',
-                          background: t.type === 'Credit' ? '#10b981' : t.type === 'EMI' || t.type === 'Loan' ? '#f59e0b' : '#ef4444'
-                        }}></div>
-                        <div className="d-flex flex-column text-start text-truncate">
-                          <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.85rem' }}>
-                            {t.name} {t.lastName || ''}
-                          </span>
-                          <span className="text-muted text-truncate" style={{ fontSize: '0.7rem' }}>
-                            {t.description || t.type} • {new Date(t.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}
-                          </span>
-                        </div>
-                      </div>
-                      <span 
-                        className={`badge rounded-pill flex-shrink-0 bg-${t.type === 'Credit' ? 'success' : t.type === 'EMI' || t.type === 'Loan' ? 'warning' : 'danger'} bg-opacity-10 text-${t.type === 'Credit' ? 'success' : t.type === 'EMI' || t.type === 'Loan' ? 'warning' : 'danger'}`}
-                        style={{ fontSize: '0.75rem' }}
-                      >
-                        {t.type === 'Credit' ? '+' : '-'}₹{Number(t.amount).toLocaleString('en-IN')}
-                      </span>
-                    </button>
-                  ))}
-                  <div 
-                    className="p-2 text-center mt-1" 
-                    style={{ fontSize: '0.75rem', cursor: 'pointer', color: 'var(--primary)', fontWeight: 700 }}
-                    onClick={() => handleSearchSubmit({key: 'Enter'})}
-                    onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-                    onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
-                  >
-                    View all results \u2192
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 text-center text-muted d-flex flex-column align-items-center gap-2">
-                  <MdSearch size={32} style={{ opacity: 0.3 }} />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>No results for "{searchQuery}"</span>
-                </div>
-              )}
-            </div>
-          )}
         </div>
-        <style>{`
-          @keyframes fadeInDownSearch {
-            from { opacity: 0; transform: translateY(-8px) scale(0.98); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-          }
-          .form-control:focus { background-color: transparent !important; }
-        `}</style>
       </div>
 
-      <div className="d-flex align-items-center gap-2 gap-md-3">
-        {/* Mini Auto-Save Icon */}
-        <div className="d-flex align-items-center gap-1 px-2 py-1 rounded-pill bg-light border" title="Auto-Save Live: Saved to cloud" style={{ cursor: 'help' }}>
-          <MdCloudDone className="text-success" size={18} />
-          <span className="d-none d-lg-inline fw-bold text-success" style={{ fontSize: '0.65rem' }}>LIVE</span>
+      <div className="d-flex align-items-center gap-3">
+        {/* Screenshot Style LIVE Badge */}
+        <div className="d-flex align-items-center gap-2 px-2 py-1 rounded-pill" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
+          <div style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%' }}></div>
+          <span className="fw-bold text-success" style={{ fontSize: '0.65rem' }}>LIVE</span>
         </div>
 
-        {/* Mini Download Action */}
+        {/* Screenshot Style Download Icon */}
         <button 
           className="btn btn-link p-0 text-success border-0 box-shadow-none d-flex align-items-center justify-content-center" 
           title="Download Backup"
-          style={{ width: '35px', height: '35px', backgroundColor: '#f0fdf4', borderRadius: '50%' }}
+          style={{ width: '32px', height: '32px', backgroundColor: '#f0fdf4', borderRadius: '8px' }}
         >
-          <MdDownload size={20} />
+          <MdDownload size={18} />
         </button>
 
         <NotificationBell transactions={transactions} />
