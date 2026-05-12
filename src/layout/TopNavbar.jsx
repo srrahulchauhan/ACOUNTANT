@@ -90,33 +90,18 @@ const TopNavbar = ({ toggleSidebar }) => {
         <button className="btn btn-link text-main p-0 me-3" onClick={toggleSidebar} style={{ color: 'var(--text-main)' }}>
           <MdMenu size={28} />
         </button>
-        <div className="d-none d-lg-flex align-items-center gap-2">
+        <div className="d-none d-md-flex align-items-center gap-2">
+          {user.appLogo && (
+            <img src={user.appLogo} alt="App Logo" className="rounded-2" style={{height: 32, width: 32, objectFit: 'contain'}} />
+          )}
           <h4 className="mb-0 fw-bold text-primary">
-            R <span className="text-secondary">Accounts</span>
+            Account <span className="text-secondary">Manager</span>
           </h4>
         </div>
       </div>
 
-      {/* Auto-Save & Backup - Desktop Only */}
-      <div className="d-none d-xl-flex align-items-center flex-grow-1 mx-4">
-        <div className="d-flex align-items-center gap-3 px-3 py-1 rounded-pill w-100 justify-content-between" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7', maxWidth: '600px' }}>
-          <div className="d-flex align-items-center gap-2">
-            <MdCloudDone className="text-success" size={20} />
-            <span className="fw-medium text-success" style={{ fontSize: '0.85rem' }}>Auto-Save Live: Changes saved to cloud</span>
-            <span className="badge rounded-pill bg-primary px-2" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>LIVE</span>
-          </div>
-          <div className="d-flex align-items-center gap-2">
-            <div style={{ width: '1px', height: '20px', backgroundColor: '#dcfce7' }}></div>
-            <button className="btn btn-success btn-sm d-flex align-items-center gap-2 px-3 py-1 rounded-pill shadow-sm border-0" style={{ fontSize: '0.8rem', backgroundColor: '#10b981' }}>
-              <MdDownload size={18} />
-              <span className="fw-semibold">Download Backup</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="d-flex align-items-center gap-3">
-        <div className="input-group position-relative shadow-sm" style={{ width: '300px', borderRadius: '24px', background: 'var(--bg-light)' }} ref={searchRef}>
+      <div className="d-flex flex-grow-1 justify-content-center px-4">
+        <div className="input-group position-relative shadow-sm" style={{ maxWidth: '400px', borderRadius: '24px', background: 'var(--bg-light)' }} ref={searchRef}>
           <span className="input-group-text bg-transparent border-0 pe-2" style={{ borderRadius: '24px 0 0 24px' }}>
             <MdSearch size={22} className="text-primary" />
           </span>
