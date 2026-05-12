@@ -8,7 +8,7 @@ import {
   sendPasswordResetEmail,
   updatePassword as firebaseUpdatePassword
 } from "firebase/auth";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { ref, get, set, update, child } from "firebase/database";
 import { auth, db, googleProvider } from "../firebase";
 
 const AuthContext = createContext();
@@ -24,14 +24,13 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        // Fetch additional user data from Firestore
+        // Fetch additional user data from Realtime Database
         try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            setUserData(userDoc.data());
+          const dbRef = ref(db);
+          const snapshot = await get(child(dbRef, `users/${user.uid}`));
+          if (snapshot.exists()) {
+            setUserData(snapshot.val());
           } else {
-            // If user exists in Auth but not in Firestore (e.g. first Google login)
-            // This case is handled in loginWithGoogle, but good to have a fallback
             setUserData(null);
           }
         } catch (error) {
@@ -65,7 +64,7 @@ export const AuthProvider = ({ children }) => {
       createdAt: new Date().toISOString()
     };
 
-    await setDoc(doc(db, "users", user.uid), data);
+    await set(ref(db, 'users/' + user.uid), data);
     setUserData(data);
     return userCredential;
   };
@@ -79,8 +78,10 @@ export const AuthProvider = ({ children }) => {
     const user = result.user;
 
     // Check if user data exists, if not create it
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    if (!userDoc.exists()) {
+    const dbRef = ref(db);
+    const snapshot = await get(child(dbRef, `users/${user.uid}`));
+    
+    if (!snapshot.exists()) {
       const names = user.displayName ? user.displayName.split(' ') : ['Google', 'User'];
       const data = {
         uid: user.uid,
@@ -97,13 +98,12 @@ export const AuthProvider = ({ children }) => {
         role: 'user',
         createdAt: new Date().toISOString()
       };
-      await setDoc(doc(db, "users", user.uid), data);
+      await set(ref(db, 'users/' + user.uid), data);
       setUserData(data);
     } else {
-      setUserData(userDoc.data());
+      setUserData(snapshot.val());
     }
   };
-
 
   const logout = async () => {
     await signOut(auth);
@@ -120,9 +120,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateUserData = async (data) => {
-    if (!currentUser || currentUser.isGuest) return;
-    const userRef = doc(db, "users", currentUser.uid);
-    await updateDoc(userRef, data);
+    if (!currentUser) return;
+    const userRef = ref(db, 'users/' + currentUser.uid);
+    await update(userRef, data);
     setUserData(prev => ({ ...prev, ...data }));
   };
 
