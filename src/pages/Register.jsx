@@ -11,6 +11,7 @@ import {
 } from 'react-icons/md';
 import { FcGoogle } from 'react-icons/fc';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.png';
 
 const Register = () => {
   const [formData, setFormData] = useState({ 
@@ -83,11 +84,11 @@ const Register = () => {
         
         {/* Logo/Brand */}
         <div className="text-center mb-4">
-          <div className="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-4 shadow-sm mb-3" style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #0d6efd, #0a58ca)' }}>
-            <MdShield size={24} />
+          <div className="d-inline-flex align-items-center justify-content-center bg-white rounded-4 shadow-sm mb-3 overflow-hidden" style={{ width: '64px', height: '64px' }}>
+            <img src={logo} alt="R Accounts Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <h2 className="fw-bold mb-1" style={{ color: '#0f172a', letterSpacing: '-0.5px', fontSize: '1.75rem' }}>Create an account</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Start your financial journey with Acountant.</p>
+          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Start your financial journey with R Accounts.</p>
         </div>
 
         <div className="card border-0 shadow-none" style={{ background: 'transparent' }}>
@@ -172,7 +173,7 @@ const Register = () => {
         </div>
         
         <div className="text-center mt-5">
-          <p style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>© 2026 Acountant Inc. All rights reserved.</p>
+          <p style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>© 2026 R Accounts Inc. All rights reserved.</p>
         </div>
       </div>
 

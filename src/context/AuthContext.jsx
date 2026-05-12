@@ -1,4 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  updatePassword as firebaseUpdatePassword
+} from "firebase/auth";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { auth, db, googleProvider } from "../firebase";
 
 const AuthContext = createContext();
 
@@ -10,25 +21,37 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load mock user from localStorage on init
-    const storedUser = localStorage.getItem('account_mock_user');
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      setCurrentUser({ uid: parsed.uid, email: parsed.email });
-      setUserData(parsed);
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        // Fetch additional user data from Firestore
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            setUserData(userDoc.data());
+          } else {
+            // If user exists in Auth but not in Firestore (e.g. first Google login)
+            // This case is handled in loginWithGoogle, but good to have a fallback
+            setUserData(null);
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      } else {
+        setUserData(null);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
-  const persistUser = (user) => {
-    localStorage.setItem('account_mock_user', JSON.stringify(user));
-    setCurrentUser({ uid: user.uid, email: user.email });
-    setUserData(user);
-  };
-
   const register = async (email, password, firstName, lastName, phone) => {
-    const user = {
-      uid: Date.now().toString(),
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    const data = {
+      uid: user.uid,
       firstName,
       lastName,
       email,
@@ -41,92 +64,83 @@ export const AuthProvider = ({ children }) => {
       lastAutoSave: null,
       createdAt: new Date().toISOString()
     };
-    persistUser(user);
-    return { user: { uid: user.uid } };
+
+    await setDoc(doc(db, "users", user.uid), data);
+    setUserData(data);
+    return userCredential;
   };
 
   const login = async (email, password) => {
-    // Mock login just simulates finding a user.
-    let user = localStorage.getItem('account_mock_user');
-    if (!user) {
-      user = {
-        uid: Date.now().toString(),
-        firstName: "Mock",
-        lastName: "User",
-        email: email,
-        phone: "",
-        role: 'user',
+    return await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const loginWithGoogle = async () => {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+
+    // Check if user data exists, if not create it
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (!userDoc.exists()) {
+      const names = user.displayName ? user.displayName.split(' ') : ['Google', 'User'];
+      const data = {
+        uid: user.uid,
+        firstName: names[0],
+        lastName: names.slice(1).join(' ') || '',
+        email: user.email,
+        phone: user.phoneNumber || '',
+        profilePic: user.photoURL || '',
         customCategories: [],
         customPaymentApps: [],
         appLogo: '',
         dismissedNotifications: [],
         lastAutoSave: null,
+        role: 'user',
         createdAt: new Date().toISOString()
       };
-      persistUser(user);
+      await setDoc(doc(db, "users", user.uid), data);
+      setUserData(data);
     } else {
-      user = JSON.parse(user);
-      persistUser(user);
+      setUserData(userDoc.data());
     }
   };
 
-  const loginWithGoogle = async () => {
-    const user = {
-      uid: Date.now().toString(),
-      firstName: "Google",
-      lastName: "User",
-      email: "google@example.com",
-      phone: "",
-      profilePic: "",
-      customCategories: [],
-      customPaymentApps: [],
-      appLogo: '',
-      dismissedNotifications: [],
-      lastAutoSave: null,
-      role: 'user',
-      createdAt: new Date().toISOString()
-    };
-    persistUser(user);
-  };
-
   const loginAsGuest = async () => {
-    const user = {
-      uid: "guest_" + Date.now().toString(),
+    // Note: Firebase has an Anonymous Auth feature, but for simplicity 
+    // we can keep a local mock or use signInAnonymously if configured.
+    // Given the user asked for DB, we'll just mock it or skip if not essential.
+    // For now, keeping it as is but it won't be "real" firebase unless using signInAnonymously.
+    const guestUid = "guest_" + Date.now().toString();
+    const user = { uid: guestUid, isGuest: true };
+    setCurrentUser(user);
+    setUserData({
+      uid: guestUid,
       firstName: "Free",
       lastName: "User",
       email: "freeuse@account.com",
-      phone: "",
       role: 'user',
-      customCategories: [],
-      customPaymentApps: [],
-      appLogo: '',
-      dismissedNotifications: [],
-      lastAutoSave: null,
-      createdAt: new Date().toISOString()
-    };
-    persistUser(user);
+      isGuest: true
+    });
   };
 
   const logout = async () => {
-    localStorage.removeItem('account_mock_user');
-    setCurrentUser(null);
-    setUserData(null);
+    await signOut(auth);
   };
 
   const resetPassword = async (email) => {
-    // mock
-    return true;
+    return await sendPasswordResetEmail(auth, email);
   };
 
   const updatePassword = async (newPassword) => {
-    // mock
-    return true;
+    if (currentUser) {
+      return await firebaseUpdatePassword(currentUser, newPassword);
+    }
   };
 
   const updateUserData = async (data) => {
-    if (!userData) return;
-    const updated = { ...userData, ...data };
-    persistUser(updated);
+    if (!currentUser || currentUser.isGuest) return;
+    const userRef = doc(db, "users", currentUser.uid);
+    await updateDoc(userRef, data);
+    setUserData(prev => ({ ...prev, ...data }));
   };
 
   const value = {

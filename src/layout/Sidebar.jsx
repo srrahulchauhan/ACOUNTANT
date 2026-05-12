@@ -5,6 +5,7 @@ import {
     MdEvent, MdSettings, MdLogout, MdPayment 
 } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.png';
 
 const Sidebar = ({ closeMobileSidebar }) => {
   const { currentUser, userData, logout } = useAuth();
@@ -30,11 +31,14 @@ const Sidebar = ({ closeMobileSidebar }) => {
 
   return (
     <div className="d-flex flex-column h-100 text-white p-3">
-      <div className="d-flex align-items-center justify-content-between mb-4 mt-2 px-2">
-        <div className="d-lg-none">
-          <h5 className="mb-0 text-primary fw-bold">Menu</h5>
+      <div className="d-flex align-items-center mb-4 mt-2 px-2">
+        <div className="bg-white rounded-3 p-1 shadow-sm overflow-hidden" style={{ width: '40px', height: '40px' }}>
+          <img src={logo} alt="R Accounts" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
-        <button className="btn btn-sm btn-outline-secondary d-lg-none border-0" onClick={closeMobileSidebar}>✖</button>
+        <div className="ms-2">
+          <h5 className="mb-0 fw-bold" style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>R Accounts</h5>
+        </div>
+        <button className="btn btn-sm btn-outline-secondary ms-auto d-lg-none border-0" onClick={closeMobileSidebar}>✖</button>
       </div>
 
       <div className="flex-grow-1 overflow-auto">

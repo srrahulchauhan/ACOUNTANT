@@ -9,6 +9,7 @@ import {
 } from 'react-icons/md';
 import { FcGoogle } from 'react-icons/fc';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.png';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -73,11 +74,11 @@ const Login = () => {
         
         {/* Logo/Brand */}
         <div className="text-center mb-4">
-          <div className="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-4 shadow-sm mb-3" style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #0d6efd, #0a58ca)' }}>
-            <MdLogin size={24} />
+          <div className="d-inline-flex align-items-center justify-content-center bg-white rounded-4 shadow-sm mb-3 overflow-hidden" style={{ width: '80px', height: '80px' }}>
+            <img src={logo} alt="R Accounts Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <h2 className="fw-bold mb-1" style={{ color: '#0f172a', letterSpacing: '-0.5px', fontSize: '1.75rem' }}>Welcome Back</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Sign in to access your dashboard.</p>
+          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Sign in to access your R Accounts dashboard.</p>
         </div>
 
         <div className="card border-0 shadow-none" style={{ background: 'transparent' }}>
