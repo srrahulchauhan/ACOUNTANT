@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 import { MdDelete, MdEdit, MdSearch, MdFilterList, MdSave, MdClose, MdShare, MdPictureAsPdf, MdTableChart, MdWhatsapp, MdEmail, MdSms } from 'react-icons/md';
 import { fetchTransactions, deleteTransaction, updateTransaction } from '../api';
