@@ -28,7 +28,7 @@ const Layout = () => {
   };
 
   return (
-    <div className="d-flex" style={{ minHeight: '100vh', backgroundColor: 'var(--bg-color)' }}>
+    <div className="d-flex" style={{ minHeight: '100vh', backgroundColor: 'var(--bg-light)' }}>
       {/* Sidebar Overlay for Mobile */}
       {isMobile && sidebarOpen && (
         <div
@@ -40,14 +40,13 @@ const Layout = () => {
 
       {/* Sidebar */}
       <div
-        className={`position-fixed h-100 bg-card overflow-auto transition-all`}
+        className={`position-fixed h-100 glass-panel overflow-auto transition-all`}
         style={{
           width: 'var(--sidebar-width)',
           zIndex: 1045,
           left: sidebarOpen ? 0 : 'calc(-1 * var(--sidebar-width))',
-          backgroundColor: 'var(--card-bg)',
           borderRight: '1px solid var(--border-color)',
-          transition: 'left 0.3s ease'
+          transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
         }}
       >
         <Sidebar closeMobileSidebar={() => isMobile && setSidebarOpen(false)} />
@@ -58,7 +57,7 @@ const Layout = () => {
         className="flex-grow-1 d-flex flex-column"
         style={{
           marginLeft: !isMobile && sidebarOpen ? 'var(--sidebar-width)' : 0,
-          transition: 'margin-left 0.3s ease',
+          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           height: '100vh',
           overflow: 'hidden',
         }}

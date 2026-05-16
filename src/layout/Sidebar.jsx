@@ -30,15 +30,15 @@ const Sidebar = ({ closeMobileSidebar }) => {
   ];
 
   return (
-    <div className="d-flex flex-column h-100 text-white p-3">
-      <div className="d-flex align-items-center mb-4 mt-2 px-2">
-        <div className="bg-white rounded-3 p-1 shadow-sm overflow-hidden" style={{ width: '40px', height: '40px' }}>
-          <img src={logo} alt="R Accounts" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    <div className="d-flex flex-column h-100 p-3">
+      <div className="d-flex align-items-center mb-4 mt-2 px-1">
+        <div className="bg-white rounded-3 p-1 shadow-sm" style={{ width: '40px', height: '40px' }}>
+          <img src={userData?.appLogo || logo} alt="R Accounts" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </div>
-        <div className="ms-2">
-          <h5 className="mb-0 fw-bold" style={{ color: 'var(--text-main)', letterSpacing: '-0.5px' }}>R Accounts</h5>
+        <div className="ms-2 flex-grow-1 overflow-hidden">
+          <h5 className="mb-0 fw-bold text-dark text-truncate" style={{ letterSpacing: '-0.5px' }}>R Accounts</h5>
         </div>
-        <button className="btn btn-sm btn-outline-secondary ms-auto d-lg-none border-0" onClick={closeMobileSidebar}>✖</button>
+        <button className="btn btn-sm text-muted ms-auto d-lg-none" onClick={closeMobileSidebar}>✕</button>
       </div>
 
       <div className="flex-grow-1 overflow-auto">

@@ -62,7 +62,6 @@ const NewEntry = () => {
     });
 
     if (matches.length > 0) {
-      // Find most recent by date
       const latest = matches.reduce((prev, curr) => {
         return new Date(curr.date) > new Date(prev.date) ? curr : prev;
       });
@@ -171,249 +170,230 @@ const NewEntry = () => {
   };
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
-      <div className="mb-4">
-        <h2 className="fw-bold mb-1">New Entry</h2>
-        <p className="text-muted mb-0">Add a new daily transaction record</p>
+    <div className="container-fluid py-2 px-3 px-md-4">
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h4 className="fw-bold mb-0">New Entry</h4>
+          <p className="text-muted small mb-0 d-none d-sm-block">Add a new daily transaction record</p>
+        </div>
       </div>
 
       <div className="row justify-content-center">
-        <div className="col-12 col-xl-8">
-          <div className="card modern-card p-4 p-md-5">
+        <div className="col-12 col-xl-10">
+          <div className="card modern-card p-3 p-md-3 animate-fade-in shadow-sm">
             <form onSubmit={handleSubmit}>
-              <div className="row g-4 mb-4">
+              <div className="row g-2 mb-3">
 
                 {/* Name */}
-                <div className="col-12 col-md-6">
-                  <label className="form-label text-muted fw-semibold small d-flex align-items-center"><MdPerson className="me-2" /> First Name</label>
-                  <input type="text" className="form-control form-control-custom py-2 px-3" name="name" value={formData.name} onChange={handleChange} placeholder="Enter first name" required />
+                <div className="col-6 col-md-3">
+                  <label className="form-label text-muted fw-semibold small mb-1 d-flex align-items-center"><MdPerson className="me-1" size={14} /> First Name</label>
+                  <input type="text" className="form-control form-control-custom py-1 px-2" name="name" value={formData.name} onChange={handleChange} placeholder="First name" style={{fontSize: '0.85rem'}} required />
                   {lastEntry && (
-                    <div className="mt-1 animate-fadeIn">
-                      <small className="text-primary d-flex align-items-center fw-semibold" style={{fontSize: '0.75rem'}}>
-                        <MdDateRange className="me-1" /> Last Entry: {new Date(lastEntry.date).toLocaleDateString('en-IN')} (₹{Number(lastEntry.amount).toLocaleString('en-IN')})
+                    <div className="mt-0 animate-fadeIn">
+                      <small className="text-primary fw-semibold" style={{fontSize: '0.65rem'}}>
+                        Last: ₹{Number(lastEntry.amount).toLocaleString('en-IN')}
                       </small>
                     </div>
                   )}
                 </div>
 
                 {/* Last Name */}
-                <div className="col-12 col-md-6">
-                  <label className="form-label text-muted fw-semibold small">Last Name</label>
-                  <input type="text" className="form-control form-control-custom py-2 px-3" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Enter last name" />
+                <div className="col-6 col-md-3">
+                  <label className="form-label text-muted fw-semibold small mb-1">Last Name</label>
+                  <input type="text" className="form-control form-control-custom py-1 px-2" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Last name" style={{fontSize: '0.85rem'}} />
                 </div>
 
                 {/* Date */}
-                <div className="col-12 col-md-6">
-                  <label className="form-label text-muted fw-semibold small d-flex align-items-center"><MdDateRange className="me-2" /> Date</label>
-                  <input type="date" className="form-control form-control-custom py-2 px-3" name="date" value={formData.date} onChange={handleChange} required />
+                <div className="col-6 col-md-3">
+                  <label className="form-label text-muted fw-semibold small mb-1 d-flex align-items-center"><MdDateRange className="me-1" size={14} /> Date</label>
+                  <input type="date" className="form-control form-control-custom py-1 px-2" name="date" value={formData.date} onChange={handleChange} style={{fontSize: '0.85rem'}} required />
                 </div>
 
                 {/* Amount */}
-                <div className="col-12 col-md-6">
-                  <label className="form-label text-muted fw-semibold small d-flex align-items-center"><MdAttachMoney className="me-2" /> Amount</label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-card text-muted" style={{ borderColor: 'var(--border-color)' }}>₹</span>
-                    <input type="number" className="form-control form-control-custom py-2 border-start-0 ps-0" name="amount" value={formData.amount} onChange={handleChange} placeholder="0.00" style={{ boxShadow: 'none' }} required />
+                <div className="col-6 col-md-3">
+                  <label className="form-label text-muted fw-semibold small mb-1 d-flex align-items-center"><MdAttachMoney className="me-1" size={14} /> Amount</label>
+                  <div className="input-group input-group-sm">
+                    <span className="input-group-text bg-card text-muted border-end-0" style={{ borderColor: 'var(--border-color)', fontSize: '0.85rem' }}>₹</span>
+                    <input type="number" className="form-control form-control-custom py-1 border-start-0 ps-0" name="amount" value={formData.amount} onChange={handleChange} placeholder="0.00" style={{ boxShadow: 'none', fontSize: '0.85rem' }} required />
                   </div>
                 </div>
 
                 {/* Type */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label text-muted fw-semibold small text-center d-block">Transaction Type</label>
-                  <div className="d-flex bg-card border rounded p-1" style={{ borderColor: 'var(--border-color) !important' }}>
-                    <button type="button" className={`btn flex-fill py-2 ${formData.type === 'Credit' ? 'btn-success text-white fw-bold' : 'btn-link text-muted text-decoration-none'}`} onClick={() => setFormData({...formData, type: 'Credit'})}>Credit</button>
-                    <button type="button" className={`btn flex-fill py-2 ${formData.type === 'Debit' ? 'btn-danger text-white fw-bold' : 'btn-link text-muted text-decoration-none'}`} onClick={() => setFormData({...formData, type: 'Debit'})}>Debit</button>
-                    <button type="button" className={`btn flex-fill py-2 ${formData.type === 'EMI' ? 'btn-warning text-dark fw-bold' : 'btn-link text-muted text-decoration-none'}`} onClick={() => setFormData({...formData, type: 'EMI'})}>EMI</button>
-                    <button type="button" className={`btn flex-fill py-2 ${formData.type === 'Loan' ? 'btn-primary text-white fw-bold' : 'btn-link text-muted text-decoration-none'}`} onClick={() => setFormData({...formData, type: 'Loan'})}>Loan</button>
-                    <button type="button" className={`btn flex-fill py-2 ${formData.type === 'Advance Payment' ? 'btn-info text-white fw-bold' : 'btn-link text-muted text-decoration-none'}`} onClick={() => setFormData({...formData, type: 'Advance Payment'})}>Advance</button>
+                  <label className="form-label text-muted fw-semibold small text-center d-block mb-1">Transaction Type</label>
+                  <div className="d-flex flex-wrap bg-card border rounded p-1 shadow-sm" style={{ borderColor: 'var(--border-color) !important', gap: '2px' }}>
+                    <button type="button" className={`btn flex-fill py-1 px-1 rounded-2 ${formData.type === 'Credit' ? 'btn-success text-white fw-bold shadow-sm' : 'btn-link text-muted text-decoration-none'}`} style={{fontSize: '0.75rem'}} onClick={() => setFormData({...formData, type: 'Credit'})}>Credit</button>
+                    <button type="button" className={`btn flex-fill py-1 px-1 rounded-2 ${formData.type === 'Debit' ? 'btn-danger text-white fw-bold shadow-sm' : 'btn-link text-muted text-decoration-none'}`} style={{fontSize: '0.75rem'}} onClick={() => setFormData({...formData, type: 'Debit'})}>Debit</button>
+                    <button type="button" className={`btn flex-fill py-1 px-1 rounded-2 ${formData.type === 'EMI' ? 'btn-warning text-dark fw-bold shadow-sm' : 'btn-link text-muted text-decoration-none'}`} style={{fontSize: '0.75rem'}} onClick={() => setFormData({...formData, type: 'EMI'})}>EMI</button>
+                    <button type="button" className={`btn flex-fill py-1 px-1 rounded-2 ${formData.type === 'Loan' ? 'btn-primary text-white fw-bold shadow-sm' : 'btn-link text-muted text-decoration-none'}`} style={{fontSize: '0.75rem'}} onClick={() => setFormData({...formData, type: 'Loan'})}>Loan</button>
+                    <button type="button" className={`btn flex-fill py-1 px-1 rounded-2 ${formData.type === 'Advance Payment' ? 'btn-info text-white fw-bold shadow-sm' : 'btn-link text-muted text-decoration-none'}`} style={{fontSize: '0.75rem'}} onClick={() => setFormData({...formData, type: 'Advance Payment'})}>Advance</button>
                   </div>
-
                 </div>
-
-                {/* EMI, Loan & Advance Specific Fields */}
-                {(formData.type === 'EMI' || formData.type === 'Loan' || formData.type === 'Advance Payment') && (
-                  <>
-                    <div className="col-12 col-md-6">
-                      <label className="form-label text-muted fw-semibold small d-flex align-items-center"><MdDateRange className="me-2" /> {formData.type === 'Loan' ? 'Loan Start Date' : formData.type === 'Advance Payment' ? 'Advance Date' : 'Loan Taken Date'}</label>
-                      <input type="date" className="form-control form-control-custom py-2 px-3" name="loanDate" value={formData.loanDate} onChange={handleChange} required />
-                    </div>
-                    <div className="col-12 col-md-6">
-                      <label className="form-label text-muted fw-semibold small d-flex align-items-center"><MdDateRange className="me-2" /> {formData.type === 'Loan' ? 'First Interest Due' : 'Payment Due Date'}</label>
-                      <input type="date" className="form-control form-control-custom py-2 px-3" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
-                    </div>
-                    {formData.type === 'Loan' && (
-                      <>
-                        <div className="col-12 col-md-6">
-                          <label className="form-label text-muted fw-semibold small">Interest Rate (%)</label>
-                          <input type="number" step="0.1" className="form-control form-control-custom py-2 px-3" name="interestRate" value={formData.interestRate} onChange={handleChange} placeholder="e.g. 2.5" required />
-                        </div>
-                        <div className="col-12 col-md-6">
-                          <label className="form-label text-muted fw-semibold small">Duration (Months)</label>
-                          <input type="number" className="form-control form-control-custom py-2 px-3" name="loanDuration" value={formData.loanDuration} onChange={handleChange} placeholder="e.g. 12" required />
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-
 
                 {/* Category */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label text-muted fw-semibold small">Category</label>
+                  <label className="form-label text-muted fw-semibold small mb-1">Category</label>
                   {!showAddCategory ? (
                     <select
-                      className="form-select form-control-custom py-2 px-3"
+                      className="form-select form-control-custom py-1 px-2"
                       name="category"
                       value={formData.category}
-                      onChange={(e) => {
-                        if (e.target.value === '__ADD_NEW__') {
-                          setShowAddCategory(true);
-                        } else {
-                          handleChange(e);
-                        }
-                      }}
+                      style={{fontSize: '0.85rem'}}
+                      onChange={(e) => e.target.value === '__ADD_NEW__' ? setShowAddCategory(true) : handleChange(e)}
                     >
                       {allCategories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
-                      <option value="__ADD_NEW__">➕ Add New Category...</option>
+                      <option value="__ADD_NEW__">➕ Add New...</option>
                     </select>
                   ) : (
-                    <div className="d-flex gap-2">
+                    <div className="d-flex gap-1">
                       <input
                         type="text"
-                        className="form-control form-control-custom py-2 px-3"
-                        placeholder="New category name..."
+                        className="form-control form-control-custom py-1 px-2"
+                        placeholder="New category..."
                         value={newCategoryName}
+                        style={{fontSize: '0.85rem'}}
                         onChange={(e) => setNewCategoryName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCategory())}
                         autoFocus
                       />
-                      <button type="button" className="btn btn-primary btn-sm px-3" onClick={handleAddCategory}>
-                        <MdAdd size={18} />
-                      </button>
-                      <button type="button" className="btn btn-light btn-sm px-2" onClick={() => { setShowAddCategory(false); setNewCategoryName(''); }}>
-                        <MdClose size={18} />
-                      </button>
+                      <button type="button" className="btn btn-primary btn-sm px-2" onClick={handleAddCategory}><MdAdd size={16} /></button>
+                      <button type="button" className="btn btn-light btn-sm px-1" onClick={() => { setShowAddCategory(false); setNewCategoryName(''); }}><MdClose size={16} /></button>
                     </div>
                   )}
                 </div>
 
+                {/* EMI, Loan & Advance Specific Fields */}
+                {(formData.type === 'EMI' || formData.type === 'Loan' || formData.type === 'Advance Payment') && (
+                  <div className="col-12 py-1 bg-light bg-opacity-50 rounded-3 px-2">
+                    <div className="row g-2">
+                      <div className="col-6 col-md-3">
+                        <label className="form-label text-muted fw-semibold small mb-1 d-flex align-items-center"><MdDateRange className="me-1" size={12} /> {formData.type === 'Loan' ? 'Start' : 'Date'}</label>
+                        <input type="date" className="form-control form-control-custom py-1 px-2" name="loanDate" value={formData.loanDate} onChange={handleChange} style={{fontSize: '0.8rem'}} required />
+                      </div>
+                      <div className="col-6 col-md-3">
+                        <label className="form-label text-muted fw-semibold small mb-1 d-flex align-items-center"><MdDateRange className="me-1" size={12} /> Due</label>
+                        <input type="date" className="form-control form-control-custom py-1 px-2" name="dueDate" value={formData.dueDate} onChange={handleChange} style={{fontSize: '0.8rem'}} required />
+                      </div>
+                      {formData.type === 'Loan' && (
+                        <>
+                          <div className="col-6 col-md-3">
+                            <label className="form-label text-muted fw-semibold small mb-1">Int. %</label>
+                            <input type="number" step="0.1" className="form-control form-control-custom py-1 px-2" name="interestRate" value={formData.interestRate} onChange={handleChange} placeholder="%" style={{fontSize: '0.8rem'}} required />
+                          </div>
+                          <div className="col-6 col-md-3">
+                            <label className="form-label text-muted fw-semibold small mb-1">Months</label>
+                            <input type="number" className="form-control form-control-custom py-1 px-2" name="loanDuration" value={formData.loanDuration} onChange={handleChange} placeholder="12" style={{fontSize: '0.8rem'}} required />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Payment Method */}
-                <div className="col-12">
-                  <label className="form-label text-muted fw-semibold small d-flex align-items-center">
-                    <MdPayment className="me-2" /> Payment Method
+                <div className="col-12 col-md-4">
+                  <label className="form-label text-muted fw-semibold small mb-1 d-flex align-items-center">
+                    <MdPayment className="me-1" size={14} /> Payment Method
                   </label>
-                  <div className="d-flex gap-3 mb-3">
-                    {/* Cash Option */}
+                  <div className="d-flex gap-2">
                     <div
-                      className={`payment-method-card ${formData.paymentMethod === 'Cash' ? 'active' : ''}`}
+                      className={`payment-method-card py-1 px-2 ${formData.paymentMethod === 'Cash' ? 'active' : ''}`}
                       onClick={() => setFormData({ ...formData, paymentMethod: 'Cash', paymentApp: '' })}
-                      style={{ '--pm-color': '#2e7d32' }}
+                      style={{ '--pm-color': '#2e7d32', flex: 1, minHeight: 'auto', padding: '4px' }}
                     >
-                      <div className="payment-method-icon">
-                        <svg viewBox="0 0 40 40" width="32" height="32">
+                      <div className="payment-method-icon mb-0" style={{transform: 'scale(0.8)'}}>
+                        <svg viewBox="0 0 40 40" width="24" height="24">
                           <rect width="40" height="40" rx="10" fill="#2e7d32"/>
                           <rect x="8" y="12" width="24" height="16" rx="3" fill="#fff"/>
-                          <circle cx="20" cy="20" r="5" fill="#2e7d32" opacity="0.3"/>
-                          <text x="20" y="23" textAnchor="middle" fill="#2e7d32" fontSize="8" fontWeight="bold" fontFamily="Arial">₹</text>
+                          <text x="20" y="23" textAnchor="middle" fill="#2e7d32" fontSize="10" fontWeight="bold">₹</text>
                         </svg>
                       </div>
-                      <span className="payment-method-label">Cash</span>
+                      <span className="payment-method-label small">Cash</span>
                     </div>
 
-                    {/* Online Option */}
                     <div
-                      className={`payment-method-card ${formData.paymentMethod === 'Online' ? 'active' : ''}`}
+                      className={`payment-method-card py-1 px-2 ${formData.paymentMethod === 'Online' ? 'active' : ''}`}
                       onClick={() => setFormData({ ...formData, paymentMethod: 'Online', paymentApp: formData.paymentApp || '' })}
-                      style={{ '--pm-color': '#1565c0' }}
+                      style={{ '--pm-color': '#1565c0', flex: 1, minHeight: 'auto', padding: '4px' }}
                     >
-                      <div className="payment-method-icon">
-                        <svg viewBox="0 0 40 40" width="32" height="32">
+                      <div className="payment-method-icon mb-0" style={{transform: 'scale(0.8)'}}>
+                        <svg viewBox="0 0 40 40" width="24" height="24">
                           <rect width="40" height="40" rx="10" fill="#1565c0"/>
                           <circle cx="20" cy="17" r="5" fill="none" stroke="#fff" strokeWidth="2"/>
                           <path d="M14 26c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="#fff" strokeWidth="2"/>
-                          <circle cx="28" cy="14" r="2.5" fill="#4fc3f7"/>
-                          <path d="M27 14h2M28 13v2" stroke="#fff" strokeWidth="0.8"/>
                         </svg>
                       </div>
-                      <span className="payment-method-label">Online</span>
+                      <span className="payment-method-label small">Online</span>
                     </div>
                   </div>
-
-                  {/* Online Payment Apps */}
-                  {formData.paymentMethod === 'Online' && (
-                    <div className="payment-apps-container">
-                      <p className="text-muted small mb-2 fw-semibold">Select Payment App</p>
-                      <div className="payment-apps-grid">
-                        {allApps.map((app) => (
-                          <div
-                            key={app.id}
-                            className={`payment-app-card ${formData.paymentApp === app.id ? 'active' : ''}`}
-                            onClick={() => setFormData({ ...formData, paymentApp: app.id })}
-                            style={{ '--app-color': app.color, position: 'relative' }}
-                          >
-                            {/* Remove button for custom apps */}
-                            {customPaymentApps.some(c => c.name === app.id) && (
-                              <span
-                                onClick={(e) => { e.stopPropagation(); handleRemoveCustomMode(app.id); }}
-                                style={{
-                                  position: 'absolute', top: 2, right: 2,
-                                  width: 16, height: 16, borderRadius: '50%',
-                                  background: '#e53935', color: '#fff',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  fontSize: 10, cursor: 'pointer', lineHeight: 1
-                                }}
-                              >×</span>
-                            )}
-                            <div className="payment-app-logo">{app.logo}</div>
-                            <span className="payment-app-name">{app.label}</span>
-                          </div>
-                        ))}
-
-                        {/* Add New Mode Button */}
-                        {!showAddMode ? (
-                          <div className="add-mode-btn" onClick={() => setShowAddMode(true)}>
-                            <div className="add-mode-plus">+</div>
-                            <span>Add New</span>
-                          </div>
-                        ) : (
-                          <div style={{ gridColumn: 'span 2', display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <input
-                              type="text"
-                              className="form-control form-control-custom py-1 px-2"
-                              placeholder="Mode name..."
-                              value={newModeName}
-                              onChange={(e) => setNewModeName(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomMode())}
-                              autoFocus
-                              style={{ fontSize: '0.85rem' }}
-                            />
-                            <button type="button" className="btn btn-primary btn-sm px-2 py-1" onClick={handleAddCustomMode}>
-                              <MdAdd />
-                            </button>
-                            <button type="button" className="btn btn-light btn-sm px-2 py-1" onClick={() => { setShowAddMode(false); setNewModeName(''); }}>
-                              <MdClose />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Description */}
-                <div className="col-12">
-                  <label className="form-label text-muted fw-semibold small d-flex align-items-center"><MdDescription className="me-2" /> Description (Optional)</label>
-                  <textarea className="form-control form-control-custom py-3 px-3" rows="3" name="description" value={formData.description} onChange={handleChange} placeholder="Add notes about this entry..."></textarea>
+                <div className="col-12 col-md-8">
+                  <label className="form-label text-muted fw-semibold small mb-1 d-flex align-items-center"><MdDescription className="me-1" size={14} /> Description</label>
+                  <textarea className="form-control form-control-custom py-1 px-2" rows="1" name="description" value={formData.description} onChange={handleChange} placeholder="Add notes..." style={{fontSize: '0.85rem'}}></textarea>
                 </div>
 
+                {/* Online Payment Apps */}
+                {formData.paymentMethod === 'Online' && (
+                  <div className="col-12 mt-1">
+                    <div className="payment-apps-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))', gap: '4px' }}>
+                      {allApps.map((app) => (
+                        <div
+                          key={app.id}
+                          className={`payment-app-card py-1 ${formData.paymentApp === app.id ? 'active' : ''}`}
+                          onClick={() => setFormData({ ...formData, paymentApp: app.id })}
+                          style={{ '--app-color': app.color, position: 'relative', minHeight: 'auto' }}
+                        >
+                          {customPaymentApps.some(c => c.name === app.id) && (
+                            <span
+                              onClick={(e) => { e.stopPropagation(); handleRemoveCustomMode(app.id); }}
+                              style={{
+                                position: 'absolute', top: 0, right: 0,
+                                width: 14, height: 14, borderRadius: '50%',
+                                background: '#e53935', color: '#fff',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 8, cursor: 'pointer'
+                              }}
+                            >×</span>
+                          )}
+                          <div className="payment-app-logo" style={{transform: 'scale(0.7)'}}>{app.logo}</div>
+                          <span className="payment-app-name" style={{fontSize: '0.65rem'}}>{app.label}</span>
+                        </div>
+                      ))}
+                      
+                      {!showAddMode ? (
+                        <div className="add-mode-btn py-1" style={{minHeight: 'auto'}} onClick={() => setShowAddMode(true)}>
+                          <div className="add-mode-plus" style={{fontSize: '1rem'}}>+</div>
+                          <span style={{fontSize: '0.65rem'}}>Add New</span>
+                        </div>
+                      ) : (
+                        <div style={{ gridColumn: 'span 2', display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            className="form-control form-control-custom py-1 px-2"
+                            placeholder="New..."
+                            value={newModeName}
+                            onChange={(e) => setNewModeName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomMode())}
+                            autoFocus
+                            style={{ fontSize: '0.75rem' }}
+                          />
+                          <button type="button" className="btn btn-primary btn-sm px-2 py-1" onClick={handleAddCustomMode}><MdAdd size={14}/></button>
+                          <button type="button" className="btn btn-light btn-sm px-2 py-1" onClick={() => { setShowAddMode(false); setNewModeName(''); }}><MdClose size={14}/></button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="d-flex justify-content-end gap-3 pt-4 border-top" style={{ borderColor: 'var(--border-color) !important' }}>
-                <button type="button" className="btn btn-light px-4 py-2 text-muted fw-semibold" onClick={() => navigate('/')}>Cancel</button>
-                <button type="submit" className="btn btn-primary px-5 py-2 fw-semibold shadow-sm" disabled={loading}>
-                  <MdSave className="me-2" />{loading ? 'Saving...' : 'Save Entry'}
+              <div className="d-flex justify-content-end gap-2 pt-2 border-top mt-1" style={{ borderColor: 'var(--border-color) !important' }}>
+                <button type="button" className="btn btn-light btn-sm px-3 py-1 text-muted fw-semibold" onClick={() => navigate('/')}>Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm px-4 py-1 fw-semibold shadow-sm" disabled={loading}>
+                  <MdSave className="me-1" />{loading ? 'Saving...' : 'Save Entry'}
                 </button>
               </div>
             </form>

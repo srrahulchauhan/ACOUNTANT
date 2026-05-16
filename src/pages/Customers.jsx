@@ -79,19 +79,19 @@ const Customers = () => {
 
   return (
     <div className="container-fluid py-4 px-3 px-md-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
           <h3 className="fw-bold mb-0">Customers</h3>
-          <p className="text-muted small mb-0">{customers.length} customers registered</p>
+          <p className="text-muted small mb-0">{customers.length} registered accounts</p>
         </div>
-        <button className="btn btn-primary d-flex align-items-center gap-2 px-3" onClick={() => setShowForm(!showForm)}>
+        <button className="btn btn-primary d-flex align-items-center gap-2 px-3 shadow-sm" onClick={() => setShowForm(!showForm)}>
           {showForm ? <><MdClose /> Cancel</> : <><MdAdd /> Add Customer</>}
         </button>
       </div>
 
       {/* Add Customer Form */}
       {showForm && (
-        <div className="card modern-card p-4 mb-4">
+        <div className="card modern-card p-4 mb-4 animate-fade-in">
           <h5 className="fw-bold mb-3">New Customer</h5>
           <form onSubmit={handleAdd}>
             <div className="row g-3">

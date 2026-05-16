@@ -14,14 +14,14 @@ import { useAuth } from '../context/AuthContext';
 const getColor = (name) => getAppDetails(name).color;
 
 const StatCard = ({ title, value, prefix, suffix, icon, colorClass, description }) => (
-  <div className="card modern-card p-3 p-lg-4 h-100 border-0">
+  <div className="card modern-card p-3 p-lg-4 h-100 border-0 animate-fade-in">
     <div className="d-flex justify-content-between align-items-start">
-      <div>
-        <p className="text-muted small mb-1 fw-semibold">{title}</p>
-        <h3 className="fw-bold mb-0">{prefix}{value}{suffix}</h3>
-        <small className="text-muted">{description}</small>
+      <div className="flex-grow-1 overflow-hidden">
+        <p className="text-muted small mb-1 fw-semibold text-truncate">{title}</p>
+        <h4 className="fw-bold mb-0 text-truncate">{prefix}{value}{suffix}</h4>
+        <small className="text-muted d-block text-truncate" style={{fontSize: '0.7rem'}}>{description}</small>
       </div>
-      <div className={`bg-${colorClass} bg-opacity-10 text-${colorClass} p-2 p-lg-3 rounded-3`}>
+      <div className={`bg-${colorClass} bg-opacity-10 text-${colorClass} p-2 p-lg-3 rounded-3 ms-2`}>
         {icon}
       </div>
     </div>
@@ -254,16 +254,16 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
           <h3 className="fw-bold mb-0">Welcome, {user.firstName || 'User'} 👋</h3>
-          <div className="d-flex bg-light p-1 rounded-pill mt-1" style={{ width: 'fit-content' }}>
-            <button className={`btn btn-sm rounded-pill px-3 py-1 ${viewMode === 'Lifetime' ? 'btn-primary text-white shadow-sm' : 'text-muted'}`} onClick={() => setViewMode('Lifetime')}>Lifetime</button>
-            <button className={`btn btn-sm rounded-pill px-3 py-1 ${viewMode === 'Month' ? 'btn-primary text-white shadow-sm' : 'text-muted'}`} onClick={() => setViewMode('Month')}>This Month</button>
+          <div className="d-flex bg-light p-1 rounded-pill mt-2 shadow-sm" style={{ width: 'fit-content', border: '1px solid var(--border-color)' }}>
+            <button className={`btn btn-sm rounded-pill px-3 py-1 ${viewMode === 'Lifetime' ? 'btn-primary text-white shadow-sm' : 'text-muted fw-medium'}`} onClick={() => setViewMode('Lifetime')}>Lifetime</button>
+            <button className={`btn btn-sm rounded-pill px-3 py-1 ${viewMode === 'Month' ? 'btn-primary text-white shadow-sm' : 'text-muted fw-medium'}`} onClick={() => setViewMode('Month')}>This Month</button>
           </div>
         </div>
-        <button className="btn btn-primary px-4 py-2 fw-bold shadow-sm" onClick={() => navigate('/new-entry')}>
-          + New Entry
+        <button className="btn btn-primary px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2" onClick={() => navigate('/new-entry')}>
+          <span style={{fontSize: '1.2rem'}}>+</span> New Entry
         </button>
       </div>
 

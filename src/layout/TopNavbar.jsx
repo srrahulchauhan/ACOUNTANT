@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MdMenu, MdSearch, MdCloudDone, MdDownload } from 'react-icons/md';
+import { MdMenu, MdSearch, MdDownload, MdPerson, MdSecurity } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import NotificationBell from '../components/NotificationBell';
 import { fetchTransactions } from '../api';
@@ -84,30 +84,30 @@ const TopNavbar = ({ toggleSidebar }) => {
 
   return (
     <nav 
-      className="navbar navbar-expand bg-card sticky-top px-4 align-items-center justify-content-between"
-      style={{ height: 'var(--navbar-height)', borderBottom: '1px solid var(--border-color)', zIndex: 1030 }}
+      className="navbar navbar-expand glass-panel sticky-top px-3 align-items-center justify-content-between"
+      style={{ height: 'var(--navbar-height)', zIndex: 1030 }}
     >
       <div className="d-flex align-items-center">
         <button className="btn btn-link text-main p-0 me-3" onClick={toggleSidebar} style={{ color: 'var(--text-main)' }}>
           <MdMenu size={28} />
         </button>
         <div className="d-none d-lg-flex align-items-center gap-2">
-          <img src={logo} alt="R Logo" style={{ height: '32px', width: '32px', objectFit: 'contain' }} />
+          <img src={user.appLogo || logo} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'contain' }} />
           <h4 className="mb-0 fw-bold text-dark" style={{ letterSpacing: '-0.5px' }}>
             Account <span className="text-secondary" style={{ fontWeight: 500 }}>Manager</span>
           </h4>
         </div>
       </div>
 
-      <div className="d-flex flex-grow-1 justify-content-center px-4">
-        <div className="input-group position-relative shadow-sm" style={{ maxWidth: '400px', borderRadius: '24px', background: '#f8f9fa' }} ref={searchRef}>
+      <div className="d-none d-md-flex flex-grow-1 justify-content-center px-4">
+        <div className="input-group position-relative" style={{ maxWidth: '400px', borderRadius: '12px', background: 'rgba(0,0,0,0.03)', border: '1px solid var(--border-color)' }} ref={searchRef}>
           <span className="input-group-text bg-transparent border-0 pe-2">
             <MdSearch size={20} className="text-primary" />
           </span>
           <input 
             type="text" 
             className="form-control bg-transparent border-0 ps-1 box-shadow-none" 
-            placeholder="Search by name, ₹ amount..." 
+            placeholder="Search transactions..." 
             style={{ boxShadow: 'none', fontSize: '0.9rem' }}
             value={searchQuery}
             onChange={handleSearchChange}
@@ -118,14 +118,14 @@ const TopNavbar = ({ toggleSidebar }) => {
 
       <div className="d-flex align-items-center gap-3">
         {/* Screenshot Style LIVE Badge */}
-        <div className="d-flex align-items-center gap-2 px-2 py-1 rounded-pill" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
-          <div style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%' }}></div>
-          <span className="fw-bold text-success" style={{ fontSize: '0.65rem' }}>LIVE</span>
+        <div className="d-flex align-items-center gap-2 px-2 py-1 rounded-pill pulse-live" style={{ backgroundColor: '#f0fdf4', border: '1px solid #dcfce7' }}>
+          <div style={{ width: '6px', height: '6px', backgroundColor: '#10b981', borderRadius: '50%' }}></div>
+          <span className="fw-bold text-success" style={{ fontSize: '0.6rem' }}>LIVE</span>
         </div>
 
         {/* Screenshot Style Download Icon */}
         <button 
-          className="btn btn-link p-0 text-success border-0 box-shadow-none d-flex align-items-center justify-content-center" 
+          className="btn btn-link p-0 text-success border-0 box-shadow-none d-none d-sm-flex align-items-center justify-content-center" 
           title="Download Backup"
           style={{ width: '32px', height: '32px', backgroundColor: '#f0fdf4', borderRadius: '8px' }}
         >
@@ -145,11 +145,11 @@ const TopNavbar = ({ toggleSidebar }) => {
               alt="Profile" className="rounded-circle border border-2 border-primary" width="35" height="35" style={{objectFit: 'cover'}}
             />
           </button>
-          <ul className="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
-            <li><button className="dropdown-item">Profile</button></li>
-            <li><button className="dropdown-item">Settings</button></li>
-            <li><hr className="dropdown-divider" /></li>
-            <li><button className="dropdown-item text-danger" onClick={handleLogout}>Logout</button></li>
+          <ul className="dropdown-menu dropdown-menu-end shadow border-0 glass-panel" aria-labelledby="profileDropdown">
+            <li><button className="dropdown-item py-2" onClick={() => navigate('/settings')}><MdPerson className="me-2" /> Profile</button></li>
+            <li><button className="dropdown-item py-2" onClick={() => navigate('/settings')}><MdSecurity className="me-2" /> Settings</button></li>
+            <li><hr className="dropdown-divider opacity-10" /></li>
+            <li><button className="dropdown-item py-2 text-danger fw-bold" onClick={handleLogout}>Logout</button></li>
           </ul>
         </div>
       </div>

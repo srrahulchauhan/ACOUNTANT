@@ -95,26 +95,26 @@ const Reports = () => {
 
   return (
     <div className="container-fluid py-4 px-3 px-md-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-          <h3 className="fw-bold mb-0"><MdBarChart className="me-2" />Reports</h3>
+          <h3 className="fw-bold mb-0"><MdBarChart className="me-2 text-primary" />Reports</h3>
           <p className="text-muted small mb-0">Financial summary & analytics</p>
         </div>
-        <div className="d-flex gap-2 align-items-center">
-          <select className="form-select form-select-sm w-auto" value={year} onChange={e => setYear(parseInt(e.target.value))}>
+        <div className="d-flex flex-wrap gap-2 align-items-center">
+          <select className="form-select form-select-sm w-auto shadow-sm" value={year} onChange={e => setYear(parseInt(e.target.value))}>
             {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <div className="position-relative">
-            <button className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3" onClick={() => setShowShare(!showShare)}>
+            <button className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 shadow-sm" onClick={() => setShowShare(!showShare)}>
               <MdShare /> Share / Export
             </button>
             {showShare && (
-              <div className="position-absolute end-0 mt-2 card shadow-lg border-0 rounded-4 p-3" style={{ zIndex: 100, minWidth: 220 }}>
+              <div className="position-absolute end-0 mt-2 glass-panel shadow-lg border-0 rounded-4 p-3 animate-fade-in" style={{ zIndex: 100, minWidth: 220 }}>
                 <h6 className="fw-bold mb-3 text-muted small">EXPORT</h6>
                 <button className="btn btn-outline-danger btn-sm w-100 mb-2 d-flex align-items-center gap-2" onClick={exportPDF}><MdPictureAsPdf /> Download PDF</button>
                 <button className="btn btn-outline-success btn-sm w-100 mb-3 d-flex align-items-center gap-2" onClick={exportExcel}><MdTableChart /> Download Excel</button>
                 <h6 className="fw-bold mb-3 text-muted small">SHARE VIA</h6>
-                <button className="btn btn-sm w-100 mb-2 d-flex align-items-center gap-2" style={{background:'#25D366',color:'#fff'}} onClick={shareWhatsApp}><MdWhatsapp /> WhatsApp</button>
+                <button className="btn btn-sm w-100 mb-2 d-flex align-items-center gap-2 shadow-sm" style={{background:'#25D366',color:'#fff'}} onClick={shareWhatsApp}><MdWhatsapp /> WhatsApp</button>
                 <button className="btn btn-outline-primary btn-sm w-100 mb-2 d-flex align-items-center gap-2" onClick={shareEmail}><MdEmail /> Email</button>
                 <button className="btn btn-outline-secondary btn-sm w-100 d-flex align-items-center gap-2" onClick={shareSMS}><MdSms /> SMS</button>
               </div>
@@ -124,10 +124,10 @@ const Reports = () => {
       </div>
 
       {/* Summary */}
-      <div className="row g-3 mb-4">
-        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center"><small className="text-muted fw-semibold">Total Credit</small><h4 className="fw-bold text-success mb-0">₹{totalCredit.toLocaleString('en-IN')}</h4></div></div>
-        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center"><small className="text-muted fw-semibold">Total Debit</small><h4 className="fw-bold text-danger mb-0">₹{totalDebit.toLocaleString('en-IN')}</h4></div></div>
-        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center"><small className="text-muted fw-semibold">Net Balance</small><h4 className="fw-bold text-primary mb-0">₹{(totalCredit - totalDebit).toLocaleString('en-IN')}</h4></div></div>
+      <div className="row g-3 mb-4 animate-fade-in">
+        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center h-100"><small className="text-muted fw-semibold">Total Credit</small><h4 className="fw-bold text-success mb-0 mt-1">₹{totalCredit.toLocaleString('en-IN')}</h4></div></div>
+        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center h-100"><small className="text-muted fw-semibold">Total Debit</small><h4 className="fw-bold text-danger mb-0 mt-1">₹{totalDebit.toLocaleString('en-IN')}</h4></div></div>
+        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center h-100"><small className="text-muted fw-semibold">Net Balance</small><h4 className="fw-bold text-primary mb-0 mt-1">₹{(totalCredit - totalDebit).toLocaleString('en-IN')}</h4></div></div>
       </div>
 
       {/* Charts */}

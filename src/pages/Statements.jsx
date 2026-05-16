@@ -237,29 +237,27 @@ const Statements = () => {
 
       {/* Filters */}
       <div className="card modern-card p-3 mb-4">
-        <div className="row g-2 align-items-end">
-          <div className="col-12 col-md-4">
-            <form onSubmit={handleSearch} className="input-group">
-              <span className="input-group-text bg-transparent"><MdSearch /></span>
-              <input type="text" className="form-control" placeholder="Search name, description..." value={search} onChange={e => setSearch(e.target.value)} />
-              <button className="btn btn-primary" type="submit">Search</button>
+        <div className="row g-2 align-items-center">
+          <div className="col-12 col-md-5">
+            <form onSubmit={handleSearch} className="input-group input-group-sm">
+              <span className="input-group-text bg-transparent border-end-0"><MdSearch /></span>
+              <input type="text" className="form-control border-start-0" placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} />
+              <button className="btn btn-primary px-3" type="submit">Search</button>
             </form>
           </div>
           <div className="col-6 col-md-2">
-            <label className="form-label small text-muted mb-1"><MdFilterList /> Month</label>
             <select className="form-select form-select-sm" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
-              <option value="">All</option>
+              <option value="">All Month</option>
               {[...Array(12)].map((_, i) => <option key={i} value={i + 1}>{new Date(0, i).toLocaleString('en', { month: 'short' })}</option>)}
             </select>
           </div>
           <div className="col-6 col-md-2">
-            <label className="form-label small text-muted mb-1">Year</label>
             <select className="form-select form-select-sm" value={filterYear} onChange={e => setFilterYear(e.target.value)}>
-              <option value="">All</option>
+              <option value="">All Year</option>
               {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <div className="col-12 col-md-4 text-end">
+          <div className="col-12 col-md-3 text-end">
             {selected.length > 0 && <button className="btn btn-danger btn-sm" onClick={handleDeleteSelected}><MdDelete /> Delete {selected.length}</button>}
           </div>
         </div>
@@ -276,8 +274,14 @@ const Statements = () => {
             <table className="table table-hover align-middle mb-0">
               <thead className="bg-light">
                 <tr className="small text-muted">
-                  <th><input type="checkbox" checked={selected.length === transactions.length && transactions.length > 0} onChange={toggleAll} /></th>
-                  <th>Name</th><th>Date</th><th>Payment</th><th>Type</th><th className="text-end">Amount</th><th>Description</th><th className="text-center">Actions</th>
+                  <th style={{width: 40}}><input type="checkbox" checked={selected.length === transactions.length && transactions.length > 0} onChange={toggleAll} /></th>
+                  <th>Name</th>
+                  <th>Date</th>
+                  <th className="d-mobile-none">Payment</th>
+                  <th>Type</th>
+                  <th className="text-end">Amount</th>
+                  <th className="d-mobile-none">Description</th>
+                  <th className="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -296,7 +300,7 @@ const Statements = () => {
                         {isNewMonth && (
                           <tr className="bg-light bg-opacity-50">
                             <td colSpan="8" className="py-2 px-3">
-                              <span className="badge bg-secondary bg-opacity-10 text-secondary fw-bold text-uppercase" style={{ letterSpacing: 1, fontSize: '0.65rem' }}>
+                              <span className="badge bg-primary bg-opacity-10 text-primary fw-bold text-uppercase" style={{ letterSpacing: 1, fontSize: '0.65rem' }}>
                                 📅 {monthYear}
                               </span>
                             </td>
@@ -332,7 +336,7 @@ const Statements = () => {
                               </div>
                             )}
                           </td>
-                          <td>
+                          <td className="d-mobile-none">
                             <div className="d-flex align-items-center gap-1">
                               <div style={{ transform: 'scale(0.6)', transformOrigin: 'left center', width: 20 }}>
                                 {getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).logo}
@@ -371,8 +375,10 @@ const Statements = () => {
                           }`}>
                             {editId === t._id ? <input type="number" className="form-control form-control-sm text-end" value={editData.amount} onChange={e => setEditData({...editData, amount: e.target.value})} style={{width:100}} /> : `${(t.type==='Debit' || t.type === 'EMI' || t.type === 'Loan') ?'-':'+'}₹${Number(t.amount).toLocaleString('en-IN')}`}
                           </td>
-                          <td className="small text-muted text-truncate" style={{maxWidth:150}}>
-                            {editId === t._id ? <input className="form-control form-control-sm" value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} /> : (t.description || '-')}
+                          <td className="small text-muted d-mobile-none">
+                            <div className="text-truncate" style={{maxWidth:150}}>
+                              {editId === t._id ? <input className="form-control form-control-sm" value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} /> : (t.description || '-')}
+                            </div>
                           </td>
                           <td className="text-center">
                             {editId === t._id ? (
