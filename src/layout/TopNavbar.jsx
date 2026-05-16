@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import NotificationBell from '../components/NotificationBell';
 import { fetchTransactions } from '../api';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.png';
 
 
 const TopNavbar = ({ toggleSidebar }) => {
@@ -91,7 +92,7 @@ const TopNavbar = ({ toggleSidebar }) => {
           <MdMenu size={28} />
         </button>
         <div className="d-none d-lg-flex align-items-center gap-2">
-          <img src="/src/assets/logo.png" alt="R Logo" style={{ height: '32px', width: '32px', objectFit: 'contain' }} />
+          <img src={logo} alt="R Logo" style={{ height: '32px', width: '32px', objectFit: 'contain' }} />
           <h4 className="mb-0 fw-bold text-dark" style={{ letterSpacing: '-0.5px' }}>
             Account <span className="text-secondary" style={{ fontWeight: 500 }}>Manager</span>
           </h4>
