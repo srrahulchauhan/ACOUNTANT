@@ -99,7 +99,7 @@ const EmiPayments = () => {
 
       const matchesStatus = !statusFilter || p.status === statusFilter;
       const matchesMethod = !methodFilter || p.paymentMethod === methodFilter;
-      const matchesCust = !custFilter || p.customerId === custFilter;
+      const matchesCust = !customerFilter || p.customerId === customerFilter;
 
       return matchesSearch && matchesStatus && matchesMethod && matchesCust;
     })
@@ -122,7 +122,7 @@ const EmiPayments = () => {
           <p className="text-muted small mb-0">Record installment payments, send WhatsApp/Gmail statements, and track recovery</p>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
           {/* View Mode Toggle */}
           <div className="btn-group bg-white rounded-3 border p-0.5 shadow-2xs">
             <button
@@ -142,6 +142,24 @@ const EmiPayments = () => {
               <MdViewModule size={18} /> Cards
             </button>
           </div>
+
+          <button
+            type="button"
+            className="btn btn-warning rounded-3 px-3 py-2 fw-bold text-dark d-flex align-items-center gap-1.5 shadow-sm"
+            onClick={() => window.dispatchEvent(new CustomEvent('openRecordPaymentModal'))}
+            title="Record New EMI / Advance Payment"
+          >
+            <MdPayment size={17} /> Record Payment
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-success rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5 shadow-sm"
+            onClick={() => setCommModal({ open: true, customerId: null, loanId: null, templateKey: 'monthly_reminder' })}
+            title="Send WhatsApp / Gmail Statement & Reminder"
+          >
+            <MdSend size={16} /> Send
+          </button>
         </div>
       </div>
 
@@ -151,40 +169,144 @@ const EmiPayments = () => {
           70% { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
           100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
-        .dynamic-kpi-card {
-          position: relative; background: rgba(255, 255, 255, 0.75) !important;
-          backdrop-filter: blur(18px) saturate(190%);
-          border: 1px solid rgba(255, 255, 255, 0.8) !important;
-          cursor: pointer; transition: all 0.25s ease;
+        @keyframes upcomingBell {
+          0%, 100% { transform: rotate(0deg) scale(1); }
+          15%      { transform: rotate(-14deg) scale(1.08); }
+          30%      { transform: rotate(14deg) scale(1.08); }
+          45%      { transform: rotate(-8deg) scale(1.04); }
+          60%      { transform: rotate(8deg) scale(1.04); }
+          75%      { transform: rotate(0deg) scale(1); }
         }
-        .dynamic-kpi-card:hover { transform: translateY(-4px) scale(1.015); }
+        .dynamic-kpi-card {
+          position: relative;
+          background: rgba(255, 255, 255, 0.75) !important;
+          backdrop-filter: blur(18px) saturate(190%);
+          -webkit-backdrop-filter: blur(18px) saturate(190%);
+          border: 1px solid rgba(255, 255, 255, 0.8) !important;
+          box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.4);
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .dynamic-kpi-card:hover {
+          transform: translateY(-4px) scale(1.015);
+          background: rgba(255, 255, 255, 0.92) !important;
+          box-shadow: 0 16px 36px rgba(15, 23, 42, 0.1), 0 0 0 1.5px rgba(255, 255, 255, 0.9);
+        }
+        .dynamic-kpi-card.active-paid {
+          background: rgba(240, 253, 244, 0.9) !important;
+          border: 1.5px solid rgba(16, 185, 129, 0.65) !important;
+          box-shadow: 0 8px 25px rgba(16, 185, 129, 0.2) !important;
+        }
+        .dynamic-kpi-card.active-upcoming {
+          background: rgba(254, 249, 195, 0.9) !important;
+          border: 1.5px solid rgba(245, 158, 11, 0.65) !important;
+          box-shadow: 0 8px 25px rgba(245, 158, 11, 0.2) !important;
+        }
+        .dynamic-kpi-card.active-overdue {
+          background: rgba(254, 242, 242, 0.9) !important;
+          border: 1.5px solid rgba(239, 68, 68, 0.65) !important;
+          box-shadow: 0 8px 25px rgba(239, 68, 68, 0.2) !important;
+        }
+        .dynamic-kpi-card.active-all {
+          background: rgba(238, 242, 255, 0.9) !important;
+          border: 1.5px solid rgba(99, 102, 241, 0.65) !important;
+          box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2) !important;
+        }
       `}</style>
 
-      {/* ── Status KPI Cards ── */}
+      {/* ── Status KPI Cards (Rich React Icons + Best Animations) ── */}
       <div className="row g-3 mb-4">
+        {/* 1. Paid Collections */}
         <div className="col-6 col-md-3">
-          <div className="p-3 rounded-4 text-center dynamic-kpi-card" onClick={() => setStatusFilter('Paid')}>
-            <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Paid Collections</small>
+          <div 
+            className={`p-3 rounded-4 text-center dynamic-kpi-card ${statusFilter === 'Paid' ? 'active-paid' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'Paid' ? '' : 'Paid')}
+            title="Click to filter Paid collections"
+          >
+            <div 
+              className="d-inline-flex align-items-center justify-content-center mb-1.5 rounded-circle text-success"
+              style={{
+                width: 44, height: 44,
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(5,150,105,0.08) 100%)',
+                border: '1px solid rgba(16,185,129,0.25)',
+              }}
+            >
+              <MdCheckCircle size={24} />
+            </div>
+            <small className="text-muted d-block font-monospace text-uppercase fw-semibold" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>Paid Collections</small>
             <h4 className="fw-bold text-success my-1">{paidCount}</h4>
-            <div className="small text-muted">{fmtAmt(totalCollected)}</div>
+            <div className="small text-muted" style={{ fontSize: '0.7rem' }}>{fmtAmt(totalCollected)} collected</div>
           </div>
         </div>
+
+        {/* 2. Upcoming Dues */}
         <div className="col-6 col-md-3">
-          <div className="p-3 rounded-4 text-center dynamic-kpi-card" onClick={() => setStatusFilter('Upcoming')}>
-            <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Upcoming Dues</small>
+          <div 
+            className={`p-3 rounded-4 text-center dynamic-kpi-card ${statusFilter === 'Upcoming' ? 'active-upcoming' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'Upcoming' ? '' : 'Upcoming')}
+            title="Click to filter Upcoming dues"
+          >
+            <div 
+              className="d-inline-flex align-items-center justify-content-center mb-1.5 rounded-circle text-warning"
+              style={{
+                width: 44, height: 44,
+                background: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(217,119,6,0.08) 100%)',
+                border: '1px solid rgba(245,158,11,0.3)',
+                animation: upcomingCount > 0 ? 'upcomingBell 2.5s ease-in-out infinite' : 'none',
+              }}
+            >
+              <MdNotifications size={24} />
+            </div>
+            <small className="text-muted d-block font-monospace text-uppercase fw-semibold" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>Upcoming Dues</small>
             <h4 className="fw-bold text-warning my-1">{upcomingCount}</h4>
+            <div className="small text-muted" style={{ fontSize: '0.7rem' }}>On schedule</div>
           </div>
         </div>
+
+        {/* 3. Overdue Accounts */}
         <div className="col-6 col-md-3">
-          <div className="p-3 rounded-4 text-center dynamic-kpi-card" onClick={() => setStatusFilter('Overdue')}>
-            <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Overdue Accounts</small>
+          <div 
+            className={`p-3 rounded-4 text-center dynamic-kpi-card ${statusFilter === 'Overdue' ? 'active-overdue' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'Overdue' ? '' : 'Overdue')}
+            title="Click to filter Overdue accounts"
+          >
+            <div 
+              className="d-inline-flex align-items-center justify-content-center mb-1.5 rounded-circle text-danger"
+              style={{
+                width: 44, height: 44,
+                background: 'linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(185,28,28,0.1) 100%)',
+                border: '1px solid rgba(239,68,68,0.35)',
+                animation: overdueCount > 0 ? 'overdueBeacon 1.5s ease-out infinite' : 'none',
+              }}
+            >
+              <MdWarning size={24} />
+            </div>
+            <small className="text-muted d-block font-monospace text-uppercase fw-semibold" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>Overdue Accounts</small>
             <h4 className="fw-bold text-danger my-1">{overdueCount}</h4>
+            <div className="small text-muted" style={{ fontSize: '0.7rem' }}>Action required</div>
           </div>
         </div>
+
+        {/* 4. All Transactions */}
         <div className="col-6 col-md-3">
-          <div className="p-3 rounded-4 text-center dynamic-kpi-card" onClick={() => setStatusFilter('')}>
-            <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>All Transactions</small>
+          <div 
+            className={`p-3 rounded-4 text-center dynamic-kpi-card ${!statusFilter ? 'active-all' : ''}`}
+            onClick={() => setStatusFilter('')}
+            title="Click to view all records"
+          >
+            <div 
+              className="d-inline-flex align-items-center justify-content-center mb-1.5 rounded-circle text-primary"
+              style={{
+                width: 44, height: 44,
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(67,56,202,0.08) 100%)',
+                border: '1px solid rgba(99,102,241,0.25)',
+              }}
+            >
+              <MdAccountBalance size={24} />
+            </div>
+            <small className="text-muted d-block font-monospace text-uppercase fw-semibold" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>All Transactions</small>
             <h4 className="fw-bold text-primary my-1">{payments.length}</h4>
+            <div className="small text-muted" style={{ fontSize: '0.7rem' }}>Full record ledger</div>
           </div>
         </div>
       </div>
@@ -192,7 +314,7 @@ const EmiPayments = () => {
       {/* ── Search & Filter Bar ── */}
       <div className="card border-0 shadow-sm rounded-4 p-3 bg-white mb-4">
         <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-4">
+          <div className="col-12 col-md-3">
             <div className="input-group bg-light rounded-3 border">
               <span className="input-group-text bg-transparent border-0 pe-1">
                 <MdSearch size={20} className="text-muted" />
@@ -200,7 +322,7 @@ const EmiPayments = () => {
               <input
                 type="text"
                 className="form-control bg-transparent border-0 ps-1"
-                placeholder="Search borrower name, loan, or PAY-ID..."
+                placeholder="Search borrower, loan, or ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -210,7 +332,16 @@ const EmiPayments = () => {
             </div>
           </div>
 
-          <div className="col-6 col-md-2.5 col-lg-2">
+          <div className="col-6 col-md-3">
+            <select className="form-select bg-light rounded-3 border fw-semibold" value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}>
+              <option value="">-- All Borrowers --</option>
+              {customers.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-6 col-md-2">
             <select className="form-select bg-light rounded-3 border fw-semibold" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
               <option value="Paid">✓ Paid</option>
@@ -219,7 +350,7 @@ const EmiPayments = () => {
             </select>
           </div>
 
-          <div className="col-6 col-md-2.5 col-lg-2">
+          <div className="col-6 col-md-2">
             <select className="form-select bg-light rounded-3 border fw-semibold" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
               <option value="">All Methods</option>
               <option value="UPI">UPI / PhonePe</option>
@@ -231,11 +362,11 @@ const EmiPayments = () => {
             </select>
           </div>
 
-          <div className="col-12 col-md-3 col-lg-4 d-flex justify-content-md-end gap-2">
-            {(searchQuery || statusFilter || methodFilter || custFilter) && (
+          <div className="col-6 col-md-2 d-flex justify-content-end">
+            {(searchQuery || statusFilter || methodFilter || customerFilter) && (
               <button
-                className="btn btn-outline-secondary rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-1"
-                onClick={() => { setSearchQuery(''); setStatusFilter(''); setMethodFilter(''); setCustFilter(''); }}
+                className="btn btn-outline-secondary rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-1 w-100 justify-content-center"
+                onClick={() => { setSearchQuery(''); setStatusFilter(''); setMethodFilter(''); setCustomerFilter(''); }}
               >
                 <MdRefresh size={16} /> Reset
               </button>
