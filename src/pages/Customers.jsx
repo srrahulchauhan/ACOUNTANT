@@ -411,7 +411,8 @@ const Customers = () => {
                             <th>Total Amount</th>
                             <th>Interest Rate</th>
                             <th>Monthly EMI</th>
-                            <th>Next Due Date</th>
+                            <th>EMI Due Date</th>
+
                             <th>Status</th>
                           </tr>
                         </thead>

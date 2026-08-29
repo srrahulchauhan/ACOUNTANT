@@ -330,9 +330,10 @@ const Loans = () => {
                     </div>
 
                     <div className="col-12 col-md-6">
-                      <label className="form-label small fw-semibold text-muted">Next Due Date</label>
+                      <label className="form-label small fw-semibold text-muted">EMI Due Date</label>
                       <input type="date" className="form-control" name="dueDate" value={formData.dueDate} onChange={handleFormChange} required />
                     </div>
+
 
                     <div className="col-12 col-md-6">
                       <label className="form-label small fw-semibold text-muted">Late Fee Rule (₹)</label>
