@@ -111,7 +111,11 @@ const Dashboard = () => {
           <button className="btn btn-outline-success btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold hover-lift" onClick={() => navigate('/loans')}>
             <MdAccountBalance size={18} /> Add Loan
           </button>
-          <button className="btn btn-outline-warning btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold text-dark hover-lift" onClick={() => navigate('/emi-payments')}>
+          <button 
+            className="btn btn-outline-warning btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold text-dark hover-lift" 
+            onClick={() => window.dispatchEvent(new CustomEvent('openRecordPaymentModal'))}
+            title="Record EMI / Advance Payment"
+          >
             <MdPayment size={18} /> Record Payment
           </button>
           <button className="btn btn-primary btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-bold shadow-sm hover-lift" onClick={() => navigate('/calendar')}>

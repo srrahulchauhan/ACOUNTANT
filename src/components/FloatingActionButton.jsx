@@ -52,6 +52,8 @@ const FloatingActionButton = () => {
   const [paymentForm, setPaymentForm] = useState({
     loanId: '',
     amount: '',
+    paymentType: 'Regular',
+    advanceMonths: 1,
     paidDate: getLocalDateString(),
     paymentMethod: 'UPI',
     notes: ''
@@ -68,6 +70,17 @@ const FloatingActionButton = () => {
       loadSelectorData();
     }
   }, [isOpen, activeModal]);
+
+  // Global listener to trigger modal from Dashboard or any page
+  useEffect(() => {
+    const handleOpenPayment = () => {
+      loadSelectorData();
+      setIsOpen(false);
+      setActiveModal('payment');
+    };
+    window.addEventListener('openRecordPaymentModal', handleOpenPayment);
+    return () => window.removeEventListener('openRecordPaymentModal', handleOpenPayment);
+  }, []);
 
   const handleLoanFormChange = (e) => {
     const { name, value } = e.target;
@@ -102,14 +115,11 @@ const FloatingActionButton = () => {
   // 1. Save Customer
   const handleSaveCustomer = (e) => {
     e.preventDefault();
-    if (!custForm.name.trim()) return alert("Please enter Customer Name!");
+    if (!custForm.name || !custForm.phone) return alert("Customer Name and Phone are required!");
 
-    loanStore.saveCustomer(custForm);
-    alert(`✓ Customer "${custForm.name}" saved successfully!`);
-    setCustForm({
-      id: 'CUST-' + Math.floor(1000 + Math.random() * 9000),
-      name: '', phone: '', email: '', address: '', panAadhaar: '', dob: '', employment: '', monthlyIncome: '', profilePhoto: ''
-    });
+    const newCust = loanStore.addCustomer(custForm);
+    alert(`✓ Successfully created Customer: ${newCust.name}`);
+    setCustForm({ name: '', phone: '', email: '', address: '', panAadhar: '' });
     setActiveModal(null);
     setIsOpen(false);
   };
@@ -117,21 +127,32 @@ const FloatingActionButton = () => {
   // 2. Save Loan
   const handleSaveLoan = (e) => {
     e.preventDefault();
-    if (!loanForm.loanName.trim() || !loanForm.customerId || !loanForm.totalAmount) {
-      return alert("Please select a borrower and fill in total amount & loan name!");
+    if (!loanForm.customerId || !loanForm.loanName || !loanForm.totalAmount) {
+      return alert("Customer, Loan Name, and Principal Amount are required!");
     }
 
-    const calculatedEmi = Number(loanForm.emiAmount) || loanStore.calculateEmi(loanForm.totalAmount, loanForm.interestRate, loanForm.tenureMonths);
-
-    loanStore.saveLoan({
+    const selectedCust = customers.find(c => c.id === loanForm.customerId);
+    const newLoan = loanStore.addLoan({
       ...loanForm,
+      customerName: selectedCust ? selectedCust.name : 'Borrower',
       totalAmount: Number(loanForm.totalAmount),
-      interestRate: Number(loanForm.interestRate || 0),
-      emiAmount: calculatedEmi,
+      interestRate: Number(loanForm.interestRate || 12),
       tenureMonths: Number(loanForm.tenureMonths || 12),
+      emiAmount: Number(loanForm.emiAmount || 0),
     });
 
-    alert(`✓ Loan Account "${loanForm.loanName}" created successfully!`);
+    alert(`✓ Successfully created Loan Account: ${newLoan.loanName} for ${newLoan.customerName}`);
+    setLoanForm({
+      customerId: '',
+      loanName: '',
+      totalAmount: '',
+      interestRate: '12',
+      tenureMonths: '12',
+      emiAmount: '',
+      startDate: getLocalDateString(),
+      dueDate: addMonthsToDate(getLocalDateString(), 1),
+      notes: ''
+    });
     setActiveModal(null);
     setIsOpen(false);
   };
@@ -144,13 +165,20 @@ const FloatingActionButton = () => {
     const selectedLoan = loans.find(l => l.id === paymentForm.loanId);
     if (!selectedLoan) return;
 
+    const isAdvance = paymentForm.paymentType === 'Advance';
+    const finalAmount = Number(paymentForm.amount || selectedLoan.emiAmount);
+    const advMonths = isAdvance ? Number(paymentForm.advanceMonths || 1) : 1;
+    const nextDueDate = addMonthsToDate(selectedLoan.dueDate || getLocalDateString(), isAdvance ? advMonths + 1 : 1);
+
     // Find if there is an upcoming payment record or create new
     const existingPayments = loanStore.getPayments().filter(p => p.loanId === selectedLoan.id && p.status !== 'Paid');
     if (existingPayments.length > 0) {
       loanStore.markPaymentAsPaid(existingPayments[0].id, {
         paidDate: paymentForm.paidDate,
-        paymentMethod: paymentForm.paymentMethod,
-        notes: paymentForm.notes
+        amount: finalAmount,
+        paymentMethod: isAdvance ? 'Advance Payment' : paymentForm.paymentMethod,
+        nextDueDate: nextDueDate,
+        notes: paymentForm.notes || (isAdvance ? `Advance EMI payment for ${advMonths} month(s)` : 'Direct EMI Payment')
       });
     } else {
       loanStore.addPaymentRecord({
@@ -158,16 +186,16 @@ const FloatingActionButton = () => {
         customerId: selectedLoan.customerId,
         customerName: selectedLoan.customerName,
         loanName: selectedLoan.loanName,
-        amount: Number(paymentForm.amount || selectedLoan.emiAmount),
+        amount: finalAmount,
         paidDate: paymentForm.paidDate,
         dueDate: selectedLoan.dueDate,
-        paymentMethod: paymentForm.paymentMethod,
-        notes: paymentForm.notes || 'Direct EMI Payment',
+        paymentMethod: isAdvance ? 'Advance Payment' : paymentForm.paymentMethod,
+        notes: paymentForm.notes || (isAdvance ? `Advance EMI payment for ${advMonths} month(s)` : 'Direct EMI Payment'),
         status: 'Paid'
       });
     }
 
-    alert(`✓ Marked EMI Payment for "${selectedLoan.loanName}" as PAID!`);
+    alert(`✓ Marked EMI Payment (₹${finalAmount.toLocaleString('en-IN')}) for "${selectedLoan.loanName}" as PAID! Next EMI due: ${nextDueDate}`);
     setActiveModal(null);
     setIsOpen(false);
   };
@@ -571,6 +599,82 @@ const FloatingActionButton = () => {
                     </select>
                   </div>
 
+                  {/* Payment Type Selection */}
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold text-muted d-block mb-1">Collection Type</label>
+                    <div className="btn-group w-100 bg-light p-1 rounded-3 border">
+                      <button
+                        type="button"
+                        className={`btn btn-sm rounded-2 fw-bold ${paymentForm.paymentType === 'Regular' ? 'btn-primary shadow-sm' : 'btn-light text-muted'}`}
+                        onClick={() => {
+                          const l = loans.find(x => x.id === paymentForm.loanId);
+                          setPaymentForm({
+                            ...paymentForm,
+                            paymentType: 'Regular',
+                            amount: l ? l.emiAmount : paymentForm.amount,
+                            paymentMethod: 'UPI',
+                            notes: 'Direct EMI Payment',
+                          });
+                        }}
+                      >
+                        💳 Regular EMI
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm rounded-2 fw-bold ${paymentForm.paymentType === 'Advance' ? 'btn-warning text-dark shadow-sm' : 'btn-light text-muted'}`}
+                        onClick={() => {
+                          const l = loans.find(x => x.id === paymentForm.loanId);
+                          const baseAmt = l ? Number(l.emiAmount) : 0;
+                          setPaymentForm({
+                            ...paymentForm,
+                            paymentType: 'Advance',
+                            advanceMonths: 1,
+                            amount: baseAmt > 0 ? baseAmt : paymentForm.amount,
+                            paymentMethod: 'Advance Payment',
+                            notes: 'Advance EMI payment for 1 month',
+                          });
+                        }}
+                      >
+                        ⚡ Advance Payment
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Advance Multiplier Pills */}
+                  {paymentForm.paymentType === 'Advance' && (
+                    <div className="p-2.5 bg-warning bg-opacity-10 border border-warning border-opacity-30 rounded-3 mb-3">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <small className="fw-bold text-dark">⚡ Advance Period:</small>
+                        <small className="text-muted font-monospace">{paymentForm.advanceMonths} Mo</small>
+                      </div>
+                      <div className="d-flex gap-1.5 flex-wrap">
+                        {[1, 2, 3, 6].map(m => {
+                          const l = loans.find(x => x.id === paymentForm.loanId);
+                          const calcAmt = l ? Number(l.emiAmount) * m : 0;
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              className={`btn btn-sm rounded-2 fw-bold px-2 py-1 ${
+                                paymentForm.advanceMonths === m ? 'btn-warning text-dark shadow-2xs' : 'btn-white bg-white border text-dark'
+                              }`}
+                              onClick={() => {
+                                setPaymentForm({
+                                  ...paymentForm,
+                                  advanceMonths: m,
+                                  amount: calcAmt > 0 ? calcAmt : paymentForm.amount,
+                                  notes: `Advance EMI payment for ${m} month(s)`,
+                                });
+                              }}
+                            >
+                              +{m} Mo {calcAmt > 0 ? `(₹${calcAmt.toLocaleString('en-IN')})` : ''}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="row g-3 mb-3">
                     <div className="col-12">
                       <label className="form-label small fw-semibold text-muted">EMI Amount Paid (₹) *</label>
@@ -589,6 +693,7 @@ const FloatingActionButton = () => {
                         <option value="UPI">UPI / PhonePe / GPay</option>
                         <option value="Net Banking">Net Banking / NEFT</option>
                         <option value="Cash">Cash</option>
+                        <option value="Advance Payment">⚡ Advance Payment</option>
                         <option value="Card">Debit / Credit Card</option>
                         <option value="Cheque">Cheque</option>
                       </select>
