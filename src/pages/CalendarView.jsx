@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MdChevronLeft, MdChevronRight, MdToday, MdSearch, 
-  MdCheckCircle, MdSend, MdPerson, MdAddCircle, MdClose, MdEvent
+  MdCheckCircle, MdSend, MdPerson, MdAddCircle, MdClose, MdEvent,
+  MdViewList, MdViewModule
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
@@ -13,6 +14,14 @@ const CalendarView = () => {
 
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // August 2026
   const [viewMode, setViewMode] = useState('Month'); // 'Month', 'Week', 'Day'
+  const [displayMode, setDisplayMode] = useState(() => {
+    return localStorage.getItem('rc_view_calendar') || (window.innerWidth >= 768 ? 'table' : 'cards');
+  });
+
+  const handleSetDisplayMode = (mode) => {
+    setDisplayMode(mode);
+    localStorage.setItem('rc_view_calendar', mode);
+  };
 
   const [customers, setCustomers] = useState([]);
   const [loans, setLoans] = useState([]);
@@ -101,17 +110,17 @@ const CalendarView = () => {
       }
     });
 
-    // Reminders / Follow-ups
+    // Reminders
     reminders.forEach((r) => {
       if (r.date === dateStr) {
         events.push({
           id: r.id,
-          title: r.title,
+          title: `Reminder: ${r.title} (${r.type || 'General'})`,
           customerName: r.title,
           loanName: r.notes || 'Reminder Event',
           amount: 0,
           status: 'Reminder',
-          type: r.type || 'Reminder',
+          type: 'Reminder',
           badgeColor: 'bg-primary text-white',
           rawReminder: r,
         });
@@ -153,17 +162,50 @@ const CalendarView = () => {
     gridDays.push(d);
   }
 
+  // Month Schedule Payments for Table View
+  const mStrPadded = (month + 1).toString().padStart(2, '0');
+  const monthPrefix = `${year}-${mStrPadded}`;
+  const monthPayments = payments.filter((p) => {
+    const target = p.paidDate || p.dueDate;
+    return target && target.startsWith(monthPrefix);
+  }).filter((p) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !q || (p.customerName || '').toLowerCase().includes(q) || (p.loanName || '').toLowerCase().includes(q);
+    const matchesStatus = !statusFilter || p.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh' }}>
       
       {/* Calendar Header & View Selectors */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
-          <h4 className="fw-bold text-dark mb-1">Interactive EMI & Reminder Calendar</h4>
+          <h4 className="fw-bold text-dark mb-1">Interactive EMI &amp; Reminder Calendar</h4>
           <p className="text-muted small mb-0">Track upcoming due dates, paid installments, and overdue customer reminders</p>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {/* Table / Cards Mode Switcher */}
+          <div className="btn-group bg-white rounded-3 border p-0.5 shadow-2xs">
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${displayMode === 'table' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetDisplayMode('table')}
+              title="Schedule Table View"
+            >
+              <MdViewList size={18} /> Table
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${displayMode === 'cards' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetDisplayMode('cards')}
+              title="Calendar Grid & Cards View"
+            >
+              <MdViewModule size={18} /> Cards
+            </button>
+          </div>
+
           {/* Navigation Controls */}
           <div className="btn-group bg-white shadow-sm rounded-3 border p-1">
             <button className="btn btn-sm btn-light border-0" onClick={handlePrev}>
@@ -179,18 +221,20 @@ const CalendarView = () => {
 
           <h5 className="fw-bold text-dark mb-0 mx-2">{monthNames[month]} {year}</h5>
 
-          {/* View Mode Switcher */}
-          <div className="btn-group bg-white shadow-sm rounded-3 border p-1">
-            {['Month', 'Week', 'Day'].map((m) => (
-              <button
-                key={m}
-                className={`btn btn-sm rounded-2 fw-bold px-3 py-1 ${viewMode === m ? 'btn-primary text-white shadow-2xs' : 'btn-light text-secondary'}`}
-                onClick={() => setViewMode(m)}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
+          {/* View Mode Switcher (When in Cards/Calendar mode) */}
+          {displayMode === 'cards' && (
+            <div className="btn-group bg-white shadow-sm rounded-3 border p-1">
+              {['Month', 'Week', 'Day'].map((m) => (
+                <button
+                  key={m}
+                  className={`btn btn-sm rounded-2 fw-bold px-3 py-1 ${viewMode === m ? 'btn-primary text-white shadow-2xs' : 'btn-light text-secondary'}`}
+                  onClick={() => setViewMode(m)}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -233,99 +277,196 @@ const CalendarView = () => {
         </div>
       </div>
 
-      {/* Month View Grid */}
-      {viewMode === 'Month' && (
-        <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden mb-4">
-          <div className="grid text-center bg-light border-bottom fw-bold text-muted py-2.5" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
-            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', autoRows: 'minmax(120px, auto)' }}>
-            {gridDays.map((day, idx) => {
-              if (day === null) {
-                return <div key={`pad-${idx}`} className="bg-light bg-opacity-40 border-end border-bottom"></div>;
-              }
-
-              const mStr = (month + 1).toString().padStart(2, '0');
-              const dStr = day.toString().padStart(2, '0');
-              const dateStr = `${year}-${mStr}-${dStr}`;
-              const dayEvents = getEventsForDate(dateStr);
-              const isToday = dateStr === getLocalDateString();
-
-              return (
-                <div
-                  key={`day-${day}`}
-                  className={`border-end border-bottom p-2 position-relative cursor-pointer transition-all hover-light ${isToday ? 'bg-primary bg-opacity-10' : ''}`}
-                  onClick={() => setSelectedDate({ dateStr, day, events: dayEvents })}
-                >
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className={`fw-bold small rounded-circle px-2 py-0.5 ${isToday ? 'bg-primary text-white' : 'text-dark'}`}>
-                      {day}
-                    </span>
-                    {dayEvents.length > 0 && (
-                      <span className="badge bg-dark bg-opacity-75 rounded-pill" style={{ fontSize: '0.62rem' }}>
-                        {dayEvents.length}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Day Events Badges */}
-                  <div className="d-flex flex-column gap-1 overflow-hidden" style={{ maxHeight: '85px' }}>
-                    {dayEvents.slice(0, 3).map((ev, eIdx) => (
-                      <div
-                        key={eIdx}
-                        className={`badge text-truncate text-start font-sans p-1.5 rounded-2 ${ev.badgeColor}`}
-                        style={{ fontSize: '0.68rem', fontWeight: 600 }}
-                      >
-                        {ev.title}
-                      </div>
-                    ))}
-                    {dayEvents.length > 3 && (
-                      <small className="text-primary fw-bold" style={{ fontSize: '0.65rem' }}>
-                        +{dayEvents.length - 3} more...
-                      </small>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Week / Day View Placeholder */}
-      {viewMode !== 'Month' && (
-        <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
-          <h6 className="fw-bold text-dark mb-3">{viewMode} View Agenda for {monthNames[month]} {year}</h6>
+      {/* Main Calendar Content: Table or Cards View */}
+      {displayMode === 'table' ? (
+        /* TABLE VIEW */
+        <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
-              <thead className="bg-light small text-muted">
+              <thead className="table-light text-muted font-monospace small">
                 <tr>
-                  <th>Event Title / Customer</th>
-                  <th>Type</th>
-                  <th>Loan Name</th>
-                  <th>Amount</th>
-                  <th>Action</th>
+                  <th className="ps-4">DATE</th>
+                  <th>BORROWER / CUSTOMER</th>
+                  <th>LOAN ACCOUNT</th>
+                  <th>EMI AMOUNT</th>
+                  <th>EVENT TYPE</th>
+                  <th>STATUS</th>
+                  <th className="text-end pe-4">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
-                {payments.slice(0, 6).map((p) => (
-                  <tr key={p.id}>
-                    <td className="fw-bold text-dark">{p.customerName}</td>
-                    <td><span className="badge bg-warning text-dark">{p.status}</span></td>
-                    <td className="text-secondary">{p.loanName}</td>
-                    <td className="fw-bold text-success">₹{Number(p.amount).toLocaleString('en-IN')}</td>
-                    <td>
-                      <button className="btn btn-sm btn-outline-primary rounded-3" onClick={() => handleMarkPaidFromCalendar(p.id)}>
-                        Mark Paid
-                      </button>
+                {monthPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="text-center py-5 text-muted">
+                      <p className="mb-0 fw-semibold">No scheduled installments found for {monthNames[month]} {year}.</p>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  monthPayments.map((p) => {
+                    const isPaid = p.status === 'Paid';
+                    const targetDate = p.paidDate || p.dueDate;
+                    const isOverdue = p.status === 'Overdue' || (!isPaid && targetDate && targetDate < getLocalDateString());
+
+                    return (
+                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td className="ps-4">
+                          <span className="badge bg-light text-dark border px-2.5 py-1.5 rounded-2 font-monospace fw-bold">
+                            {formatIndianDate(targetDate)}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className="fw-bold text-dark">{p.customerName}</div>
+                          <small className="text-muted font-monospace">{p.customerId}</small>
+                        </td>
+
+                        <td>
+                          <div className="text-dark fw-semibold">{p.loanName}</div>
+                          <small className="text-muted font-monospace">{p.loanId}</small>
+                        </td>
+
+                        <td>
+                          <div className="fw-bold text-success">₹{Number(p.amount).toLocaleString('en-IN')}</div>
+                        </td>
+
+                        <td>
+                          <span className={`badge rounded-pill px-2.5 py-1 ${isPaid ? 'bg-success text-white' : isOverdue ? 'bg-danger text-white' : 'bg-warning text-dark'}`}>
+                            {isPaid ? 'Paid EMI' : isOverdue ? 'Overdue EMI' : 'Upcoming EMI'}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span className="badge bg-light text-dark border px-2 py-1 rounded-2">
+                            {p.status}
+                          </span>
+                        </td>
+
+                        <td className="text-end pe-4">
+                          <div className="d-flex align-items-center justify-content-end gap-1.5">
+                            {!isPaid && (
+                              <button
+                                type="button"
+                                className="btn btn-outline-success btn-sm rounded-3 px-2 py-1 fw-bold"
+                                onClick={() => handleMarkPaidFromCalendar(p.id)}
+                                title="Mark EMI as Paid"
+                              >
+                                ✓ Paid
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary btn-sm rounded-3 px-2 py-1 fw-semibold"
+                              onClick={() => handleSendReminderFromCalendar(p.customerName, p.amount)}
+                              title="Send Reminder"
+                            >
+                              <MdSend size={14} /> Send
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
+      ) : (
+        /* CARDS / CALENDAR GRID VIEW */
+        <>
+          {viewMode === 'Month' && (
+            <div className="card border-0 shadow-sm rounded-4 bg-white overflow-hidden mb-4">
+              <div className="grid text-center bg-light border-bottom fw-bold text-muted py-2.5" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', autoRows: 'minmax(120px, auto)' }}>
+                {gridDays.map((day, idx) => {
+                  if (day === null) {
+                    return <div key={`pad-${idx}`} className="bg-light bg-opacity-40 border-end border-bottom"></div>;
+                  }
+
+                  const mStr = (month + 1).toString().padStart(2, '0');
+                  const dStr = day.toString().padStart(2, '0');
+                  const dateStr = `${year}-${mStr}-${dStr}`;
+                  const dayEvents = getEventsForDate(dateStr);
+                  const isToday = dateStr === getLocalDateString();
+
+                  return (
+                    <div
+                      key={`day-${day}`}
+                      className={`border-end border-bottom p-2 position-relative cursor-pointer transition-all hover-light ${isToday ? 'bg-primary bg-opacity-10' : ''}`}
+                      onClick={() => setSelectedDate({ dateStr, day, events: dayEvents })}
+                    >
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <span className={`fw-bold small rounded-circle px-2 py-0.5 ${isToday ? 'bg-primary text-white' : 'text-dark'}`}>
+                          {day}
+                        </span>
+                        {dayEvents.length > 0 && (
+                          <span className="badge bg-dark bg-opacity-75 rounded-pill" style={{ fontSize: '0.62rem' }}>
+                            {dayEvents.length}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Day Events Badges */}
+                      <div className="d-flex flex-column gap-1 overflow-hidden" style={{ maxHeight: '85px' }}>
+                        {dayEvents.slice(0, 3).map((ev, eIdx) => (
+                          <div
+                            key={eIdx}
+                            className={`badge text-truncate text-start font-sans p-1.5 rounded-2 ${ev.badgeColor}`}
+                            style={{ fontSize: '0.68rem', fontWeight: 600 }}
+                          >
+                            {ev.title}
+                          </div>
+                        ))}
+                        {dayEvents.length > 3 && (
+                          <small className="text-primary fw-bold" style={{ fontSize: '0.65rem' }}>
+                            +{dayEvents.length - 3} more...
+                          </small>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {viewMode !== 'Month' && (
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+              <h6 className="fw-bold text-dark mb-3">{viewMode} View Agenda for {monthNames[month]} {year}</h6>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="bg-light small text-muted">
+                    <tr>
+                      <th>Event Title / Customer</th>
+                      <th>Type</th>
+                      <th>Loan Name</th>
+                      <th>Amount</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.slice(0, 6).map((p) => (
+                      <tr key={p.id}>
+                        <td className="fw-bold text-dark">{p.customerName}</td>
+                        <td><span className="badge bg-warning text-dark">{p.status}</span></td>
+                        <td className="text-secondary">{p.loanName}</td>
+                        <td className="fw-bold text-success">₹{Number(p.amount).toLocaleString('en-IN')}</td>
+                        <td>
+                          <button className="btn btn-sm btn-outline-primary rounded-3" onClick={() => handleMarkPaidFromCalendar(p.id)}>
+                            Mark Paid
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Date Event Details Popup / Drawer */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MdPrint, MdPictureAsPdf, MdFileUpload, MdFilterList, 
-  MdReceiptLong, MdSearch, MdBusiness, MdSend
+  MdReceiptLong, MdSearch, MdBusiness, MdSend, MdViewList, MdViewModule
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
@@ -16,6 +16,16 @@ const Statements = () => {
   const [loans, setLoans] = useState([]);
   const [payments, setPayments] = useState([]);
   const [settings, setSettings] = useState({});
+
+  // View Mode State
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('rc_view_statements') || (window.innerWidth >= 768 ? 'table' : 'cards');
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('rc_view_statements', mode);
+  };
 
   // Filters State
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -166,7 +176,27 @@ const Statements = () => {
           <p className="text-muted small mb-0">Generate, print, and export itemized financial statements & loan balance summaries</p>
         </div>
 
-        <div className="d-flex flex-wrap gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="btn-group bg-white rounded-3 border p-0.5 shadow-2xs">
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'table' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('table')}
+              title="Table View"
+            >
+              <MdViewList size={18} /> Table
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'cards' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('cards')}
+              title="Cards View"
+            >
+              <MdViewModule size={18} /> Cards
+            </button>
+          </div>
+
           <button
             className="btn btn-primary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5 shadow-sm"
             onClick={() => setCommModal({ open: true, customerId: activeCustomer.id || null, loanId: activeLoan?.id || null, templateKey: 'loan_statement' })}
@@ -175,13 +205,13 @@ const Statements = () => {
             <MdSend size={18} /> Send
           </button>
           <button className="btn btn-outline-secondary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handlePrint}>
-            <MdPrint size={18} /> Print Statement
+            <MdPrint size={18} /> Print
           </button>
           <button className="btn btn-outline-danger rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handleExportPDF}>
-            <MdPictureAsPdf size={18} /> Download PDF
+            <MdPictureAsPdf size={18} /> PDF
           </button>
           <button className="btn btn-outline-success rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handleExportExcel}>
-            <MdFileUpload size={18} /> Export Excel
+            <MdFileUpload size={18} /> Excel
           </button>
         </div>
       </div>
@@ -305,37 +335,64 @@ const Statements = () => {
           </div>
         </div>
 
-        {/* Itemized Payment Schedule Table */}
-        <h6 className="fw-bold text-dark mb-3">Itemized EMI Payment & Collection Ledger</h6>
-        <div className="table-responsive mb-4">
-          <table className="table table-bordered align-middle mb-0 small">
-            <thead className="bg-light text-muted">
-              <tr>
-                <th className="text-center" style={{ width: '40px' }}>#</th>
-                <th>Due Date</th>
-                <th>Paid Date</th>
-                <th>EMI Amount</th>
-                <th>Payment Method</th>
-                <th className="text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {statementPayments.length === 0 ? (
+        {/* Itemized Payment Schedule: Table or Cards View */}
+        <h6 className="fw-bold text-dark mb-3">Itemized EMI Payment &amp; Collection Ledger</h6>
+        {viewMode === 'table' ? (
+          <div className="table-responsive mb-4">
+            <table className="table table-bordered align-middle mb-0 small">
+              <thead className="bg-light text-muted">
                 <tr>
-                  <td colSpan="7" className="text-center py-4 text-muted">
-                    No payment records match the selected statement filters.
-                  </td>
+                  <th className="text-center" style={{ width: '40px' }}>#</th>
+                  <th>Due Date</th>
+                  <th>Paid Date</th>
+                  <th>EMI Amount</th>
+                  <th>Payment Method</th>
+                  <th className="text-center">Status</th>
                 </tr>
-              ) : (
-                statementPayments.map((p, idx) => (
-                  <tr key={p.id || idx}>
-                    <td className="text-center fw-bold">{idx + 1}</td>
-                    <td className="fw-semibold text-dark">{formatIndianDate(p.dueDate)}</td>
-                    <td className="text-muted">{p.paidDate ? formatIndianDate(p.paidDate) : '-'}</td>
+              </thead>
+              <tbody>
+                {statementPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-4 text-muted">
+                      No payment records match the selected statement filters.
+                    </td>
+                  </tr>
+                ) : (
+                  statementPayments.map((p, idx) => (
+                    <tr key={p.id || idx}>
+                      <td className="text-center fw-bold">{idx + 1}</td>
+                      <td className="fw-semibold text-dark">{formatIndianDate(p.dueDate)}</td>
+                      <td className="text-muted">{p.paidDate ? formatIndianDate(p.paidDate) : '-'}</td>
 
-                    <td className="fw-bold text-dark">₹{Number(p.amount).toLocaleString('en-IN')}</td>
-                    <td>{p.paymentMethod || 'UPI'}</td>
-                    <td className="text-center">
+                      <td className="fw-bold text-dark">₹{Number(p.amount).toLocaleString('en-IN')}</td>
+                      <td>{p.paymentMethod || 'UPI'}</td>
+                      <td className="text-center">
+                        <span className={`badge rounded-pill ${
+                          p.status === 'Paid' ? 'bg-success text-white' :
+                          p.status === 'Overdue' ? 'bg-danger text-white' :
+                          'bg-warning text-dark'
+                        }`}>
+                          {p.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="row g-3 mb-4">
+            {statementPayments.length === 0 ? (
+              <div className="col-12 text-center py-4 bg-light rounded-3 text-muted">
+                No payment records match the selected statement filters.
+              </div>
+            ) : (
+              statementPayments.map((p, idx) => (
+                <div key={p.id || idx} className="col-12 col-sm-6 col-lg-4">
+                  <div className="card border rounded-3 p-3 bg-light h-100 shadow-2xs">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="badge bg-white text-dark border fw-bold font-monospace">#{idx + 1} Installment</span>
                       <span className={`badge rounded-pill ${
                         p.status === 'Paid' ? 'bg-success text-white' :
                         p.status === 'Overdue' ? 'bg-danger text-white' :
@@ -343,13 +400,33 @@ const Statements = () => {
                       }`}>
                         {p.status}
                       </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+
+                    <div className="d-flex justify-content-between align-items-center my-1">
+                      <small className="text-muted">EMI Amount</small>
+                      <h5 className="fw-bold text-dark mb-0">₹{Number(p.amount).toLocaleString('en-IN')}</h5>
+                    </div>
+
+                    <div className="small text-muted border-top pt-2 mt-2 d-flex flex-column gap-1">
+                      <div className="d-flex justify-content-between">
+                        <span>Due Date:</span>
+                        <strong className="text-dark">{formatIndianDate(p.dueDate)}</strong>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span>Paid Date:</span>
+                        <strong className="text-dark">{p.paidDate ? formatIndianDate(p.paidDate) : 'Pending'}</strong>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span>Method:</span>
+                        <strong className="text-dark">{p.paymentMethod || 'UPI'}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* Statement Footer */}
         <div className="border-top pt-3 text-muted small d-flex justify-content-between align-items-center">

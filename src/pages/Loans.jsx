@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   MdSearch, MdAccountBalance, MdAddCircle, MdEdit, MdDelete, 
   MdReceipt, MdCalendarToday, MdInfo, MdVisibility, MdFastForward, MdUpdate,
-  MdSend
+  MdSend, MdViewList, MdViewModule
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, addMonthsToDate, formatIndianDate } from '../utils/dateUtils';
@@ -18,6 +18,14 @@ const Loans = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('rc_view_loans') || (window.innerWidth >= 768 ? 'table' : 'cards');
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('rc_view_loans', mode);
+  };
 
   // Modals State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -157,9 +165,32 @@ const Loans = () => {
           <h4 className="fw-bold text-dark mb-1">Loan Management System</h4>
           <p className="text-muted small mb-0">Create loans, view payment progress bars, and monitor EMI schedules</p>
         </div>
-        <button className="btn btn-success rounded-3 px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2" onClick={openAddModal}>
-          <MdAddCircle size={20} /> Create New Loan
-        </button>
+        
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="btn-group bg-white rounded-3 border p-0.5 shadow-2xs">
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'table' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('table')}
+              title="Table View"
+            >
+              <MdViewList size={18} /> Table
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'cards' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('cards')}
+              title="Cards View"
+            >
+              <MdViewModule size={18} /> Cards
+            </button>
+          </div>
+
+          <button className="btn btn-success rounded-3 px-3 py-2 fw-bold shadow-sm d-flex align-items-center gap-1.5" onClick={openAddModal}>
+            <MdAddCircle size={18} /> Create New Loan
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
@@ -190,94 +221,241 @@ const Loans = () => {
         </div>
       </div>
 
-      {/* Loans Grid / Cards */}
-      <div className="row g-3">
-        {filteredLoans.length === 0 ? (
-          <div className="col-12 text-center py-5 bg-white rounded-4 shadow-sm border">
-            <p className="text-muted mb-0">No loan accounts found matching your filter criteria.</p>
+      {/* Loans Content: Table or Cards View */}
+      {viewMode === 'table' ? (
+        /* TABLE VIEW */
+        <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light text-muted font-monospace small">
+                <tr>
+                  <th className="ps-4">LOAN &amp; BORROWER</th>
+                  <th>LOAN TYPE</th>
+                  <th>TOTAL AMOUNT</th>
+                  <th>MONTHLY EMI</th>
+                  <th>PROGRESS</th>
+                  <th>OUTSTANDING</th>
+                  <th>NEXT DUE</th>
+                  <th className="text-end pe-4">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLoans.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="text-center py-5 text-muted">
+                      <p className="mb-0 fw-semibold">No loan accounts found matching your filter criteria.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLoans.map((loan) => {
+                    const loanPayments = payments.filter((p) => p.loanId === loan.id && p.status === 'Paid');
+                    const paidEmis = loanPayments.length;
+                    const tenure = Number(loan.tenureMonths) || 12;
+                    const remainingEmis = Math.max(0, tenure - paidEmis);
+                    const totalPaidAmt = loanPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+                    const outstanding = Math.max(0, Number(loan.totalAmount) - totalPaidAmt);
+                    const progressPercent = Math.min(100, Math.round((paidEmis / tenure) * 100));
+
+                    return (
+                      <tr key={loan.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td className="ps-4">
+                          <div className="fw-bold text-dark">{loan.loanName}</div>
+                          <small className="text-muted d-block">{loan.customerName} • <span className="font-monospace text-primary">{loan.id}</span></small>
+                        </td>
+
+                        <td>
+                          <span className="badge bg-primary bg-opacity-10 text-primary border px-2 py-1 rounded-2 fw-semibold">
+                            {loan.type}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className="fw-bold text-dark">₹{Number(loan.totalAmount).toLocaleString('en-IN')}</div>
+                          <small className="text-muted">{loan.interestRate}% p.a.</small>
+                        </td>
+
+                        <td>
+                          <div className="fw-bold text-success">₹{Number(loan.emiAmount).toLocaleString('en-IN')}/mo</div>
+                          <small className="text-muted">{tenure} Months</small>
+                        </td>
+
+                        <td style={{ minWidth: 130 }}>
+                          <div className="d-flex align-items-center gap-2">
+                            <div className="progress flex-grow-1" style={{ height: 6 }}>
+                              <div className="progress-bar bg-success" style={{ width: `${progressPercent}%` }}></div>
+                            </div>
+                            <small className="fw-bold text-dark font-monospace">{progressPercent}%</small>
+                          </div>
+                          <small className="text-muted" style={{ fontSize: '0.68rem' }}>{paidEmis}/{tenure} EMIs</small>
+                        </td>
+
+                        <td>
+                          <div className={`fw-bold ${outstanding > 0 ? 'text-danger' : 'text-success'}`}>
+                            ₹{outstanding.toLocaleString('en-IN')}
+                          </div>
+                        </td>
+
+                        <td>
+                          <span className="badge bg-light text-dark border px-2 py-1 rounded-2 font-monospace">
+                            {formatIndianDate(loan.dueDate)}
+                          </span>
+                        </td>
+
+                        <td className="text-end pe-4">
+                          <div className="d-flex align-items-center justify-content-end gap-1.5">
+                            <button
+                              type="button"
+                              className="btn btn-outline-success btn-sm rounded-3 px-2 py-1.5 fw-bold d-flex align-items-center gap-1"
+                              onClick={() => setCommModal({ open: true, customerId: loan.customerId, loanId: loan.id, templateKey: 'loan_statement' })}
+                              title="Send Statement via WhatsApp / Gmail"
+                            >
+                              <MdSend size={14} /> Send
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary btn-sm rounded-3 px-2 py-1.5 fw-semibold d-flex align-items-center gap-1"
+                              onClick={() => setSelectedLoanDetails({ ...loan, paidEmis, tenure, remainingEmis, outstanding, progressPercent, schedule: loanStore.generateEmiSchedule(loan) })}
+                              title="Details & Schedule"
+                            >
+                              <MdVisibility size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm rounded-3 px-2 py-1.5"
+                              onClick={() => openEditModal(loan)}
+                              title="Edit Loan"
+                            >
+                              <MdEdit size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger btn-sm rounded-3 px-2 py-1.5"
+                              onClick={() => setDeleteConfirmId(loan.id)}
+                              title="Delete Loan"
+                            >
+                              <MdDelete size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          filteredLoans.map((loan) => {
-            const loanPayments = payments.filter((p) => p.loanId === loan.id && p.status === 'Paid');
-            const paidEmis = loanPayments.length;
-            const tenure = Number(loan.tenureMonths) || 12;
-            const remainingEmis = Math.max(0, tenure - paidEmis);
+        </div>
+      ) : (
+        /* CARDS VIEW */
+        <div className="row g-3">
+          {filteredLoans.length === 0 ? (
+            <div className="col-12 text-center py-5 bg-white rounded-4 shadow-sm border">
+              <p className="text-muted mb-0">No loan accounts found matching your filter criteria.</p>
+            </div>
+          ) : (
+            filteredLoans.map((loan) => {
+              const loanPayments = payments.filter((p) => p.loanId === loan.id && p.status === 'Paid');
+              const paidEmis = loanPayments.length;
+              const tenure = Number(loan.tenureMonths) || 12;
+              const remainingEmis = Math.max(0, tenure - paidEmis);
 
-            const totalPaidAmt = loanPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-            const outstanding = Math.max(0, Number(loan.totalAmount) - totalPaidAmt);
-            const progressPercent = Math.min(100, Math.round((paidEmis / tenure) * 100));
+              const totalPaidAmt = loanPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+              const outstanding = Math.max(0, Number(loan.totalAmount) - totalPaidAmt);
+              const progressPercent = Math.min(100, Math.round((paidEmis / tenure) * 100));
 
-            return (
-              <div key={loan.id} className="col-12 col-md-6 col-xl-4">
-                <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 position-relative hover-lift transition-all">
-                  
-                  {/* Actions */}
-                  <div className="position-absolute top-0 end-0 m-3 d-flex gap-1">
-                    <button className="btn btn-sm btn-light rounded-circle p-1.5 text-secondary border" title="Edit Loan" onClick={() => openEditModal(loan)}>
-                      <MdEdit size={16} />
-                    </button>
-                    <button className="btn btn-sm btn-light rounded-circle p-1.5 text-danger border" title="Delete Loan" onClick={() => setDeleteConfirmId(loan.id)}>
-                      <MdDelete size={16} />
-                    </button>
-                  </div>
-
-                  <div className="mb-3">
-                    <span className="badge bg-success bg-opacity-10 text-success rounded-pill px-2.5 py-1 mb-2 font-monospace">
-                      {loan.type}
-                    </span>
-                    <h5 className="fw-bold text-dark mb-0">{loan.loanName}</h5>
-                    <small className="text-muted">Borrower: <strong className="text-dark">{loan.customerName}</strong></small>
-                  </div>
-
-                  {/* Loan Amount Metrics */}
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                      <small className="text-muted d-block" style={{ fontSize: '0.7rem' }}>Total Amount</small>
-                      <h5 className="fw-bold text-dark mb-0">₹{Number(loan.totalAmount).toLocaleString('en-IN')}</h5>
+              return (
+                <div key={loan.id} className="col-12 col-md-6 col-xl-4">
+                  <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 position-relative hover-lift transition-all">
+                    
+                    {/* Actions */}
+                    <div className="position-absolute top-0 end-0 m-3 d-flex gap-1">
+                      <button className="btn btn-sm btn-light rounded-circle p-1.5 text-secondary border" title="Edit Loan" onClick={() => openEditModal(loan)}>
+                        <MdEdit size={16} />
+                      </button>
+                      <button className="btn btn-sm btn-light rounded-circle p-1.5 text-danger border" title="Delete Loan" onClick={() => setDeleteConfirmId(loan.id)}>
+                        <MdDelete size={16} />
+                      </button>
                     </div>
-                    <div className="text-end">
-                      <small className="text-muted d-block" style={{ fontSize: '0.7rem' }}>Monthly EMI</small>
-                      <h5 className="fw-bold text-success mb-0">₹{Number(loan.emiAmount).toLocaleString('en-IN')}</h5>
-                    </div>
-                  </div>
 
-                  {/* Payment Progress Bar */}
-                  <div className="mb-3 p-3 bg-light rounded-3 border">
-                    <div className="d-flex justify-content-between align-items-center mb-1.5">
-                      <span className="small fw-semibold text-muted">EMI Paid Progress</span>
-                      <span className="small fw-bold text-primary">{paidEmis} / {tenure} EMIs ({progressPercent}%)</span>
+                    <div className="mb-3 pe-5">
+                      <span className="badge bg-primary bg-opacity-10 text-primary mb-1 fw-semibold font-monospace" style={{ fontSize: '0.7rem' }}>
+                        {loan.id} • {loan.type}
+                      </span>
+                      <h5 className="fw-bold text-dark mb-0 text-truncate">{loan.loanName}</h5>
+                      <small className="text-muted fw-semibold">Borrower: {loan.customerName}</small>
                     </div>
-                    <div className="progress rounded-pill mb-2" style={{ height: '8px' }}>
-                      <div className="progress-bar bg-primary" role="progressbar" style={{ width: `${progressPercent}%` }}></div>
-                    </div>
-                    <div className="d-flex justify-content-between small text-muted">
-                      <span>Remaining: <strong className="text-dark">{remainingEmis} EMIs</strong></span>
-                      <span>Balance: <strong className="text-danger">₹{outstanding.toLocaleString('en-IN')}</strong></span>
-                    </div>
-                  </div>
 
-                  <div className="d-flex gap-2 mt-auto">
-                    <button
-                      className="btn btn-outline-primary btn-sm rounded-3 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
-                      style={{ flex: '0 0 auto' }}
-                      title="Send Statement via WhatsApp / Gmail"
-                      onClick={() => setCommModal({ open: true, customerId: loan.customerId, loanId: loan.id, templateKey: 'loan_statement' })}
-                    >
-                      <MdSend size={15} /> Send
-                    </button>
-                    <button
-                      className="btn btn-outline-success btn-sm rounded-3 flex-grow-1 fw-bold py-2 d-flex align-items-center justify-content-center gap-1.5"
-                      onClick={() => setSelectedLoanDetails({ ...loan, paidEmis, tenure, remainingEmis, outstanding, progressPercent, schedule: loanStore.generateEmiSchedule(loan) })}
-                    >
-                      <MdVisibility size={16} /> Details &amp; Schedule
-                    </button>
+                    {/* Financial Numbers */}
+                    <div className="p-3 bg-light rounded-3 mb-3 border">
+                      <div className="row text-center g-2">
+                        <div className="col-6 border-end">
+                          <small className="text-muted d-block" style={{ fontSize: '0.7rem' }}>Total Principal</small>
+                          <strong className="text-dark">₹{Number(loan.totalAmount).toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div className="col-6">
+                          <small className="text-muted d-block" style={{ fontSize: '0.7rem' }}>Monthly EMI</small>
+                          <strong className="text-success">₹{Number(loan.emiAmount).toLocaleString('en-IN')}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mb-3">
+                      <div className="d-flex justify-content-between align-items-center small mb-1">
+                        <span className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>Repayment Progress</span>
+                        <strong className="text-dark font-monospace">{progressPercent}%</strong>
+                      </div>
+                      <div className="progress rounded-pill bg-light border" style={{ height: '8px' }}>
+                        <div
+                          className="progress-bar bg-success rounded-pill"
+                          role="progressbar"
+                          style={{ width: `${progressPercent}%` }}
+                        ></div>
+                      </div>
+                      <div className="d-flex justify-content-between small text-muted mt-1" style={{ fontSize: '0.7rem' }}>
+                        <span>Paid: {paidEmis} EMIs</span>
+                        <span>Remaining: {remainingEmis} EMIs</span>
+                      </div>
+                    </div>
+
+                    {/* Outstanding & Next Due Date */}
+                    <div className="d-flex justify-content-between align-items-center small mb-3 border-top pt-2">
+                      <div>
+                        <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Outstanding</small>
+                        <strong className="text-danger fw-bold">₹{outstanding.toLocaleString('en-IN')}</strong>
+                      </div>
+                      <div className="text-end">
+                        <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Next Due Date</small>
+                        <strong className="text-dark">{formatIndianDate(loan.dueDate)}</strong>
+                      </div>
+                    </div>
+
+                    <div className="d-flex gap-2 mt-auto">
+                      <button
+                        className="btn btn-outline-success btn-sm rounded-3 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
+                        style={{ flex: '0 0 auto' }}
+                        title="Send Statement via WhatsApp / Gmail"
+                        onClick={() => setCommModal({ open: true, customerId: loan.customerId, loanId: loan.id, templateKey: 'loan_statement' })}
+                      >
+                        <MdSend size={15} /> Send
+                      </button>
+                      <button
+                        className="btn btn-outline-primary btn-sm rounded-3 flex-grow-1 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
+                        onClick={() => setSelectedLoanDetails({ ...loan, paidEmis, tenure, remainingEmis, outstanding, progressPercent, schedule: loanStore.generateEmiSchedule(loan) })}
+                      >
+                        <MdVisibility size={16} /> Details &amp; Schedule
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Create / Edit Loan Modal */}
       {showAddModal && (

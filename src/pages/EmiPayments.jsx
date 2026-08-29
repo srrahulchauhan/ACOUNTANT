@@ -23,7 +23,14 @@ const EmiPayments = () => {
   const [statusFilter, setStatusFilter] = useState(location.state?.status || '');
   const [methodFilter, setMethodFilter] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('rc_view_emi') || (window.innerWidth >= 768 ? 'table' : 'cards');
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('rc_view_emi', mode);
+  };
 
   // Mark Paid Modal state
   const [markingPayment, setMarkingPayment] = useState(null);
@@ -128,7 +135,7 @@ const EmiPayments = () => {
             <button
               type="button"
               className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'table' ? 'btn-primary' : 'btn-light text-muted'}`}
-              onClick={() => setViewMode('table')}
+              onClick={() => handleSetViewMode('table')}
               title="Table View"
             >
               <MdViewList size={18} /> Table
@@ -136,8 +143,8 @@ const EmiPayments = () => {
             <button
               type="button"
               className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'cards' ? 'btn-primary' : 'btn-light text-muted'}`}
-              onClick={() => setViewMode('cards')}
-              title="Card Grid View"
+              onClick={() => handleSetViewMode('cards')}
+              title="Cards View"
             >
               <MdViewModule size={18} /> Cards
             </button>

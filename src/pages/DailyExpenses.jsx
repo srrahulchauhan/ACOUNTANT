@@ -4,14 +4,14 @@ import {
   MdWarning, MdAdd, MdSearch, MdFilterList, MdTrendingDown, 
   MdAccountBalanceWallet, MdCheckCircle, MdSettings, MdShoppingBag, 
   MdRestaurant, MdDirectionsCar, MdReceipt, MdLocalHospital, MdMoreHoriz,
-  MdClose, MdSave, MdRefresh
+  MdClose, MdSave, MdRefresh, MdViewList, MdViewModule
 } from 'react-icons/md';
 import { 
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, 
   LineElement, BarElement, Title, Tooltip, Legend, ArcElement 
 } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, 
@@ -40,6 +40,14 @@ const DailyExpenses = () => {
   const [dailyBudget, setDailyBudget] = useState(1000); // Default ₹1,000/day
   const [editingBudget, setEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(1000);
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('rc_view_expenses') || (window.innerWidth >= 768 ? 'table' : 'cards');
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('rc_view_expenses', mode);
+  };
 
   // Form State
   const [showFormModal, setShowFormModal] = useState(false);
@@ -63,7 +71,6 @@ const DailyExpenses = () => {
       if (savedExpenses) {
         setExpenses(JSON.parse(savedExpenses));
       } else {
-        // Initial sample data if empty
         const samples = [
           { id: '1', amount: 150, category: 'Food', date: getLocalDateString(), notes: 'Lunch thali' },
           { id: '2', amount: 80, category: 'Travel', date: getLocalDateString(), notes: 'Cab fare' },
@@ -99,27 +106,59 @@ const DailyExpenses = () => {
     setEditingBudget(false);
   };
 
-  // Submit Handler for Add / Edit
-  const handleSubmitForm = (e) => {
+  // Open modal for new expense
+  const handleOpenAddModal = (cat = 'Food') => {
+    setEditingId(null);
+    setFormData({
+      amount: '',
+      category: cat,
+      date: getLocalDateString(),
+      notes: ''
+    });
+    setShowFormModal(true);
+  };
+
+  // Open modal for editing
+  const handleEditClick = (expense) => {
+    setEditingId(expense.id);
+    setFormData({
+      amount: expense.amount.toString(),
+      category: expense.category,
+      date: expense.date,
+      notes: expense.notes || ''
+    });
+    setShowFormModal(true);
+  };
+
+  // Delete expense
+  const handleDeleteClick = (id) => {
+    if (window.confirm("Are you sure you want to delete this expense record?")) {
+      const updated = expenses.filter(e => e.id !== id);
+      saveExpensesToStorage(updated);
+    }
+  };
+
+  // Form submit handler
+  const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (!formData.amount || Number(formData.amount) <= 0) {
-      alert("Please enter a valid amount!");
+    const val = Number(formData.amount);
+    if (!val || val <= 0) {
+      alert("Please enter a valid expense amount greater than 0");
       return;
     }
 
     if (editingId) {
-      // Edit
-      const updated = expenses.map(exp => 
-        exp.id === editingId 
-          ? { ...exp, amount: Number(formData.amount), category: formData.category, date: formData.date, notes: formData.notes } 
-          : exp
-      );
+      const updated = expenses.map(item => {
+        if (item.id === editingId) {
+          return { ...item, amount: val, category: formData.category, date: formData.date, notes: formData.notes };
+        }
+        return item;
+      });
       saveExpensesToStorage(updated);
     } else {
-      // Add
       const newExp = {
         id: Date.now().toString(),
-        amount: Number(formData.amount),
+        amount: val,
         category: formData.category,
         date: formData.date,
         notes: formData.notes
@@ -127,205 +166,142 @@ const DailyExpenses = () => {
       saveExpensesToStorage([newExp, ...expenses]);
     }
 
-    // Reset Form
-    setFormData({ amount: '', category: 'Food', date: getLocalDateString(), notes: '' });
-    setEditingId(null);
     setShowFormModal(false);
-  };
-
-  // Edit Trigger
-  const handleEditClick = (exp) => {
-    setEditingId(exp.id);
-    setFormData({
-      amount: exp.amount.toString(),
-      category: exp.category,
-      date: exp.date,
-      notes: exp.notes || ''
-    });
-    setShowFormModal(true);
-  };
-
-  // Delete Trigger
-  const handleDeleteClick = (id) => {
-    if (window.confirm("Are you sure you want to delete this expense?")) {
-      const updated = expenses.filter(e => e.id !== id);
-      saveExpensesToStorage(updated);
-    }
-  };
-
-  // Open Add Modal
-  const handleOpenAddModal = () => {
-    setEditingId(null);
-    setFormData({ amount: '', category: 'Food', date: getLocalDateString(), notes: '' });
-    setShowFormModal(true);
   };
 
   // Metrics Calculations
   const todayStr = getLocalDateString();
-  const now = new Date();
-
-  // Today's total
-  const todaySpending = useMemo(() => {
-    return expenses
-      .filter(e => e.date === todayStr)
-      .reduce((sum, e) => sum + Number(e.amount), 0);
-  }, [expenses, todayStr]);
-
-  // Remaining budget today
+  const todayExpenses = useMemo(() => expenses.filter(e => e.date === todayStr), [expenses, todayStr]);
+  const todaySpending = useMemo(() => todayExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0), [todayExpenses]);
   const remainingBudget = dailyBudget - todaySpending;
-  const isBudgetExceeded = todaySpending > dailyBudget;
-  const budgetUsagePct = Math.min(Math.round((todaySpending / dailyBudget) * 100), 100);
+  const isBudgetExceeded = remainingBudget < 0;
+  const budgetUsagePct = Math.min(100, Math.round((todaySpending / dailyBudget) * 100));
 
-  // This Month's Total
-  const monthlySpending = useMemo(() => {
-    const currMonth = now.getMonth();
-    const currYear = now.getFullYear();
-    return expenses
-      .filter(e => {
-        const d = new Date(e.date);
-        return d.getMonth() === currMonth && d.getFullYear() === currYear;
-      })
-      .reduce((sum, e) => sum + Number(e.amount), 0);
-  }, [expenses]);
+  const thisMonthStr = todayStr.substring(0, 7);
+  const monthlyExpenses = useMemo(() => expenses.filter(e => (e.date || '').startsWith(thisMonthStr)), [expenses, thisMonthStr]);
+  const monthlySpending = useMemo(() => monthlyExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0), [monthlyExpenses]);
 
   // Filtered expenses list
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
-      // Search
-      const s = searchTerm.toLowerCase();
-      const matchesSearch = !s || 
-        exp.category.toLowerCase().includes(s) || 
-        (exp.notes && exp.notes.toLowerCase().includes(s)) ||
-        exp.amount.toString().includes(s);
+      const matchesSearch = !searchTerm || 
+        exp.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (exp.notes && exp.notes.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // Category
       const matchesCat = categoryFilter === 'All' || exp.category === categoryFilter;
 
-      // Date Range
       let matchesDate = true;
       if (dateFilter === 'Today') {
         matchesDate = exp.date === todayStr;
       } else if (dateFilter === 'This Week') {
-        const expDate = new Date(exp.date);
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        matchesDate = expDate >= weekAgo;
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        matchesDate = new Date(exp.date) >= d;
       } else if (dateFilter === 'This Month') {
-        const expDate = new Date(exp.date);
-        matchesDate = expDate.getMonth() === now.getMonth() && expDate.getFullYear() === now.getFullYear();
+        matchesDate = (exp.date || '').startsWith(thisMonthStr);
       }
 
       return matchesSearch && matchesCat && matchesDate;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [expenses, searchTerm, categoryFilter, dateFilter, todayStr]);
+  }, [expenses, searchTerm, categoryFilter, dateFilter, todayStr, thisMonthStr]);
 
   // Category Breakdown for Doughnut Chart
-  const categoryChartData = useMemo(() => {
-    const catTotals = {};
-    CATEGORIES.forEach(c => catTotals[c.id] = 0);
-
-    expenses.forEach(e => {
-      if (catTotals[e.category] !== undefined) {
-        catTotals[e.category] += Number(e.amount);
+  const categoryTotals = useMemo(() => {
+    const totals = {};
+    CATEGORIES.forEach(c => totals[c.id] = 0);
+    monthlyExpenses.forEach(e => {
+      if (totals[e.category] !== undefined) {
+        totals[e.category] += Number(e.amount);
       } else {
-        catTotals['Other'] = (catTotals['Other'] || 0) + Number(e.amount);
+        totals['Other'] = (totals['Other'] || 0) + Number(e.amount);
       }
     });
+    return totals;
+  }, [monthlyExpenses]);
 
-    const labels = CATEGORIES.map(c => c.label);
-    const data = CATEGORIES.map(c => catTotals[c.id]);
-    const colors = CATEGORIES.map(c => c.color);
-
-    return {
-      labels,
-      datasets: [
-        {
-          data,
-          backgroundColor: colors,
-          borderWidth: 0,
-          hoverOffset: 6
-        }
-      ]
-    };
-  }, [expenses]);
+  const doughnutData = {
+    labels: CATEGORIES.map(c => c.label),
+    datasets: [
+      {
+        data: CATEGORIES.map(c => categoryTotals[c.id]),
+        backgroundColor: CATEGORIES.map(c => c.color),
+        borderWidth: 2,
+        borderColor: '#ffffff',
+      },
+    ],
+  };
 
   // Weekly Trend Chart (Last 7 Days)
-  const weeklyChartData = useMemo(() => {
-    const labels = [];
-    const data = [];
-
+  const last7DaysData = useMemo(() => {
+    const days = [];
+    const amounts = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dStr = getLocalDateString(d);
-      const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
-
-      labels.push(dayName);
-
-      const dayTotal = expenses
-        .filter(e => e.date === dStr)
-        .reduce((sum, e) => sum + Number(e.amount), 0);
-
-      data.push(dayTotal);
+      const str = getLocalDateString(d);
+      const dayTotal = expenses.filter(e => e.date === str).reduce((acc, curr) => acc + Number(curr.amount), 0);
+      days.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
+      amounts.push(dayTotal);
     }
-
-    return {
-      labels,
-      datasets: [
-        {
-          label: 'Daily Spending (₹)',
-          data,
-          backgroundColor: '#0ea5e9',
-          borderRadius: 6,
-          hoverBackgroundColor: '#0284c7'
-        }
-      ]
-    };
+    return { days, amounts };
   }, [expenses]);
 
+  const barChartData = {
+    labels: last7DaysData.days,
+    datasets: [
+      {
+        label: 'Daily Expenses (₹)',
+        data: last7DaysData.amounts,
+        backgroundColor: 'rgba(14, 165, 233, 0.85)',
+        hoverBackgroundColor: '#0ea5e9',
+        borderRadius: 8,
+      },
+    ],
+  };
+
   return (
-    <div className="container-fluid py-4 px-3 px-md-4 page-transition" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh', paddingBottom: '90px' }}>
       
-      {/* Header & Budget Warning Alert */}
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      {/* Header & Quick Action */}
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
         <div>
-          <h3 className="fw-bold mb-0 d-flex align-items-center gap-2" style={{ color: '#0369a1' }}>
-            <MdAccountBalanceWallet className="text-teal" size={30} style={{ color: '#0ea5e9' }} /> 
+          <h4 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+            <span className="p-2 bg-primary bg-opacity-10 text-primary rounded-3">
+              <MdAccountBalanceWallet size={24} />
+            </span>
             Daily Expense Tracker
-          </h3>
-          <p className="text-muted small mb-0">Track daily spending, manage budgets & analyze category trends</p>
+          </h4>
+          <p className="text-muted small mb-0">Record, organize, and control your daily personal & business outgoing expenses</p>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
-          {!editingBudget ? (
-            <button 
-              className="btn btn-outline-info btn-sm rounded-pill px-3 py-2 fw-semibold d-flex align-items-center gap-1 shadow-sm"
-              onClick={() => { setEditingBudget(true); setTempBudget(dailyBudget); }}
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="btn-group bg-white rounded-3 border p-0.5 shadow-2xs">
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'table' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('table')}
+              title="Table View"
             >
-              <MdSettings size={16} /> Budget: ₹{dailyBudget.toLocaleString('en-IN')}/day
+              <MdViewList size={18} /> Table
             </button>
-          ) : (
-            <div className="d-flex align-items-center gap-1 bg-white p-1 rounded-pill border shadow-sm">
-              <span className="ps-2 fw-bold text-muted small">₹</span>
-              <input 
-                type="number" 
-                className="form-control form-control-sm border-0 bg-transparent text-center fw-bold" 
-                style={{ width: '80px' }}
-                value={tempBudget}
-                onChange={e => setTempBudget(e.target.value)}
-                autoFocus
-              />
-              <button className="btn btn-sm btn-primary rounded-circle p-1" onClick={handleSaveBudget}><MdSave size={16} /></button>
-              <button className="btn btn-sm btn-light rounded-circle p-1" onClick={() => setEditingBudget(false)}><MdClose size={16} /></button>
-            </div>
-          )}
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'cards' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('cards')}
+              title="Cards View"
+            >
+              <MdViewModule size={18} /> Cards
+            </button>
+          </div>
 
           <button 
-            className="btn text-white px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2 rounded-pill"
+            className="btn text-white px-3 py-2 fw-bold shadow-sm d-flex align-items-center gap-1.5 rounded-3"
             style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #10b981 100%)', border: 'none' }}
-            onClick={handleOpenAddModal}
+            onClick={() => handleOpenAddModal()}
+            title="Add New Daily Expense"
           >
-            <MdAdd size={22} /> Add Expense
+            <MdAdd size={20} /> Add Expense
           </button>
         </div>
       </div>
@@ -348,7 +324,7 @@ const DailyExpenses = () => {
         </div>
       )}
 
-      {/* Top Spending & Budget Metrics Cards (Interactively Clickable) */}
+      {/* Top Spending & Budget Metrics Cards */}
       <div className="row g-3 g-lg-4 mb-4">
         {/* Today's Total Card */}
         <div className="col-6 col-lg-3">
@@ -362,7 +338,6 @@ const DailyExpenses = () => {
               <div>
                 <p className="text-muted small mb-1 fw-semibold">Today's Spending</p>
                 <h3 className="fw-bold mb-0 text-success">₹{todaySpending.toLocaleString('en-IN')}</h3>
-                <small className="text-muted">{expenses.filter(e => e.date === todayStr).length} items today</small>
               </div>
               <div className="p-3 rounded-3" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
                 <MdTrendingDown size={24} />
@@ -383,7 +358,6 @@ const DailyExpenses = () => {
               <div>
                 <p className="text-muted small mb-1 fw-semibold">Daily Budget</p>
                 <h3 className="fw-bold mb-0 text-primary">₹{dailyBudget.toLocaleString('en-IN')}</h3>
-                <small className="text-muted">Target per day (Click to Edit)</small>
               </div>
               <div className="p-3 rounded-3" style={{ background: 'rgba(14, 165, 233, 0.12)', color: '#0ea5e9' }}>
                 <MdAccountBalanceWallet size={24} />
@@ -406,7 +380,6 @@ const DailyExpenses = () => {
                 <h3 className={`fw-bold mb-0 ${remainingBudget < 0 ? 'text-danger' : 'text-purple'}`} style={{ color: remainingBudget < 0 ? '#ef4444' : '#8b5cf6' }}>
                   ₹{remainingBudget.toLocaleString('en-IN')}
                 </h3>
-                <small className="text-muted">{remainingBudget < 0 ? 'Over limit!' : 'Available today'}</small>
               </div>
               <div className="p-3 rounded-3" style={{ background: remainingBudget < 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(139, 92, 246, 0.12)', color: remainingBudget < 0 ? '#ef4444' : '#8b5cf6' }}>
                 <MdCheckCircle size={24} />
@@ -427,7 +400,6 @@ const DailyExpenses = () => {
               <div>
                 <p className="text-muted small mb-1 fw-semibold">This Month Spending</p>
                 <h3 className="fw-bold mb-0 text-warning">₹{monthlySpending.toLocaleString('en-IN')}</h3>
-                <small className="text-muted">Month-to-date total</small>
               </div>
               <div className="p-3 rounded-3" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
                 <MdReceipt size={24} />
@@ -436,7 +408,6 @@ const DailyExpenses = () => {
           </div>
         </div>
       </div>
-
 
       {/* Budget Progress Bar */}
       <div className="card modern-card p-3 mb-4 border-0 shadow-sm">
@@ -448,76 +419,21 @@ const DailyExpenses = () => {
         </div>
         <div className="progress" style={{ height: 10, borderRadius: 5 }}>
           <div 
-            className={`progress-bar progress-bar-striped progress-bar-animated ${isBudgetExceeded ? 'bg-danger' : 'bg-success'}`}
-            role="progressbar" 
+            className={`progress-bar ${isBudgetExceeded ? 'bg-danger' : budgetUsagePct > 80 ? 'bg-warning' : 'bg-success'}`}
+            role="progressbar"
             style={{ width: `${budgetUsagePct}%` }}
           ></div>
         </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="row g-4 mb-4">
-        {/* Category Spending Chart */}
-        <div className="col-12 col-lg-6">
-          <div className="card modern-card p-4 border-0 shadow-sm h-100">
-            <h6 className="fw-bold mb-3 text-dark">Category-Wise Spending Breakdown</h6>
-            <div style={{ height: '240px' }} className="d-flex align-items-center justify-content-center">
-              {expenses.length > 0 ? (
-                <Doughnut 
-                  data={categoryChartData} 
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '68%',
-                    plugins: {
-                      legend: {
-                        position: 'right',
-                        labels: { usePointStyle: true, boxWidth: 10, padding: 15 }
-                      }
-                    }
-                  }} 
-                />
-              ) : (
-                <p className="text-muted small">No expense data available for breakdown.</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Weekly Expense Trend */}
-        <div className="col-12 col-lg-6">
-          <div className="card modern-card p-4 border-0 shadow-sm h-100">
-            <h6 className="fw-bold mb-3 text-dark">Weekly Spending Trend (Last 7 Days)</h6>
-            <div style={{ height: '240px' }}>
-              <Bar 
-                data={weeklyChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    x: { grid: { display: false } },
-                    y: { 
-                      grid: { color: 'rgba(0,0,0,0.05)' },
-                      ticks: { callback: (val) => '₹' + val }
-                    }
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Expense List & Search/Filter Section */}
-      <div className="card modern-card border-0 shadow-sm overflow-hidden">
+      <div className="card modern-card border-0 shadow-sm overflow-hidden mb-4">
         <div className="p-3 p-md-4 border-bottom bg-light bg-opacity-40">
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
             <h5 className="fw-bold mb-0 text-dark">Recent Daily Expenses</h5>
 
             {/* Filters */}
             <div className="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto">
-              {/* Search */}
               <div className="input-group input-group-sm flex-grow-1" style={{ minWidth: '180px', maxWidth: '250px' }}>
                 <span className="input-group-text bg-white border-end-0"><MdSearch size={16} /></span>
                 <input 
@@ -529,7 +445,6 @@ const DailyExpenses = () => {
                 />
               </div>
 
-              {/* Category Filter */}
               <select 
                 className="form-select form-select-sm" 
                 style={{ width: 'auto' }}
@@ -542,7 +457,6 @@ const DailyExpenses = () => {
                 ))}
               </select>
 
-              {/* Date Filter */}
               <div className="btn-group btn-group-sm">
                 {['Today', 'This Week', 'This Month', 'All'].map(df => (
                   <button 
@@ -559,80 +473,146 @@ const DailyExpenses = () => {
           </div>
         </div>
 
-        {/* Expenses Table */}
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead className="bg-light">
-              <tr className="text-muted small text-uppercase">
-                <th className="px-4 py-3">Category</th>
-                <th className="py-3">Date</th>
-                <th className="py-3">Notes / Description</th>
-                <th className="py-3 text-end">Amount</th>
-                <th className="py-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredExpenses.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="text-center py-5 text-muted">
-                    No expense records found for the selected filter.
-                  </td>
+        {/* Expenses Content: Table or Cards View */}
+        {viewMode === 'table' ? (
+          /* TABLE VIEW */
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="bg-light">
+                <tr className="text-muted small text-uppercase">
+                  <th className="px-4 py-3">Category</th>
+                  <th className="py-3">Date</th>
+                  <th className="py-3">Notes / Description</th>
+                  <th className="py-3 text-end">Amount</th>
+                  <th className="py-3 text-center">Actions</th>
                 </tr>
+              </thead>
+              <tbody>
+                {filteredExpenses.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="text-center py-5 text-muted">
+                      No expense records found for the selected filter.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredExpenses.map((exp) => {
+                    const catMeta = getCategoryMeta(exp.category);
+                    return (
+                      <tr key={exp.id}>
+                        <td className="px-4 py-3">
+                          <div className="d-flex align-items-center gap-2">
+                            <div 
+                              className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                              style={{ width: 36, height: 36, background: catMeta.bg, color: catMeta.color }}
+                            >
+                              {catMeta.icon}
+                            </div>
+                            <div>
+                              <span className="fw-bold d-block text-dark small">{exp.category}</span>
+                              <small className="text-muted" style={{ fontSize: '0.7rem' }}>{catMeta.label}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge bg-light text-dark border px-2 py-1 font-monospace">
+                            {formatIndianDate(exp.date)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="text-dark small">{exp.notes || '—'}</span>
+                        </td>
+                        <td className="text-end">
+                          <span className="fw-bold text-dark font-monospace">₹{exp.amount.toLocaleString('en-IN')}</span>
+                        </td>
+                        <td className="text-center">
+                          <div className="d-flex gap-1.5 justify-content-center">
+                            <button 
+                              className="btn btn-outline-primary btn-sm rounded-circle p-1"
+                              style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onClick={() => handleEditClick(exp)}
+                              title="Edit Expense"
+                              aria-label="Edit Expense"
+                            >
+                              <MdEdit size={16} />
+                            </button>
+                            <button 
+                              className="btn btn-outline-danger btn-sm rounded-circle p-1"
+                              style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onClick={() => handleDeleteClick(exp.id)}
+                              title="Delete Expense"
+                              aria-label="Delete Expense"
+                            >
+                              <MdDelete size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* CARDS VIEW */
+          <div className="p-3">
+            <div className="row g-3">
+              {filteredExpenses.length === 0 ? (
+                <div className="col-12 text-center py-5 text-muted">
+                  No expense records found for the selected filter.
+                </div>
               ) : (
                 filteredExpenses.map((exp) => {
                   const catMeta = getCategoryMeta(exp.category);
                   return (
-                    <tr key={exp.id}>
-                      <td className="px-4 py-3">
-                        <div className="d-flex align-items-center gap-2">
-                          <div 
-                            className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                            style={{ width: 36, height: 36, background: catMeta.bg, color: catMeta.color }}
-                          >
-                            {catMeta.icon}
+                    <div key={exp.id} className="col-12 col-sm-6 col-lg-4">
+                      <div className="card border rounded-3 p-3 bg-white h-100 shadow-2xs position-relative hover-lift">
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <div className="d-flex align-items-center gap-2">
+                            <div 
+                              className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                              style={{ width: 36, height: 36, background: catMeta.bg, color: catMeta.color }}
+                            >
+                              {catMeta.icon}
+                            </div>
+                            <div>
+                              <span className="fw-bold d-block text-dark small">{exp.category}</span>
+                              <small className="text-muted" style={{ fontSize: '0.7rem' }}>{formatIndianDate(exp.date)}</small>
+                            </div>
                           </div>
-                          <div>
-                            <span className="fw-bold d-block text-dark small">{exp.category}</span>
-                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>{catMeta.label}</small>
+
+                          <div className="d-flex gap-1">
+                            <button 
+                              className="btn btn-sm btn-light rounded-circle p-1 border text-secondary"
+                              onClick={() => handleEditClick(exp)}
+                              title="Edit Expense"
+                              aria-label="Edit Expense"
+                            >
+                              <MdEdit size={14} />
+                            </button>
+                            <button 
+                              className="btn btn-sm btn-light rounded-circle p-1 border text-danger"
+                              onClick={() => handleDeleteClick(exp.id)}
+                              title="Delete Expense"
+                              aria-label="Delete Expense"
+                            >
+                              <MdDelete size={14} />
+                            </button>
                           </div>
                         </div>
-                      </td>
-                      <td>
-                        <span className="text-muted small">{new Date(exp.date).toLocaleDateString('en-IN')}</span>
-                      </td>
-                      <td>
-                        <span className="text-dark small">{exp.notes || '-'}</span>
-                      </td>
-                      <td className="text-end fw-bold text-danger">
-                        ₹{Number(exp.amount).toLocaleString('en-IN')}
-                      </td>
-                      <td className="text-center">
-                        <div className="d-flex gap-2 justify-content-center">
-                          <button 
-                            className="btn btn-outline-primary btn-sm rounded-circle p-1"
-                            style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justify: 'center' }}
-                            onClick={() => handleEditClick(exp)}
-                            title="Edit Expense"
-                          >
-                            <MdEdit size={16} />
-                          </button>
-                          <button 
-                            className="btn btn-outline-danger btn-sm rounded-circle p-1"
-                            style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justify: 'center' }}
-                            onClick={() => handleDeleteClick(exp.id)}
-                            title="Delete Expense"
-                          >
-                            <MdDelete size={16} />
-                          </button>
+
+                        <div className="my-2">
+                          <p className="text-muted small mb-1">{exp.notes || 'No description notes'}</p>
+                          <h4 className="fw-bold text-dark mb-0">₹{exp.amount.toLocaleString('en-IN')}</h4>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Expense Modal */}
@@ -648,7 +628,7 @@ const DailyExpenses = () => {
                 <button type="button" className="btn-close" onClick={() => setShowFormModal(false)}></button>
               </div>
 
-              <form onSubmit={handleSubmitForm}>
+              <form onSubmit={handleFormSubmit}>
                 <div className="modal-body py-3">
                   {/* Amount */}
                   <div className="mb-3">

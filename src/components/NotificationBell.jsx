@@ -89,7 +89,7 @@ const NotifCard = ({ n, onRead, onDismiss, navigate, loanStoreRef, onOpenComm })
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)',
       border: '1px solid rgba(255, 255, 255, 0.6)',
-      borderLeft: `3.5px solid ${n.border}`,
+      borderLeft: `3.5px solid ${n.border || '#6366f1'}`,
       boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
       transition: 'all 0.18s ease',
       animation: 'notifIn 0.25s ease',
@@ -120,55 +120,56 @@ const NotifCard = ({ n, onRead, onDismiss, navigate, loanStoreRef, onOpenComm })
           </div>
 
           {/* Actions */}
-          {n.actions?.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7 }}>
-              {n.actions.includes('markPaid') && (
-                <ActionBtn icon={<MdPayment size={11} />} label={marking ? 'Marking…' : 'Mark Paid'} color="#10b981" onClick={handleMarkPaid} />
-              )}
-              {n.actions.includes('sendReminder') && n.customerId && (
-                <ActionBtn icon={<MdSend size={11} />} label="Notify" color="#25d366" onClick={() => onOpenComm(n.customerId, n.loanId, 'overdue_reminder')} />
-              )}
-              {n.actions.includes('viewCustomer') && n.customerId && (
-                <ActionBtn icon={<MdPerson size={11} />} label="Customer" color="#3b82f6" onClick={() => { navigate('/customers'); onRead(n.id); }} />
-              )}
-              {n.actions.includes('viewLoan') && n.loanId && (
-                <ActionBtn icon={<MdAccountBalance size={11} />} label="Loan" color="#6366f1" onClick={() => { navigate('/loans'); onRead(n.id); }} />
-              )}
-              <ActionBtn icon={<MdCheckCircle size={11} />} label="Read" color="#9ca3af" onClick={() => onRead(n.id)} />
-            </div>
-          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7 }}>
+            {n.actions?.includes('markPaid') && (
+              <ActionBtn icon={<MdPayment size={11} />} label={marking ? 'Marking…' : 'Mark Paid'} color="#10b981" onClick={handleMarkPaid} />
+            )}
+            {n.actions?.includes('sendReminder') && n.customerId && (
+              <ActionBtn icon={<MdSend size={11} />} label="Notify" color="#25d366" onClick={() => onOpenComm(n.customerId, n.loanId, 'overdue_reminder')} />
+            )}
+            {n.actions?.includes('viewCustomer') && n.customerId && (
+              <ActionBtn icon={<MdPerson size={11} />} label="Customer" color="#3b82f6" onClick={() => { navigate('/customers'); onRead(n.id); }} />
+            )}
+            {n.actions?.includes('viewLoan') && n.loanId && (
+              <ActionBtn icon={<MdAccountBalance size={11} />} label="Loan" color="#6366f1" onClick={() => { navigate('/loans'); onRead(n.id); }} />
+            )}
+            <ActionBtn icon={<MdCheckCircle size={11} />} label="Read" color="#9ca3af" onClick={() => onRead(n.id)} />
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-/* ─── Main NotificationBell Component ─────────────────────── */
-const NotificationBell = ({ payments = [] }) => {
+/* ─── NotificationBell Dropdown Panel ─────────────────────── */
+const NotificationBell = () => {
   const navigate = useNavigate();
-  const dropRef = useRef(null);
-
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState('all');
-  const [search, setSearch] = useState('');
+  const [allNotifs, setAllNotifs] = useState([]);
   const [readIds, setReadIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rc_notif_read') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('rc_read_notifs') || '[]'); } catch { return []; }
   });
   const [dismissedIds, setDismissedIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rc_notif_dismissed') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('rc_dismissed_notifs') || '[]'); } catch { return []; }
   });
   const [toasts, setToasts] = useState([]);
-  const [allNotifs, setAllNotifs] = useState([]);
+  const [tab, setTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('rc_view_notifs') || 'cards';
+  });
 
-  // Modal for communication
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('rc_view_notifs', mode);
+  };
+
   const [commModal, setCommModal] = useState({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' });
+  const dropRef = useRef(null);
 
   const rebuildNotifs = useCallback(() => {
-    const p = loanStore.getPayments();
-    const l = loanStore.getLoans();
-    const c = loanStore.getCustomers();
-    const n = buildNotifications(p, l, c);
-    setAllNotifs(n);
+    const notifs = buildNotifications();
+    setAllNotifs(notifs);
   }, []);
 
   useEffect(() => {
@@ -177,35 +178,40 @@ const NotificationBell = ({ payments = [] }) => {
     return () => window.removeEventListener('loanStoreUpdated', rebuildNotifs);
   }, [rebuildNotifs]);
 
-  // Save read/dismissed
-  useEffect(() => { localStorage.setItem('rc_notif_read', JSON.stringify(readIds)); }, [readIds]);
-  useEffect(() => { localStorage.setItem('rc_notif_dismissed', JSON.stringify(dismissedIds)); }, [dismissedIds]);
-
-  // Outside click
   useEffect(() => {
-    if (!open) return;
-    const fn = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', fn);
-    return () => document.removeEventListener('mousedown', fn);
+    localStorage.setItem('rc_read_notifs', JSON.stringify(readIds));
+  }, [readIds]);
+
+  useEffect(() => {
+    localStorage.setItem('rc_dismissed_notifs', JSON.stringify(dismissedIds));
+  }, [dismissedIds]);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    if (open) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  // Auto-toast on urgent new notifs (overdue + today)
-  useEffect(() => {
-    const urgent = allNotifs.filter(n =>
-      !dismissedIds.includes(n.id) && !readIds.includes(n.id) &&
-      (n.category === 'overdue' || (n.category === 'emiDue' && n.title.includes('Today')))
-    ).slice(0, 2);
-    if (urgent.length && !open) {
-      setToasts(urgent.map(n => ({ ...n, toastId: 'toast_' + n.id })));
-      const t = setTimeout(() => setToasts([]), 6000);
-      return () => clearTimeout(t);
-    }
-  }, [allNotifs]);
+  const handleRead = (id) => {
+    setReadIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  };
 
-  const handleRead = (id) => setReadIds(prev => [...new Set([...prev, id])]);
-  const handleDismiss = (id) => { setDismissedIds(prev => [...new Set([...prev, id])]); setToasts(p => p.filter(t => t.id !== id)); };
-  const handleMarkAllRead = () => setReadIds(prev => [...new Set([...prev, ...visible.map(n => n.id)])]);
-  const handleRestoreAll = () => { setDismissedIds([]); setReadIds([]); };
+  const handleDismiss = (id) => {
+    setDismissedIds(prev => prev.includes(id) ? prev : [...prev, id]);
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const handleMarkAllRead = () => {
+    setReadIds(allNotifs.map(n => n.id));
+  };
+
+  const handleRestoreAll = () => {
+    setDismissedIds([]);
+  };
 
   const handleOpenComm = (customerId, loanId, templateKey = 'loan_statement') => {
     setCommModal({ open: true, customerId, loanId, templateKey });
@@ -213,84 +219,63 @@ const NotificationBell = ({ payments = [] }) => {
   };
 
   const visible = allNotifs.filter(n => !dismissedIds.includes(n.id));
-  const unread = visible.filter(n => !readIds.includes(n.id));
-
+  const unreadCount = visible.filter(n => !readIds.includes(n.id)).length;
+  
   const filtered = visible
     .filter(n => tab === 'all' || n.category === tab)
-    .filter(n => !search || n.message.toLowerCase().includes(search.toLowerCase()) || (n.customerName || '').toLowerCase().includes(search.toLowerCase()) || (n.loanName || '').toLowerCase().includes(search.toLowerCase()))
+    .filter(n => !search || n.message.toLowerCase().includes(search.toLowerCase()) || (n.customerName || '').toLowerCase().includes(search.toLowerCase()))
     .map(n => ({ ...n, isRead: readIds.includes(n.id) }));
 
-  const urgentCount = unread.filter(n => n.category === 'overdue' || (n.category === 'emiDue' && n.title.includes('Today'))).length;
-
-  const catCounts = {};
-  NOTIF_CATEGORIES.forEach(c => {
-    catCounts[c.key] = c.key === 'all' ? visible.length : visible.filter(n => n.category === c.key).length;
-  });
+  const urgentCount = visible.filter(n => !readIds.includes(n.id) && n.category === 'overdue').length;
 
   return (
     <>
-      {/* ── Global Styles ── */}
       <style>{`
         @keyframes toastIn  { from { opacity:0; transform:translateX(60px) scale(0.92) } to { opacity:1; transform:translateX(0) scale(1) } }
         @keyframes notifIn  { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }
         @keyframes bellRing { 0%,100%{transform:rotate(0)} 20%{transform:rotate(-18deg)} 40%{transform:rotate(18deg)} 60%{transform:rotate(-12deg)} 80%{transform:rotate(8deg)} }
-        .nb-tab:hover { background: rgba(99,102,241,0.12) !important; }
         .nb-glass-scroll::-webkit-scrollbar { width: 4px; }
         .nb-glass-scroll::-webkit-scrollbar-track { background: transparent; }
         .nb-glass-scroll::-webkit-scrollbar-thumb { background: rgba(156,163,175,0.4); border-radius: 4px; }
       `}</style>
 
-      {/* ── Toast Notifications (Glassmorphic) ── */}
       <ToastContainer toasts={toasts} onDismiss={handleDismiss} />
 
-      {/* ── Communication Statement Modal ── */}
       {commModal.open && (
         <SendStatementModal
           isOpen={commModal.open}
-          onClose={() => setCommModal({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' })}
+          onClose={() => setCommModal({ ...commModal, open: false })}
           initialCustomerId={commModal.customerId}
           initialLoanId={commModal.loanId}
           initialTemplateKey={commModal.templateKey}
         />
       )}
 
-      <div ref={dropRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-
-        {/* ── Bell Button ── */}
+      <div ref={dropRef} style={{ position: 'relative', display: 'inline-flex' }}>
         <button
-          className="btn btn-link p-0 position-relative"
-          style={{ color: '#374151', outline: 'none', border: 'none' }}
           onClick={() => { rebuildNotifs(); setOpen(o => !o); }}
-          title={`${unread.length} notifications`}
+          style={{ background: 'none', border: 'none', color: '#374151', cursor: 'pointer', position: 'relative' }}
         >
-          <MdNotifications
-            size={26}
-            style={{ animation: urgentCount > 0 && !open ? 'bellRing 1.2s ease infinite' : 'none' }}
-          />
-          {unread.length > 0 && (
+          <MdNotifications size={26} style={{ animation: urgentCount > 0 && !open ? 'bellRing 1.2s ease infinite' : 'none' }} />
+          {unreadCount > 0 && (
             <span style={{
-              position: 'absolute', top: -5, right: -6,
-              background: urgentCount > 0 ? '#ef4444' : '#6366f1',
-              color: '#fff', borderRadius: '50%',
-              fontSize: '0.6rem', fontWeight: 800,
-              minWidth: 18, height: 18, padding: '0 3px',
+              position: 'absolute', top: -2, right: -2,
+              background: '#ef4444', color: '#fff', borderRadius: '50%',
+              fontSize: '0.65rem', fontWeight: 800, width: 16, height: 16,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '2px solid #fff',
-              boxShadow: urgentCount > 0 ? '0 0 0 2px rgba(239,68,68,0.3)' : 'none',
             }}>
-              {unread.length > 99 ? '99+' : unread.length}
+              {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </button>
 
-        {/* ── Dropdown Panel (Transparent / Frosted Glassmorphism) ── */}
         {open && (
           <div style={{
             position: 'fixed',
             top: 62, right: 12,
-            width: 'min(92vw, 410px)',
+            width: 'min(92vw, 420px)',
             maxHeight: '88vh',
-            background: 'rgba(255, 255, 255, 0.78)',
+            background: 'rgba(255, 255, 255, 0.82)',
             backdropFilter: 'blur(24px) saturate(190%)',
             WebkitBackdropFilter: 'blur(24px) saturate(190%)',
             border: '1px solid rgba(255, 255, 255, 0.7)',
@@ -302,142 +287,94 @@ const NotificationBell = ({ payments = [] }) => {
             flexDirection: 'column',
             animation: 'notifIn 0.22s ease',
           }}>
-
-            {/* Header (Glass Gradient) */}
             <div style={{
-              background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.92) 0%, rgba(124, 58, 237, 0.88) 100%)',
-              backdropFilter: 'blur(10px)',
-              padding: '14px 16px 10px',
-              flexShrink: 0,
+              background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+              padding: '14px 16px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <MdNotifications color="#fff" size={20} />
-                  <span style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>Notifications</span>
-                  {urgentCount > 0 && (
-                    <span style={{ background: '#ef4444', color: '#fff', borderRadius: 20, fontSize: 9, padding: '2px 7px', fontWeight: 800, letterSpacing: '0.5px' }}>
-                      {urgentCount} URGENT
-                    </span>
-                  )}
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>Notifications</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {unread.length > 0 && (
-                    <button onClick={handleMarkAllRead} title="Mark all as read" style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 10.5, fontWeight: 700, padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <MdDoneAll size={13} /> All Read
+                  <div style={{ display: 'flex', background: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: 2 }}>
+                    <button
+                      onClick={() => handleSetViewMode('table')}
+                      title="Table List View"
+                      style={{
+                        background: viewMode === 'table' ? '#fff' : 'transparent',
+                        color: viewMode === 'table' ? '#4f46e5' : '#fff',
+                        border: 'none', borderRadius: 6, padding: '2px 5px',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                      }}
+                    >
+                      <MdViewList size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleSetViewMode('cards')}
+                      title="Cards Grid View"
+                      style={{
+                        background: viewMode === 'cards' ? '#fff' : 'transparent',
+                        color: viewMode === 'cards' ? '#4f46e5' : '#fff',
+                        border: 'none', borderRadius: 6, padding: '2px 5px',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                      }}
+                    >
+                      <MdViewModule size={14} />
+                    </button>
+                  </div>
+                  {unreadCount > 0 && (
+                    <button onClick={handleMarkAllRead} title="Mark all as read" style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 10.5, fontWeight: 700, padding: '4px 8px', cursor: 'pointer' }}>
+                      <MdDoneAll size={13} />
                     </button>
                   )}
-                  <button onClick={rebuildNotifs} title="Refresh" style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: 8, color: '#fff', padding: '4px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <button onClick={rebuildNotifs} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: 8, color: '#fff', padding: '4px 6px', cursor: 'pointer' }}>
                     <MdRefresh size={15} />
-                  </button>
-                  <button onClick={() => setOpen(false)} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: 8, color: '#fff', padding: '4px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    <MdClose size={16} />
                   </button>
                 </div>
               </div>
 
-              {/* Search */}
-              <div style={{ position: 'relative' }}>
-                <MdSearch size={15} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.7)' }} />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search notifications, borrowers…"
-                  style={{
-                    width: '100%', boxSizing: 'border-box',
-                    background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: 10, padding: '6px 10px 6px 28px',
-                    color: '#fff', fontSize: 12, outline: 'none',
-                  }}
-                />
-              </div>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search..."
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: 10, padding: '6px 10px',
+                  color: '#fff', fontSize: 12, outline: 'none',
+                }}
+              />
             </div>
 
-            {/* Tabs (Glass Translucent) */}
-            <div style={{
-              display: 'flex', overflowX: 'auto', padding: '6px 8px 0',
-              borderBottom: '1px solid rgba(229, 231, 235, 0.6)', gap: 2, flexShrink: 0,
-              scrollbarWidth: 'none',
-              background: 'rgba(248, 250, 252, 0.5)',
-            }}>
-              {NOTIF_CATEGORIES.map(c => (
-                <button
-                  key={c.key}
-                  className="nb-tab"
-                  onClick={() => setTab(c.key)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    padding: '5px 9px', borderRadius: '8px 8px 0 0',
-                    border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                    fontSize: 11, fontWeight: 700,
-                    background: tab === c.key ? 'rgba(79, 70, 229, 0.9)' : 'transparent',
-                    color: tab === c.key ? '#fff' : '#4b5563',
-                    transition: 'all 0.15s',
-                    flexShrink: 0,
-                  }}
-                >
-                  {c.icon} {c.label}
-                  {catCounts[c.key] > 0 && (
-                    <span style={{
-                      background: tab === c.key ? 'rgba(255,255,255,0.3)' : 'rgba(229,231,235,0.8)',
-                      color: tab === c.key ? '#fff' : '#1f2937',
-                      borderRadius: 10, fontSize: 9, padding: '1px 5px', fontWeight: 800,
-                    }}>{catCounts[c.key]}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Notification List */}
             <div className="nb-glass-scroll" style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
               {filtered.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '36px 20px', color: '#6b7280' }}>
                   <MdNotificationsNone size={44} style={{ opacity: 0.3, marginBottom: 8 }} />
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>All clear!</div>
-                  <div style={{ fontSize: 12, marginTop: 4, color: '#6b7280' }}>No {tab !== 'all' ? tab : ''} notifications {search ? `matching "${search}"` : ''}</div>
-                  {dismissedIds.length > 0 && (
-                    <button onClick={handleRestoreAll} style={{ marginTop: 10, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(229,231,235,0.8)', borderRadius: 8, padding: '5px 12px', fontSize: 11, color: '#4b5563', cursor: 'pointer', fontWeight: 600 }}>
-                      Restore dismissed
-                    </button>
-                  )}
                 </div>
+              ) : viewMode === 'table' ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
+                  <tbody>
+                    {filtered.map(n => (
+                      <tr key={n.id} style={{ borderBottom: '1px solid rgba(229, 231, 235, 0.6)', background: !n.isRead ? 'rgba(245, 247, 255, 0.6)' : 'transparent', opacity: n.isRead ? 0.65 : 1 }}>
+                        <td style={{ padding: '8px 10px', verticalAlign: 'top', width: 28 }}><span style={{ fontSize: 15 }}>{n.icon}</span></td>
+                        <td style={{ padding: '8px 6px', verticalAlign: 'top' }}>
+                          <div style={{ fontWeight: 800, color: n.color || '#1f2937' }}>{n.title}</div>
+                          <div style={{ color: '#4b5563', fontSize: 11 }}>{n.message}</div>
+                        </td>
+                        <td style={{ padding: '8px 10px', verticalAlign: 'top', textAlign: 'right' }}>
+                          <button onClick={() => handleDismiss(n.id)} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>✕</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               ) : (
                 filtered.map(n => (
-                  <div key={n.id} style={{ opacity: n.isRead ? 0.6 : 1, transition: 'opacity 0.2s' }}>
-                    <NotifCard
-                      n={n}
-                      onRead={handleRead}
-                      onDismiss={handleDismiss}
-                      navigate={navigate}
-                      loanStoreRef={loanStore}
-                      onOpenComm={handleOpenComm}
-                    />
-                  </div>
+                  <NotifCard key={n.id} n={n} onRead={handleRead} onDismiss={handleDismiss} navigate={navigate} loanStoreRef={loanStore} onOpenComm={handleOpenComm} />
                 ))
               )}
             </div>
-
-            {/* Footer */}
-            <div style={{
-              padding: '8px 14px', borderTop: '1px solid rgba(229, 231, 235, 0.6)', flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'rgba(249, 250, 251, 0.65)',
-            }}>
-              <span style={{ fontSize: 10.5, color: '#6b7280', fontWeight: 600 }}>
-                {unread.length} unread · {visible.length} total
-              </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {dismissedIds.length > 0 && (
-                  <button onClick={handleRestoreAll} style={{ background: 'none', border: 'none', fontSize: 10.5, color: '#6b7280', cursor: 'pointer', textDecoration: 'underline' }}>
-                    Restore All
-                  </button>
-                )}
-                <button
-                  onClick={() => { navigate('/emi-payments'); setOpen(false); }}
-                  style={{ background: 'none', border: 'none', fontSize: 10.5, color: '#4f46e5', cursor: 'pointer', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 3 }}
-                >
-                  View All <MdOpenInNew size={11} />
-                </button>
-              </div>
+            <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(229, 231, 235, 0.6)', background: 'rgba(249, 250, 251, 0.65)' }}>
+               {dismissedIds.length > 0 && <button onClick={handleRestoreAll} style={{ background: 'none', border: 'none', fontSize: 10, color: '#6b7280', cursor: 'pointer', textDecoration: 'underline' }}>Restore All</button>}
             </div>
           </div>
         )}

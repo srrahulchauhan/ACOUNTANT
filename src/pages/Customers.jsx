@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   MdSearch, MdPersonAdd, MdEdit, MdDelete, MdPhone, MdEmail, 
   MdHome, MdAccountBalance, MdPayment, MdFileUpload, MdBadge, MdWork,
-  MdSend, MdChat, MdHistory
+  MdSend, MdChat, MdHistory, MdViewList, MdViewModule, MdVisibility
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { formatIndianDate } from '../utils/dateUtils';
@@ -16,6 +16,14 @@ const Customers = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [occupationFilter, setOccupationFilter] = useState('');
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('rc_view_customers') || (window.innerWidth >= 768 ? 'table' : 'cards');
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('rc_view_customers', mode);
+  };
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -99,20 +107,21 @@ const Customers = () => {
     if (selectedProfile && selectedProfile.id === id) {
       setSelectedProfile(null);
     }
-    alert('✓ Customer deleted successfully.');
+    alert('✓ Customer deleted.');
   };
 
-  // Filter customers
+  // Filter Customers
   const filteredCustomers = customers.filter((c) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       c.name.toLowerCase().includes(q) ||
-      c.id.toLowerCase().includes(q) ||
       (c.phone && c.phone.includes(q)) ||
+      (c.email && c.email.toLowerCase().includes(q)) ||
+      (c.id && c.id.toLowerCase().includes(q)) ||
       (c.panAadhaar && c.panAadhaar.toLowerCase().includes(q));
 
-    const matchesOccupation = !occupationFilter || (c.employment && c.employment.toLowerCase().includes(occupationFilter.toLowerCase()));
-    return matchesSearch && matchesOccupation;
+    const matchesOcc = !occupationFilter || (c.employment && c.employment.toLowerCase().includes(occupationFilter.toLowerCase()));
+    return matchesSearch && matchesOcc;
   });
 
   return (
@@ -122,11 +131,34 @@ const Customers = () => {
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
           <h4 className="fw-bold text-dark mb-1">Customer Management</h4>
-          <p className="text-muted small mb-0">View, register, and track borrower profiles & linked loan accounts</p>
+          <p className="text-muted small mb-0">View, register, and track borrower profiles &amp; linked loan accounts</p>
         </div>
-        <button className="btn btn-primary rounded-3 px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2" onClick={openAddModal}>
-          <MdPersonAdd size={20} /> Add New Customer
-        </button>
+
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="btn-group bg-white rounded-3 border p-0.5 shadow-2xs">
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'table' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('table')}
+              title="Table View"
+            >
+              <MdViewList size={18} /> Table
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'cards' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('cards')}
+              title="Cards View"
+            >
+              <MdViewModule size={18} /> Cards
+            </button>
+          </div>
+
+          <button className="btn btn-primary rounded-3 px-3 py-2 fw-bold shadow-sm d-flex align-items-center gap-1.5" onClick={openAddModal}>
+            <MdPersonAdd size={18} /> Add New Customer
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -158,108 +190,240 @@ const Customers = () => {
         </div>
       </div>
 
-      {/* Customer Profiles Grid */}
-      <div className="row g-3">
-        {filteredCustomers.length === 0 ? (
-          <div className="col-12 text-center py-5 bg-white rounded-4 shadow-sm border">
-            <p className="text-muted mb-0">No customer profiles found matching your search.</p>
+      {/* Customer Content: Table or Cards View */}
+      {viewMode === 'table' ? (
+        /* TABLE VIEW */
+        <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light text-muted font-monospace small">
+                <tr>
+                  <th className="ps-4">CUSTOMER</th>
+                  <th>PHONE / EMAIL</th>
+                  <th>EMPLOYMENT / PAN</th>
+                  <th>ACTIVE LOANS</th>
+                  <th>TOTAL BORROWED</th>
+                  <th>OUTSTANDING</th>
+                  <th className="text-end pe-4">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="text-center py-5 text-muted">
+                      <p className="mb-0 fw-semibold">No customer profiles found matching your search.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCustomers.map((cust) => {
+                    const custLoans = loans.filter((l) => l.customerId === cust.id);
+                    const totalLoanAmt = custLoans.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
+                    const custPayments = payments.filter((p) => p.customerId === cust.id && p.status === 'Paid');
+                    const totalPaidAmt = custPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+                    const outstandingBalance = Math.max(0, totalLoanAmt - totalPaidAmt);
+                    const totalMonthlyEmi = custLoans.reduce((s, l) => s + Number(l.emiAmount || 0), 0);
+
+                    return (
+                      <tr key={cust.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td className="ps-4">
+                          <div className="d-flex align-items-center gap-2.5">
+                            <img
+                              src={cust.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(cust.name)}&background=0d6efd&color=fff`}
+                              alt={cust.name}
+                              className="rounded-circle border border-primary shadow-2xs"
+                              width="38"
+                              height="38"
+                              style={{ objectFit: 'cover' }}
+                            />
+                            <div>
+                              <div className="fw-bold text-dark">{cust.name}</div>
+                              <span className="badge bg-primary bg-opacity-10 text-primary font-monospace" style={{ fontSize: '0.68rem' }}>
+                                {cust.id}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td>
+                          <div className="small text-dark fw-semibold">{cust.phone || '—'}</div>
+                          <small className="text-muted d-block text-truncate" style={{ maxWidth: 180 }}>{cust.email || '—'}</small>
+                        </td>
+
+                        <td>
+                          <span className="badge bg-light text-dark border px-2 py-1 rounded-2 fw-semibold">
+                            {cust.employment || 'Self Employed'}
+                          </span>
+                          {cust.panAadhaar && <small className="d-block text-muted font-monospace">{cust.panAadhaar}</small>}
+                        </td>
+
+                        <td>
+                          <span className="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1 rounded-pill fw-bold">
+                            {custLoans.length} {custLoans.length === 1 ? 'Loan' : 'Loans'}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className="fw-bold text-dark">₹{totalLoanAmt.toLocaleString('en-IN')}</div>
+                          <small className="text-success fw-semibold">EMI: ₹{totalMonthlyEmi.toLocaleString('en-IN')}/mo</small>
+                        </td>
+
+                        <td>
+                          <div className={`fw-bold ${outstandingBalance > 0 ? 'text-danger' : 'text-success'}`}>
+                            ₹{outstandingBalance.toLocaleString('en-IN')}
+                          </div>
+                        </td>
+
+                        <td className="text-end pe-4">
+                          <div className="d-flex align-items-center justify-content-end gap-1.5">
+                            <button
+                              type="button"
+                              className="btn btn-outline-success btn-sm rounded-3 px-2 py-1.5 fw-bold d-flex align-items-center gap-1"
+                              onClick={() => setCommModal({ open: true, customerId: cust.id, loanId: custLoans[0]?.id || null, templateKey: 'loan_statement' })}
+                              title="Send Statement via WhatsApp / Gmail"
+                            >
+                              <MdSend size={14} /> Send
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary btn-sm rounded-3 px-2 py-1.5 fw-semibold d-flex align-items-center gap-1"
+                              onClick={() => setSelectedProfile({ ...cust, custLoans, totalLoanAmt, outstandingBalance, totalMonthlyEmi })}
+                              title="View Profile"
+                            >
+                              <MdVisibility size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm rounded-3 px-2 py-1.5"
+                              onClick={() => openEditModal(cust)}
+                              title="Edit Customer"
+                            >
+                              <MdEdit size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger btn-sm rounded-3 px-2 py-1.5"
+                              onClick={() => setDeleteConfirmId(cust.id)}
+                              title="Delete Customer"
+                            >
+                              <MdDelete size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          filteredCustomers.map((cust) => {
-            const custLoans = loans.filter((l) => l.customerId === cust.id);
-            const totalLoanAmt = custLoans.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
+        </div>
+      ) : (
+        /* CARDS VIEW */
+        <div className="row g-3">
+          {filteredCustomers.length === 0 ? (
+            <div className="col-12 text-center py-5 bg-white rounded-4 shadow-sm border">
+              <p className="text-muted mb-0">No customer profiles found matching your search.</p>
+            </div>
+          ) : (
+            filteredCustomers.map((cust) => {
+              const custLoans = loans.filter((l) => l.customerId === cust.id);
+              const totalLoanAmt = custLoans.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
 
-            const custPayments = payments.filter((p) => p.customerId === cust.id && p.status === 'Paid');
-            const totalPaidAmt = custPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-            const outstandingBalance = Math.max(0, totalLoanAmt - totalPaidAmt);
-            const totalMonthlyEmi = custLoans.reduce((s, l) => s + Number(l.emiAmount || 0), 0);
+              const custPayments = payments.filter((p) => p.customerId === cust.id && p.status === 'Paid');
+              const totalPaidAmt = custPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+              const outstandingBalance = Math.max(0, totalLoanAmt - totalPaidAmt);
+              const totalMonthlyEmi = custLoans.reduce((s, l) => s + Number(l.emiAmount || 0), 0);
 
-            return (
-              <div key={cust.id} className="col-12 col-md-6 col-xl-4">
-                <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 position-relative hover-lift transition-all">
-                  
-                  {/* Action Buttons */}
-                  <div className="position-absolute top-0 end-0 m-3 d-flex gap-1">
-                    <button className="btn btn-sm btn-light rounded-circle p-1.5 text-secondary border" title="Edit Customer" onClick={() => openEditModal(cust)}>
-                      <MdEdit size={16} />
-                    </button>
-                    <button className="btn btn-sm btn-light rounded-circle p-1.5 text-danger border" title="Delete Customer" onClick={() => setDeleteConfirmId(cust.id)}>
-                      <MdDelete size={16} />
-                    </button>
-                  </div>
-
-                  <div className="d-flex align-items-center gap-3 mb-3">
-                    <img
-                      src={cust.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(cust.name)}&background=0d6efd&color=fff`}
-                      alt={cust.name}
-                      className="rounded-circle border border-2 border-primary shadow-2xs"
-                      width="54"
-                      height="54"
-                      style={{ objectFit: 'cover' }}
-                    />
-                    <div>
-                      <h6 className="fw-bold text-dark mb-0">{cust.name}</h6>
-                      <span className="badge bg-primary bg-opacity-10 text-primary font-monospace" style={{ fontSize: '0.7rem' }}>
-                        {cust.id}
-                      </span>
+              return (
+                <div key={cust.id} className="col-12 col-md-6 col-xl-4">
+                  <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 position-relative hover-lift transition-all">
+                    
+                    {/* Action Buttons */}
+                    <div className="position-absolute top-0 end-0 m-3 d-flex gap-1">
+                      <button className="btn btn-sm btn-light rounded-circle p-1.5 text-secondary border" title="Edit Customer" onClick={() => openEditModal(cust)}>
+                        <MdEdit size={16} />
+                      </button>
+                      <button className="btn btn-sm btn-light rounded-circle p-1.5 text-danger border" title="Delete Customer" onClick={() => setDeleteConfirmId(cust.id)}>
+                        <MdDelete size={16} />
+                      </button>
                     </div>
-                  </div>
 
-                  <div className="small text-muted mb-3 d-flex flex-column gap-1.5">
-                    <div className="d-flex align-items-center gap-2">
-                      <MdPhone size={16} className="text-primary" />
-                      <span>{cust.phone || 'No phone'}</span>
-                    </div>
-                    <div className="d-flex align-items-center gap-2">
-                      <MdEmail size={16} className="text-primary" />
-                      <span className="text-truncate">{cust.email || 'No email'}</span>
-                    </div>
-                    <div className="d-flex align-items-center gap-2">
-                      <MdWork size={16} className="text-primary" />
-                      <span className="text-truncate">{cust.employment || 'Self Employed'}</span>
-                    </div>
-                  </div>
-
-                  {/* Financial Summary Snippet */}
-                  <div className="p-3 bg-light rounded-3 mb-3 border">
-                    <div className="row text-center g-2">
-                      <div className="col-4 border-end">
-                        <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Loans</small>
-                        <strong className="text-dark small">{custLoans.length}</strong>
-                      </div>
-                      <div className="col-4 border-end">
-                        <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Monthly EMI</small>
-                        <strong className="text-success small">₹{totalMonthlyEmi.toLocaleString('en-IN')}</strong>
-                      </div>
-                      <div className="col-4">
-                        <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Outstanding</small>
-                        <strong className="text-danger small">₹{outstandingBalance.toLocaleString('en-IN')}</strong>
+                    <div className="d-flex align-items-center gap-3 mb-3">
+                      <img
+                        src={cust.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(cust.name)}&background=0d6efd&color=fff`}
+                        alt={cust.name}
+                        className="rounded-circle border border-2 border-primary shadow-2xs"
+                        width="54"
+                        height="54"
+                        style={{ objectFit: 'cover' }}
+                      />
+                      <div>
+                        <h6 className="fw-bold text-dark mb-0">{cust.name}</h6>
+                        <span className="badge bg-primary bg-opacity-10 text-primary font-monospace" style={{ fontSize: '0.7rem' }}>
+                          {cust.id}
+                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="d-flex gap-2 mt-auto">
-                    <button
-                      className="btn btn-outline-success btn-sm rounded-3 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
-                      style={{ flex: '0 0 auto' }}
-                      title="Send Statement via WhatsApp / Gmail"
-                      onClick={() => setCommModal({ open: true, customerId: cust.id, loanId: custLoans[0]?.id || null, templateKey: 'loan_statement' })}
-                    >
-                      <MdSend size={15} /> Send
-                    </button>
-                    <button
-                      className="btn btn-outline-primary btn-sm rounded-3 flex-grow-1 fw-bold py-2"
-                      onClick={() => setSelectedProfile({ ...cust, custLoans, totalLoanAmt, outstandingBalance, totalMonthlyEmi })}
-                    >
-                      View Profile
-                    </button>
+                    <div className="small text-muted mb-3 d-flex flex-column gap-1.5">
+                      <div className="d-flex align-items-center gap-2">
+                        <MdPhone size={16} className="text-primary" />
+                        <span>{cust.phone || 'No phone'}</span>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <MdEmail size={16} className="text-primary" />
+                        <span className="text-truncate">{cust.email || 'No email'}</span>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <MdWork size={16} className="text-primary" />
+                        <span className="text-truncate">{cust.employment || 'Self Employed'}</span>
+                      </div>
+                    </div>
+
+                    {/* Financial Summary Snippet */}
+                    <div className="p-3 bg-light rounded-3 mb-3 border">
+                      <div className="row text-center g-2">
+                        <div className="col-4 border-end">
+                          <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Loans</small>
+                          <strong className="text-dark small">{custLoans.length}</strong>
+                        </div>
+                        <div className="col-4 border-end">
+                          <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Monthly EMI</small>
+                          <strong className="text-success small">₹{totalMonthlyEmi.toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div className="col-4">
+                          <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Outstanding</small>
+                          <strong className="text-danger small">₹{outstandingBalance.toLocaleString('en-IN')}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="d-flex gap-2 mt-auto">
+                      <button
+                        className="btn btn-outline-success btn-sm rounded-3 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
+                        style={{ flex: '0 0 auto' }}
+                        title="Send Statement via WhatsApp / Gmail"
+                        onClick={() => setCommModal({ open: true, customerId: cust.id, loanId: custLoans[0]?.id || null, templateKey: 'loan_statement' })}
+                      >
+                        <MdSend size={15} /> Send
+                      </button>
+                      <button
+                        className="btn btn-outline-primary btn-sm rounded-3 flex-grow-1 fw-bold py-2"
+                        onClick={() => setSelectedProfile({ ...cust, custLoans, totalLoanAmt, outstandingBalance, totalMonthlyEmi })}
+                      >
+                        View Profile
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Add / Edit Customer Modal */}
       {showAddModal && (

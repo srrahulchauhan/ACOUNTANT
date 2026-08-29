@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MdBarChart, MdPrint, MdPictureAsPdf, MdFileUpload, 
-  MdSearch, MdAttachMoney, MdAccountBalance, MdPeople, MdWarning, MdShowChart
+  MdSearch, MdAttachMoney, MdAccountBalance, MdPeople, MdWarning, MdShowChart,
+  MdViewList, MdViewModule
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import jsPDF from 'jspdf';
@@ -15,6 +16,16 @@ const Reports = () => {
   const [loans, setLoans] = useState([]);
   const [payments, setPayments] = useState([]);
   const [settings, setSettings] = useState({});
+
+  // View Mode State
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('rc_view_reports') || (window.innerWidth >= 768 ? 'table' : 'cards');
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('rc_view_reports', mode);
+  };
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -149,22 +160,42 @@ const Reports = () => {
       {/* Header Bar */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
-          <h4 className="fw-bold text-dark mb-1">Financial & Loan Analytics Reports</h4>
+          <h4 className="fw-bold text-dark mb-1">Financial &amp; Loan Analytics Reports</h4>
           <p className="text-muted small mb-0">Generate summary reports, interest revenue metrics, and export data in PDF, Excel, and CSV formats</p>
         </div>
 
-        <div className="d-flex gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="btn-group bg-white rounded-3 border p-0.5 shadow-2xs">
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'table' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('table')}
+              title="Table View"
+            >
+              <MdViewList size={18} /> Table
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'cards' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => handleSetViewMode('cards')}
+              title="Cards View"
+            >
+              <MdViewModule size={18} /> Cards
+            </button>
+          </div>
+
           <button className="btn btn-outline-secondary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={() => window.print()}>
-            <MdPrint size={18} /> Print Report
+            <MdPrint size={18} /> Print
           </button>
           <button className="btn btn-outline-danger rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handleExportPDF}>
-            <MdPictureAsPdf size={18} /> Download PDF
+            <MdPictureAsPdf size={18} /> PDF
           </button>
           <button className="btn btn-outline-success rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handleExportExcel}>
-            <MdFileUpload size={18} /> Export Excel
+            <MdFileUpload size={18} /> Excel
           </button>
           <button className="btn btn-primary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5 shadow-sm" onClick={handleExportCSV}>
-            <MdFileUpload size={18} /> Export CSV
+            <MdFileUpload size={18} /> CSV
           </button>
         </div>
       </div>
@@ -315,51 +346,95 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Comprehensive Report Data Table */}
+      {/* Comprehensive Report: Table or Cards View */}
       <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="fw-bold text-dark mb-0">Detailed EMI Collection & Payment Report Table</h5>
+          <h5 className="fw-bold text-dark mb-0">Detailed EMI Collection &amp; Payment Ledger</h5>
           <small className="text-muted">{filteredPayments.length} Report Entries</small>
         </div>
 
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0 small">
-            <thead className="bg-light text-muted">
-              <tr>
-                <th>#</th>
-                <th>Payment ID</th>
-                <th>Customer Name</th>
-                <th>Loan Account</th>
-                <th>Due Date</th>
-                <th>Paid Date</th>
-                <th>Amount</th>
-                <th className="text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPayments.map((p, idx) => (
-                <tr key={p.id}>
-                  <td className="fw-bold">{idx + 1}</td>
-                  <td className="font-monospace text-primary">{p.id}</td>
-                  <td className="fw-bold text-dark">{p.customerName}</td>
-                  <td className="text-secondary">{p.loanName}</td>
-                  <td className="fw-semibold">{p.dueDate}</td>
-                  <td className="text-muted">{p.paidDate || '-'}</td>
-                  <td className="fw-bold text-success">₹{Number(p.amount).toLocaleString('en-IN')}</td>
-                  <td className="text-center">
-                    <span className={`badge rounded-pill ${
-                      p.status === 'Paid' ? 'bg-success bg-opacity-10 text-success' :
-                      p.status === 'Overdue' ? 'bg-danger bg-opacity-10 text-danger' :
-                      'bg-warning bg-opacity-10 text-dark'
-                    }`}>
-                      {p.status}
-                    </span>
-                  </td>
+        {viewMode === 'table' ? (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0 small">
+              <thead className="bg-light text-muted">
+                <tr>
+                  <th>#</th>
+                  <th>Payment ID</th>
+                  <th>Customer Name</th>
+                  <th>Loan Account</th>
+                  <th>Due Date</th>
+                  <th>Paid Date</th>
+                  <th>Amount</th>
+                  <th className="text-center">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="text-center py-4 text-muted">No report entries found matching filters.</td>
+                  </tr>
+                ) : (
+                  filteredPayments.map((p, idx) => (
+                    <tr key={p.id}>
+                      <td className="fw-bold">{idx + 1}</td>
+                      <td className="font-monospace text-primary">{p.id}</td>
+                      <td className="fw-bold text-dark">{p.customerName}</td>
+                      <td className="text-secondary">{p.loanName}</td>
+                      <td className="fw-semibold">{p.dueDate}</td>
+                      <td className="text-muted">{p.paidDate || '-'}</td>
+                      <td className="fw-bold text-success">₹{Number(p.amount).toLocaleString('en-IN')}</td>
+                      <td className="text-center">
+                        <span className={`badge rounded-pill ${
+                          p.status === 'Paid' ? 'bg-success bg-opacity-10 text-success' :
+                          p.status === 'Overdue' ? 'bg-danger bg-opacity-10 text-danger' :
+                          'bg-warning bg-opacity-10 text-dark'
+                        }`}>
+                          {p.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="row g-3">
+            {filteredPayments.length === 0 ? (
+              <div className="col-12 text-center py-4 text-muted">No report entries found matching filters.</div>
+            ) : (
+              filteredPayments.map((p, idx) => (
+                <div key={p.id} className="col-12 col-sm-6 col-lg-4">
+                  <div className="card border rounded-3 p-3 bg-light h-100 shadow-2xs">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="badge bg-primary bg-opacity-10 text-primary font-monospace">{p.id}</span>
+                      <span className={`badge rounded-pill ${
+                        p.status === 'Paid' ? 'bg-success text-white' :
+                        p.status === 'Overdue' ? 'bg-danger text-white' :
+                        'bg-warning text-dark'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </div>
+
+                    <h6 className="fw-bold text-dark mb-0">{p.customerName}</h6>
+                    <small className="text-muted d-block mb-2">{p.loanName}</small>
+
+                    <div className="d-flex justify-content-between align-items-center my-1 pt-2 border-top">
+                      <small className="text-muted">EMI Amount</small>
+                      <strong className="text-success">₹{Number(p.amount).toLocaleString('en-IN')}</strong>
+                    </div>
+
+                    <div className="d-flex justify-content-between small text-muted">
+                      <span>Due: <strong className="text-dark">{p.dueDate || '—'}</strong></span>
+                      <span>Paid: <strong className="text-dark">{p.paidDate || '—'}</strong></span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
