@@ -139,6 +139,16 @@ const Dashboard = () => {
   };
 
   // ===== Payment Analytics =====
+  const emiStats = React.useMemo(() => {
+    const emiEntries = transactions.filter(t => t.type === 'EMI' || t.type === 'Loan');
+    const pendingCount = emiEntries.filter(t => !t.status || t.status === 'Pending').length;
+    const pendingAmount = emiEntries.filter(t => !t.status || t.status === 'Pending').reduce((s, t) => s + Number(t.amount || 0), 0);
+    const paidCount = emiEntries.filter(t => ['Paid', 'Success', 'Advance Paid', 'EMI Paid'].includes(t.status)).length;
+    const paidAmount = emiEntries.filter(t => ['Paid', 'Success', 'Advance Paid', 'EMI Paid'].includes(t.status)).reduce((s, t) => s + Number(t.amount || 0), 0);
+    const nextDue = emiEntries.filter(t => !t.status || t.status === 'Pending').sort((a, b) => new Date(a.dueDate || a.date) - new Date(b.dueDate || b.date))[0];
+    return { emiEntries, pendingCount, pendingAmount, paidCount, paidAmount, nextDue };
+  }, [transactions]);
+
   const paymentMethodStats = React.useMemo(() => {
     const cashCount = transactions.filter(t => !t.paymentMethod || t.paymentMethod === 'Cash').length;
     const cashAmount = transactions.filter(t => !t.paymentMethod || t.paymentMethod === 'Cash').reduce((s, t) => s + Number(t.amount), 0);
@@ -262,9 +272,18 @@ const Dashboard = () => {
             <button className={`btn btn-sm rounded-pill px-3 py-1 ${viewMode === 'Month' ? 'btn-primary text-white shadow-sm' : 'text-muted fw-medium'}`} onClick={() => setViewMode('Month')}>This Month</button>
           </div>
         </div>
-        <button className="btn btn-primary px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2" onClick={() => navigate('/new-entry')}>
-          <span style={{fontSize: '1.2rem'}}>+</span> New Entry
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          <button 
+            className="btn text-white px-3 py-2 fw-bold shadow-sm d-flex align-items-center gap-2 rounded-3" 
+            style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)' }} 
+            onClick={() => navigate('/emi-dashboard')}
+          >
+            <MdPayment size={20} /> EMI Dashboard
+          </button>
+          <button className="btn btn-primary px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2 rounded-3" onClick={() => navigate('/new-entry')}>
+            <span style={{fontSize: '1.2rem'}}>+</span> New Entry
+          </button>
+        </div>
       </div>
 
 
@@ -302,6 +321,40 @@ const Dashboard = () => {
         </div>
         <div className="col-6 col-xl-3">
           <StatCard title="Transactions" value={stats.count.toString()} icon={<MdReceipt size={24} />} colorClass="warning" description={loading ? "Loading..." : "Total entries"} />
+        </div>
+      </div>
+
+      {/* EMI Dashboard Banner Widget */}
+      <div className="card modern-card border-0 p-3 p-md-4 mb-4 shadow-sm text-white animate-fadeIn" style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', borderRadius: '16px' }}>
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+          <div className="d-flex align-items-center gap-3">
+            <div className="bg-white bg-opacity-20 p-3 rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 52, height: 52 }}>
+              <MdPayment size={28} />
+            </div>
+            <div>
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <h5 className="fw-bold mb-0 text-white">EMI & Loan Dashboard</h5>
+                <span className="badge bg-warning text-dark font-monospace fw-bold">{emiStats.pendingCount} Pending</span>
+                <span className="badge bg-white bg-opacity-20 text-white font-monospace">{emiStats.emiEntries.length} Total Records</span>
+              </div>
+              <p className="mb-0 text-white-50 small mt-1">
+                Pending Recovery: <strong className="text-white">₹{emiStats.pendingAmount.toLocaleString('en-IN')}</strong> | 
+                Cleared: <strong className="text-white">₹{emiStats.paidAmount.toLocaleString('en-IN')}</strong>
+                {emiStats.nextDue && (
+                  <span className="ms-2 badge bg-white bg-opacity-20 text-white font-monospace">
+                    Next Due: {new Date(emiStats.nextDue.dueDate || emiStats.nextDue.date).toLocaleDateString('en-IN')} ({emiStats.nextDue.name})
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <button 
+            className="btn btn-light fw-bold text-primary px-4 py-2 rounded-pill shadow-sm d-flex align-items-center justify-content-center gap-2 text-nowrap align-self-start align-self-md-center"
+            onClick={() => navigate('/emi-dashboard')}
+            style={{ fontWeight: '700', color: '#4f46e5' }}
+          >
+            <MdPayment size={18} /> EMI Dashboard →
+          </button>
         </div>
       </div>
 
