@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MdSearch, MdAccountBalance, MdAddCircle, MdEdit, MdDelete, 
-  MdReceipt, MdCalendarToday, MdInfo, MdVisibility
+  MdReceipt, MdCalendarToday, MdInfo, MdVisibility, MdFastForward, MdUpdate
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, addMonthsToDate, formatIndianDate } from '../utils/dateUtils';
@@ -30,7 +30,7 @@ const Loans = () => {
     loanName: '',
     type: 'Home Loan',
     totalAmount: '',
-    interestRate: '8.5',
+    interestRate: '0',
     emiAmount: '',
     startDate: getLocalDateString(),
     tenureMonths: 12,
@@ -77,6 +77,14 @@ const Loans = () => {
     setFormData({ ...loan });
     setShowAddModal(true);
   };
+
+  const handleAdvanceMonth = () => {
+    setFormData((prev) => ({
+      ...prev,
+      dueDate: addMonthsToDate(prev.dueDate || getLocalDateString(), 1)
+    }));
+  };
+
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -330,9 +338,31 @@ const Loans = () => {
                     </div>
 
                     <div className="col-12 col-md-6">
-                      <label className="form-label small fw-semibold text-muted">EMI Due Date</label>
-                      <input type="date" className="form-control" name="dueDate" value={formData.dueDate} onChange={handleFormChange} required />
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <label className="form-label small fw-semibold text-muted mb-0">EMI Due Date</label>
+                        <button
+                          type="button"
+                          className="btn btn-link btn-sm p-0 text-decoration-none fw-bold text-primary small d-flex align-items-center gap-1"
+                          onClick={handleAdvanceMonth}
+                          title="Continue to Next Month EMI (+1 Month)"
+                        >
+                          <MdUpdate size={14} /> +1 Month
+                        </button>
+                      </div>
+                      <div className="input-group">
+                        <input type="date" className="form-control fw-bold" name="dueDate" value={formData.dueDate} onChange={handleFormChange} required />
+                        <button 
+                          type="button" 
+                          className="btn btn-outline-primary fw-bold text-nowrap d-flex align-items-center gap-1 shadow-2xs" 
+                          onClick={handleAdvanceMonth}
+                          title="Advance EMI Due Date to Next Month (+1 Month)"
+                        >
+                          <MdFastForward size={18} /> +1 Mo
+                        </button>
+                      </div>
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.68rem' }}>Click "+1 Mo" to auto-continue next month's EMI date</small>
                     </div>
+
 
 
                     <div className="col-12 col-md-6">

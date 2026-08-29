@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   MdSearch, MdPayment, MdCheckCircle, MdWarning, MdHourglassEmpty, 
-  MdDelete, MdAddCircle, MdNotifications
+  MdDelete, MdAddCircle, MdNotifications, MdFastForward
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
+import { getLocalDateString, formatIndianDate, addMonthsToDate } from '../utils/dateUtils';
+
 
 const EmiPayments = () => {
   const location = useLocation();
@@ -327,14 +328,25 @@ const EmiPayments = () => {
                   <div className="row g-3 mb-3">
                     <div className="col-6">
                       <label className="form-label small fw-semibold text-muted">Payment Date *</label>
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={paidDetails.paidDate}
-                        onChange={(e) => setPaidDetails({ ...paidDetails, paidDate: e.target.value })}
-                        required
-                      />
+                      <div className="input-group">
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={paidDetails.paidDate}
+                          onChange={(e) => setPaidDetails({ ...paidDetails, paidDate: e.target.value })}
+                          required
+                        />
+                        <button 
+                          type="button" 
+                          className="btn btn-outline-secondary btn-sm fw-bold"
+                          title="Advance 1 Month"
+                          onClick={() => setPaidDetails({ ...paidDetails, paidDate: addMonthsToDate(paidDetails.paidDate || getLocalDateString(), 1) })}
+                        >
+                          <MdFastForward size={16} />
+                        </button>
+                      </div>
                     </div>
+
                     <div className="col-6">
                       <label className="form-label small fw-semibold text-muted">Payment Method *</label>
                       <select
