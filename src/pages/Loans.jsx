@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MdSearch, MdAccountBalance, MdAddCircle, MdEdit, MdDelete, 
-  MdReceipt, MdCalendarToday, MdInfo, MdVisibility, MdFastForward, MdUpdate
+  MdReceipt, MdCalendarToday, MdInfo, MdVisibility, MdFastForward, MdUpdate,
+  MdSend
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, addMonthsToDate, formatIndianDate } from '../utils/dateUtils';
+import SendStatementModal from '../components/SendStatementModal';
 
 
 const LOAN_TYPES = ['Home Loan', 'Car Loan', 'Personal Loan', 'Education Loan', 'Credit Card', 'Other Loan'];
@@ -22,6 +24,7 @@ const Loans = () => {
   const [editingLoan, setEditingLoan] = useState(null);
   const [selectedLoanDetails, setSelectedLoanDetails] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [commModal, setCommModal] = useState({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -35,7 +38,6 @@ const Loans = () => {
     startDate: getLocalDateString(),
     tenureMonths: 12,
     dueDate: addMonthsToDate(getLocalDateString(), 1),
-    lateFee: 350,
     status: 'Active',
     notes: '',
   });
@@ -65,7 +67,6 @@ const Loans = () => {
       startDate: getLocalDateString(),
       tenureMonths: 12,
       dueDate: addMonthsToDate(getLocalDateString(), 1),
-      lateFee: 350,
       status: 'Active',
       notes: '',
     });
@@ -120,7 +121,6 @@ const Loans = () => {
       interestRate: Number(formData.interestRate || 0),
       emiAmount: calculatedEmi,
       tenureMonths: Number(formData.tenureMonths || 12),
-      lateFee: Number(formData.lateFee || 0),
     });
 
     alert(editingLoan ? '✓ Loan contract updated successfully!' : '✓ New loan account created successfully!');
@@ -256,12 +256,22 @@ const Loans = () => {
                     </div>
                   </div>
 
-                  <button
-                    className="btn btn-outline-success btn-sm rounded-3 w-100 fw-bold py-2 mt-auto d-flex align-items-center justify-content-center gap-1.5"
-                    onClick={() => setSelectedLoanDetails({ ...loan, paidEmis, tenure, remainingEmis, outstanding, progressPercent, schedule: loanStore.generateEmiSchedule(loan) })}
-                  >
-                    <MdVisibility size={16} /> View Loan Details & Schedule
-                  </button>
+                  <div className="d-flex gap-2 mt-auto">
+                    <button
+                      className="btn btn-outline-primary btn-sm rounded-3 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
+                      style={{ flex: '0 0 auto' }}
+                      title="Send Statement via WhatsApp / Gmail"
+                      onClick={() => setCommModal({ open: true, customerId: loan.customerId, loanId: loan.id, templateKey: 'loan_statement' })}
+                    >
+                      <MdSend size={15} /> Send
+                    </button>
+                    <button
+                      className="btn btn-outline-success btn-sm rounded-3 flex-grow-1 fw-bold py-2 d-flex align-items-center justify-content-center gap-1.5"
+                      onClick={() => setSelectedLoanDetails({ ...loan, paidEmis, tenure, remainingEmis, outstanding, progressPercent, schedule: loanStore.generateEmiSchedule(loan) })}
+                    >
+                      <MdVisibility size={16} /> Details &amp; Schedule
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -361,13 +371,6 @@ const Loans = () => {
                         </button>
                       </div>
                       <small className="text-muted d-block mt-1" style={{ fontSize: '0.68rem' }}>Click "+1 Mo" to auto-continue next month's EMI date</small>
-                    </div>
-
-
-
-                    <div className="col-12 col-md-6">
-                      <label className="form-label small fw-semibold text-muted">Late Fee Rule (₹)</label>
-                      <input type="number" className="form-control text-danger" name="lateFee" value={formData.lateFee} onChange={handleFormChange} />
                     </div>
 
                     <div className="col-12">
@@ -472,12 +475,31 @@ const Loans = () => {
                 </div>
               </div>
 
-              <div className="modal-footer border-0 bg-light py-3 px-4">
+              <div className="modal-footer border-0 bg-light py-3 px-4 d-flex justify-content-between">
+                <button
+                  type="button"
+                  className="btn btn-success rounded-3 px-3 fw-bold d-flex align-items-center gap-1.5"
+                  onClick={() => setCommModal({ open: true, customerId: selectedLoanDetails.customerId, loanId: selectedLoanDetails.id, templateKey: 'loan_statement' })}
+                  title="Send Statement via WhatsApp / Gmail"
+                >
+                  <MdSend size={16} /> Send
+                </button>
                 <button type="button" className="btn btn-secondary rounded-3 px-4 fw-semibold" onClick={() => setSelectedLoanDetails(null)}>Close Schedule</button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Send Statement / Communication Modal */}
+      {commModal.open && (
+        <SendStatementModal
+          isOpen={commModal.open}
+          onClose={() => setCommModal({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' })}
+          initialCustomerId={commModal.customerId}
+          initialLoanId={commModal.loanId}
+          initialTemplateKey={commModal.templateKey}
+        />
       )}
 
       {/* Delete Confirmation Modal */}

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  MdAdd, MdPersonAdd, MdAccountBalance, MdPayment, MdFileUpload
+  MdAdd, MdPersonAdd, MdAccountBalance, MdPayment, MdFileUpload,
+  MdBarChart, MdCalendarToday, MdDownload, MdReceiptLong, MdMoneyOff, MdClose
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, addMonthsToDate } from '../utils/dateUtils';
@@ -10,8 +12,9 @@ const LOAN_TYPES = [
 ];
 
 const FloatingActionButton = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState(null); // 'customer', 'loan', 'payment'
+  const [activeModal, setActiveModal] = useState(null);
 
   // Data lists for dropdowns
   const [customers, setCustomers] = useState([]);
@@ -42,7 +45,6 @@ const FloatingActionButton = () => {
     startDate: getLocalDateString(),
     tenureMonths: 12,
     dueDate: addMonthsToDate(getLocalDateString(), 1),
-    lateFee: 350,
     notes: ''
   });
 
@@ -52,7 +54,6 @@ const FloatingActionButton = () => {
     amount: '',
     paidDate: getLocalDateString(),
     paymentMethod: 'UPI',
-    lateFee: 0,
     notes: ''
   });
 
@@ -128,7 +129,6 @@ const FloatingActionButton = () => {
       interestRate: Number(loanForm.interestRate || 0),
       emiAmount: calculatedEmi,
       tenureMonths: Number(loanForm.tenureMonths || 12),
-      lateFee: Number(loanForm.lateFee || 0)
     });
 
     alert(`✓ Loan Account "${loanForm.loanName}" created successfully!`);
@@ -150,7 +150,6 @@ const FloatingActionButton = () => {
       loanStore.markPaymentAsPaid(existingPayments[0].id, {
         paidDate: paymentForm.paidDate,
         paymentMethod: paymentForm.paymentMethod,
-        lateFee: paymentForm.lateFee,
         notes: paymentForm.notes
       });
     } else {
@@ -162,7 +161,6 @@ const FloatingActionButton = () => {
         amount: Number(paymentForm.amount || selectedLoan.emiAmount),
         paidDate: paymentForm.paidDate,
         dueDate: selectedLoan.dueDate,
-        lateFee: Number(paymentForm.lateFee || 0),
         paymentMethod: paymentForm.paymentMethod,
         notes: paymentForm.notes || 'Direct EMI Payment',
         status: 'Paid'
@@ -185,88 +183,164 @@ const FloatingActionButton = () => {
           zIndex: 1060 
         }}
       >
+      <style>{`
+        @keyframes fabRipple1 {
+          0%   { transform: scale(1);   opacity: 0.55; }
+          100% { transform: scale(2.2); opacity: 0; }
+        }
+        @keyframes fabRipple2 {
+          0%   { transform: scale(1);   opacity: 0.4; }
+          100% { transform: scale(2.6); opacity: 0; }
+        }
+        @keyframes fabRipple3 {
+          0%   { transform: scale(1);   opacity: 0.25; }
+          100% { transform: scale(3.1); opacity: 0; }
+        }
+        @keyframes fabGlow {
+          0%, 100% { box-shadow: 0 12px 28px rgba(15,23,42,0.45), 0 0 0 0 rgba(99,102,241,0.5); }
+          50%       { box-shadow: 0 16px 36px rgba(15,23,42,0.6), 0 0 20px 6px rgba(99,102,241,0.35); }
+        }
+      `}</style>
+
+      <div style={{ position: 'relative', width: '58px', height: '58px' }}>
+        {/* Ripple rings - only show when closed */}
+        {!isOpen && (
+          <>
+            <span style={{
+              position: 'absolute', inset: 0, borderRadius: '50%',
+              backgroundColor: 'rgba(99,102,241,0.45)',
+              animation: 'fabRipple1 2s ease-out infinite',
+            }} />
+            <span style={{
+              position: 'absolute', inset: 0, borderRadius: '50%',
+              backgroundColor: 'rgba(99,102,241,0.3)',
+              animation: 'fabRipple2 2s ease-out infinite 0.4s',
+            }} />
+            <span style={{
+              position: 'absolute', inset: 0, borderRadius: '50%',
+              backgroundColor: 'rgba(99,102,241,0.18)',
+              animation: 'fabRipple3 2s ease-out infinite 0.8s',
+            }} />
+          </>
+        )}
+
         <button
           type="button"
-          className="btn rounded-circle shadow-lg d-flex align-items-center justify-content-center p-0"
+          className="btn rounded-circle d-flex align-items-center justify-content-center p-0"
           style={{
+            position: 'relative',
             width: '58px',
             height: '58px',
             backgroundColor: '#0f172a',
-            border: '2px solid rgba(255, 255, 255, 0.25)',
+            border: '2px solid rgba(255,255,255,0.25)',
             color: '#ffffff',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.4), 0 6px 12px rgba(0, 0, 0, 0.25)',
+            animation: !isOpen ? 'fabGlow 2.5s ease-in-out infinite' : 'none',
             transform: isOpen ? 'rotate(45deg) scale(1.05)' : 'rotate(0deg) scale(1)',
             transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            zIndex: 1,
           }}
           onClick={() => setIsOpen(!isOpen)}
           title="New Entry Quick Options"
         >
           <MdAdd size={32} />
         </button>
+      </div>
+      </div>
 
-        {/* Quick Options Popup Menu */}
-        {isOpen && !activeModal && (
-          <div 
-            className="position-absolute bottom-100 end-0 mb-3 bg-white p-2 rounded-4 shadow-lg border animate-fadeIn"
-            style={{ 
-              width: '240px', 
-              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-              border: '1px solid rgba(0,0,0,0.08)'
+      {/* ── Centered Full-Screen Quick Action Overlay ── */}
+      {isOpen && !activeModal && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setIsOpen(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1055,
+              backgroundColor: 'rgba(10,14,30,0.65)',
+              backdropFilter: 'blur(6px)',
+              animation: 'fabFadeIn 0.2s ease',
             }}
-          >
-            <div className="px-3 py-2 border-bottom">
-              <small className="fw-bold text-uppercase text-muted" style={{ letterSpacing: '0.5px', fontSize: '0.68rem' }}>
-                Quick Entry Options
-              </small>
-            </div>
+          />
 
-            <div className="d-flex flex-column gap-1 pt-1">
-              <button 
-                type="button"
-                className="btn btn-hover-light text-start d-flex align-items-center gap-2.5 p-2 px-3 rounded-3 border-0 w-100"
-                onClick={() => { setActiveModal('customer'); }}
-              >
-                <div className="bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
-                  <MdPersonAdd size={18} />
-                </div>
-                <div>
-                  <span className="fw-bold d-block small text-dark">Add New Customer</span>
-                  <small className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Create borrower profile</small>
-                </div>
-              </button>
+          {/* Panel */}
+          <div style={{
+            position: 'fixed',
+            top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1056,
+            width: 'min(92vw, 560px)',
+            animation: 'fabSlideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+          }}>
+            <style>{`
+              @keyframes fabFadeIn   { from { opacity:0 } to { opacity:1 } }
+              @keyframes fabSlideUp  { from { opacity:0; transform:translate(-50%,-44%) scale(0.94) } to { opacity:1; transform:translate(-50%,-50%) scale(1) } }
+            `}</style>
 
-              <button 
-                type="button"
-                className="btn btn-hover-light text-start d-flex align-items-center gap-2.5 p-2 px-3 rounded-3 border-0 w-100"
-                onClick={() => { setActiveModal('loan'); }}
-              >
-                <div className="bg-success bg-opacity-10 text-success p-2 rounded-circle">
-                  <MdAccountBalance size={18} />
-                </div>
+            <div style={{
+              background: 'linear-gradient(135deg,#0f172a 0%,#1e293b 100%)',
+              borderRadius: '24px',
+              padding: '28px 24px 24px',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07)',
+              color: '#fff',
+            }}>
+              {/* Header */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'20px' }}>
                 <div>
-                  <span className="fw-bold d-block small text-dark">Add New Loan</span>
-                  <span className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Setup EMI loan account</span>
+                  <div style={{ fontSize:'0.68rem', fontWeight:700, letterSpacing:'1.5px', textTransform:'uppercase', color:'rgba(255,255,255,0.45)', marginBottom:'2px' }}>RC Accountant</div>
+                  <div style={{ fontSize:'1.15rem', fontWeight:800, color:'#fff' }}>Quick Actions</div>
                 </div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  style={{ background:'rgba(255,255,255,0.1)', border:'none', borderRadius:'50%', width:'36px', height:'36px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#fff', flexShrink:0 }}
+                >
+                  <MdClose size={20} />
+                </button>
+              </div>
 
-              <button 
-                type="button"
-                className="btn btn-hover-light text-start d-flex align-items-center gap-2.5 p-2 px-3 rounded-3 border-0 w-100"
-                onClick={() => { setActiveModal('payment'); }}
-              >
-                <div className="bg-warning bg-opacity-10 text-dark p-2 rounded-circle">
-                  <MdPayment size={18} />
-                </div>
-                <div>
-                  <span className="fw-bold d-block small text-dark">Add EMI Payment</span>
-                  <span className="text-muted d-block" style={{ fontSize: '0.68rem' }}>Record installment paid</span>
-                </div>
-              </button>
+              {/* Grid */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:'10px' }}>
+
+                {[
+                  { label:'Add Customer',   sub:'New borrower profile',   icon:<MdPersonAdd size={22}/>,   color:'#6366f1', bg:'rgba(99,102,241,0.18)',  action:() => { setIsOpen(false); setActiveModal('customer'); } },
+                  { label:'Add Loan',       sub:'Setup EMI loan account',  icon:<MdAccountBalance size={22}/>, color:'#10b981', bg:'rgba(16,185,129,0.18)', action:() => { setIsOpen(false); setActiveModal('loan'); } },
+                  { label:'Record Payment', sub:'Mark EMI as paid',        icon:<MdPayment size={22}/>,    color:'#f59e0b', bg:'rgba(245,158,11,0.18)',  action:() => { setIsOpen(false); setActiveModal('payment'); } },
+                  { label:'EMI Payments',   sub:'View payment ledger',     icon:<MdReceiptLong size={22}/>, color:'#3b82f6', bg:'rgba(59,130,246,0.18)', action:() => { setIsOpen(false); navigate('/emi-payments'); } },
+                  { label:'Reports',        sub:'Analytics & insights',    icon:<MdBarChart size={22}/>,   color:'#8b5cf6', bg:'rgba(139,92,246,0.18)',  action:() => { setIsOpen(false); navigate('/reports'); } },
+                  { label:'Calendar',       sub:'EMI due schedule',        icon:<MdCalendarToday size={22}/>, color:'#ec4899', bg:'rgba(236,72,153,0.18)', action:() => { setIsOpen(false); navigate('/calendar'); } },
+                  { label:'Statements',     sub:'Account PDF reports',     icon:<MdFileUpload size={22}/>, color:'#14b8a6', bg:'rgba(20,184,166,0.18)',  action:() => { setIsOpen(false); navigate('/statements'); } },
+                  { label:'Export Backup',  sub:'Download JSON data',      icon:<MdDownload size={22}/>,   color:'#f97316', bg:'rgba(249,115,22,0.18)',  action:() => { setIsOpen(false); loanStore.exportBackup(); } },
+                ].map((item, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={item.action}
+                    style={{
+                      background: item.bg,
+                      border: `1px solid ${item.color}33`,
+                      borderRadius: '16px',
+                      padding: '16px 14px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'transform 0.15s ease, background 0.15s ease',
+                      animationDelay: `${i * 0.04}s`,
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <div style={{ width:'40px', height:'40px', borderRadius:'12px', background:`${item.color}28`, display:'flex', alignItems:'center', justifyContent:'center', color:item.color, marginBottom:'10px' }}>
+                      {item.icon}
+                    </div>
+                    <div style={{ fontWeight:700, fontSize:'0.82rem', color:'#f1f5f9', marginBottom:'2px', lineHeight:1.2 }}>{item.label}</div>
+                    <div style={{ fontSize:'0.67rem', color:'rgba(255,255,255,0.45)', lineHeight:1.3 }}>{item.sub}</div>
+                  </button>
+                ))}
+
+              </div>
             </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* 1. Modal: Add New Customer */}
       {activeModal === 'customer' && (
@@ -414,13 +488,31 @@ const FloatingActionButton = () => {
                     </div>
 
                     <div className="col-12 col-md-6">
-                      <label className="form-label small fw-semibold text-muted">First EMI Due Date</label>
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <label className="form-label small fw-semibold text-muted mb-0">First EMI Due Date</label>
+                        <div className="d-flex gap-1">
+                          <button
+                            type="button"
+                            className="btn btn-outline-primary btn-sm rounded-pill px-2 py-0"
+                            style={{ fontSize: '0.7rem', fontWeight: 700 }}
+                            title="Set due date to +1 Month from Start Date"
+                            onClick={() => setLoanForm(prev => ({ ...prev, dueDate: addMonthsToDate(prev.startDate || getLocalDateString(), 1) }))}
+                          >
+                            📅 +1 Month
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary btn-sm rounded-pill px-2 py-0"
+                            style={{ fontSize: '0.7rem', fontWeight: 700 }}
+                            title="Keep same date as Start Date"
+                            onClick={() => setLoanForm(prev => ({ ...prev, dueDate: prev.startDate || getLocalDateString() }))}
+                          >
+                            Same Date
+                          </button>
+                        </div>
+                      </div>
                       <input type="date" className="form-control" name="dueDate" value={loanForm.dueDate} onChange={handleLoanFormChange} required />
-                    </div>
-
-                    <div className="col-12 col-md-6">
-                      <label className="form-label small fw-semibold text-muted">Late Fee / Penalty Rule (₹)</label>
-                      <input type="number" className="form-control text-danger" name="lateFee" value={loanForm.lateFee} onChange={handleLoanFormChange} />
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.68rem' }}>"+1 Month" ya "Same Date" click karke jaldi set karein</small>
                     </div>
 
                     <div className="col-12">
@@ -466,7 +558,6 @@ const FloatingActionButton = () => {
                           ...paymentForm, 
                           loanId: selectedId, 
                           amount: l ? l.emiAmount : '',
-                          lateFee: l ? l.lateFee || 0 : 0
                         });
                       }}
                       required
@@ -481,13 +572,9 @@ const FloatingActionButton = () => {
                   </div>
 
                   <div className="row g-3 mb-3">
-                    <div className="col-6">
+                    <div className="col-12">
                       <label className="form-label small fw-semibold text-muted">EMI Amount Paid (₹) *</label>
                       <input type="number" className="form-control fw-bold text-success" value={paymentForm.amount} onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })} required />
-                    </div>
-                    <div className="col-6">
-                      <label className="form-label small fw-semibold text-muted">Late Fee / Penalty (₹)</label>
-                      <input type="number" className="form-control text-danger fw-semibold" value={paymentForm.lateFee} onChange={e => setPaymentForm({ ...paymentForm, lateFee: e.target.value })} />
                     </div>
                   </div>
 

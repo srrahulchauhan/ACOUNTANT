@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   MdSearch, MdPayment, MdCheckCircle, MdWarning, MdHourglassEmpty, 
-  MdDelete, MdAddCircle, MdNotifications, MdFastForward
+  MdDelete, MdAddCircle, MdNotifications, MdFastForward, MdSend,
+  MdViewList, MdViewModule, MdFilterList, MdRefresh, MdCalendarToday,
+  MdPhone, MdAccountBalance, MdCheck
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, formatIndianDate, addMonthsToDate } from '../utils/dateUtils';
+import SendStatementModal from '../components/SendStatementModal';
 
+const fmtAmt = (a) => a != null ? '₹' + Number(a).toLocaleString('en-IN') : '₹0';
 
 const EmiPayments = () => {
   const location = useLocation();
@@ -18,17 +22,27 @@ const EmiPayments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(location.state?.status || '');
   const [methodFilter, setMethodFilter] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
 
   // Mark Paid Modal state
   const [markingPayment, setMarkingPayment] = useState(null);
   const [paidDetails, setPaidDetails] = useState({
     paidDate: getLocalDateString(),
     paymentMethod: 'UPI',
-    lateFee: 0,
+    nextDueDate: addMonthsToDate(getLocalDateString(), 1),
     notes: 'Payment received',
   });
 
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  // Send Statement / Reminder Modal
+  const [commModal, setCommModal] = useState({
+    open: false,
+    customerId: null,
+    loanId: null,
+    templateKey: 'monthly_reminder',
+  });
 
   const loadData = () => {
     setPayments(loanStore.getPayments());
@@ -47,268 +61,417 @@ const EmiPayments = () => {
     setPaidDetails({
       paidDate: getLocalDateString(),
       paymentMethod: pay.paymentMethod || 'UPI',
+      paymentType: 'Regular',
+      amount: pay.amount,
+      advanceMonths: 1,
       nextDueDate: addMonthsToDate(pay.dueDate || getLocalDateString(), 1),
       notes: pay.notes || 'Payment received',
     });
   };
 
-
   const handleConfirmPaid = (e) => {
     e.preventDefault();
     if (!markingPayment) return;
 
-    loanStore.markPaymentAsPaid(markingPayment.id, paidDetails);
-    alert(`✓ Payment of ₹${Number(markingPayment.amount).toLocaleString('en-IN')} marked as PAID!`);
+    loanStore.markPaymentAsPaid(markingPayment.id, {
+      ...paidDetails,
+      amount: paidDetails.amount // ensures override is saved
+    });
     setMarkingPayment(null);
   };
 
   const handleDeletePayment = (id) => {
     loanStore.deletePayment(id);
     setDeleteConfirmId(null);
-    alert('✓ Payment record removed.');
   };
 
-  // Filter payments and sort nearest-to-farthest by dueDate
+  const todayStr = getLocalDateString();
+
+  // Filter payments
   const filteredPayments = payments
     .filter((p) => {
       const q = searchQuery.toLowerCase();
       const matchesSearch =
-        p.customerName.toLowerCase().includes(q) ||
-        p.loanName.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q);
+        !q ||
+        (p.customerName || '').toLowerCase().includes(q) ||
+        (p.loanName || '').toLowerCase().includes(q) ||
+        (p.id || '').toLowerCase().includes(q);
 
       const matchesStatus = !statusFilter || p.status === statusFilter;
       const matchesMethod = !methodFilter || p.paymentMethod === methodFilter;
+      const matchesCust = !custFilter || p.customerId === custFilter;
 
-      return matchesSearch && matchesStatus && matchesMethod;
+      return matchesSearch && matchesStatus && matchesMethod && matchesCust;
     })
     .sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
 
-
-  const todayStr = getLocalDateString();
   const overdueCount = payments.filter((p) => p.status === 'Overdue' || (p.status !== 'Paid' && p.dueDate && p.dueDate < todayStr)).length;
-  const upcomingCount = payments.filter((p) => p.status === 'Upcoming' || p.status === 'Pending').length;
+  const upcomingCount = payments.filter((p) => p.status === 'Upcoming' || (p.status !== 'Paid' && p.dueDate && p.dueDate >= todayStr)).length;
   const paidCount = payments.filter((p) => p.status === 'Paid').length;
+  const totalCollected = payments.filter((p) => p.status === 'Paid').reduce((s, p) => s + Number(p.amount || 0), 0);
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh' }}>
+    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh', paddingBottom: '80px' }}>
       
-      {/* Header */}
+      {/* ── Page Header ── */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
-          <h4 className="fw-bold text-dark mb-1">EMI Payments Ledger & Collections</h4>
-          <p className="text-muted small mb-0">Record installment payments, issue late fee rules, and review complete payment history</p>
+          <h4 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+            <span style={{ fontSize: '1.4rem' }}>💳</span> EMI Payments Ledger &amp; Collections
+          </h4>
+          <p className="text-muted small mb-0">Record installment payments, send WhatsApp/Gmail statements, and track recovery</p>
+        </div>
+
+        <div className="d-flex align-items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="btn-group bg-white rounded-3 border p-0.5 shadow-2xs">
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'table' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => setViewMode('table')}
+              title="Table View"
+            >
+              <MdViewList size={18} /> Table
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-2.5 py-1.5 fw-bold ${viewMode === 'cards' ? 'btn-primary' : 'btn-light text-muted'}`}
+              onClick={() => setViewMode('cards')}
+              title="Card Grid View"
+            >
+              <MdViewModule size={18} /> Cards
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Alert Banner for Overdue / Upcoming */}
-      {(overdueCount > 0 || upcomingCount > 0) && (
-        <div className="row g-3 mb-4">
-          {overdueCount > 0 && (
-            <div className="col-12 col-md-6">
-              <div className="alert bg-danger bg-opacity-10 border border-danger border-opacity-20 rounded-4 p-3 d-flex align-items-center gap-3 mb-0 shadow-2xs">
-                <div className="bg-danger text-white rounded-circle p-2">
-                  <MdWarning size={20} />
-                </div>
-                <div>
-                  <h6 className="fw-bold text-danger mb-0">{overdueCount} Overdue EMI Installments Alert</h6>
-                  <small className="text-muted">Overdue fees apply. Click filter to review overdue accounts.</small>
-                </div>
-              </div>
-            </div>
-          )}
+      <style>{`
+        @keyframes overdueBeacon {
+          0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+          70% { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+          100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .dynamic-kpi-card {
+          position: relative; background: rgba(255, 255, 255, 0.75) !important;
+          backdrop-filter: blur(18px) saturate(190%);
+          border: 1px solid rgba(255, 255, 255, 0.8) !important;
+          cursor: pointer; transition: all 0.25s ease;
+        }
+        .dynamic-kpi-card:hover { transform: translateY(-4px) scale(1.015); }
+      `}</style>
 
-          {upcomingCount > 0 && (
-            <div className="col-12 col-md-6">
-              <div className="alert bg-warning bg-opacity-10 border border-warning border-opacity-20 rounded-4 p-3 d-flex align-items-center gap-3 mb-0 shadow-2xs">
-                <div className="bg-warning text-dark rounded-circle p-2">
-                  <MdNotifications size={20} />
-                </div>
-                <div>
-                  <h6 className="fw-bold text-dark mb-0">{upcomingCount} Upcoming EMI Payments Scheduled</h6>
-                  <small className="text-muted">Pending collections due in the upcoming installment period.</small>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Status Summary Pill Cards */}
+      {/* ── Status KPI Cards ── */}
       <div className="row g-3 mb-4">
-        <div className="col-4">
-          <div 
-            className={`p-3 rounded-4 shadow-2xs text-center cursor-pointer transition-all hover-lift ${
-              statusFilter === 'Paid' ? 'border border-2 border-success bg-success bg-opacity-10 shadow-sm' : 'bg-white border'
-            }`} 
-            onClick={() => setStatusFilter(statusFilter === 'Paid' ? 'All' : 'Paid')}
-            title="Click to filter Paid installments"
-            style={{ cursor: 'pointer' }}
-          >
-            <small className="text-muted d-block font-monospace text-uppercase fw-semibold" style={{ fontSize: '0.68rem' }}>Paid Installments</small>
-            <h4 className="fw-bold text-success mb-0">{paidCount}</h4>
-            {statusFilter === 'Paid' && <small className="badge bg-success mt-1" style={{ fontSize: '0.6rem' }}>Filtered</small>}
+        <div className="col-6 col-md-3">
+          <div className="p-3 rounded-4 text-center dynamic-kpi-card" onClick={() => setStatusFilter('Paid')}>
+            <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Paid Collections</small>
+            <h4 className="fw-bold text-success my-1">{paidCount}</h4>
+            <div className="small text-muted">{fmtAmt(totalCollected)}</div>
           </div>
         </div>
-
-        <div className="col-4">
-          <div 
-            className={`p-3 rounded-4 shadow-2xs text-center cursor-pointer transition-all hover-lift ${
-              statusFilter === 'Upcoming' ? 'border border-2 border-warning bg-warning bg-opacity-10 shadow-sm' : 'bg-white border'
-            }`} 
-            onClick={() => setStatusFilter(statusFilter === 'Upcoming' ? 'All' : 'Upcoming')}
-            title="Click to filter Upcoming dues"
-            style={{ cursor: 'pointer' }}
-          >
-            <small className="text-muted d-block font-monospace text-uppercase fw-semibold" style={{ fontSize: '0.68rem' }}>Upcoming Dues</small>
-            <h4 className="fw-bold text-warning mb-0">{upcomingCount}</h4>
-            {statusFilter === 'Upcoming' && <small className="badge bg-warning text-dark mt-1" style={{ fontSize: '0.6rem' }}>Filtered</small>}
+        <div className="col-6 col-md-3">
+          <div className="p-3 rounded-4 text-center dynamic-kpi-card" onClick={() => setStatusFilter('Upcoming')}>
+            <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Upcoming Dues</small>
+            <h4 className="fw-bold text-warning my-1">{upcomingCount}</h4>
           </div>
         </div>
-
-        <div className="col-4">
-          <div 
-            className={`p-3 rounded-4 shadow-2xs text-center cursor-pointer transition-all hover-lift ${
-              statusFilter === 'Overdue' ? 'border border-2 border-danger bg-danger bg-opacity-10 shadow-sm' : 'bg-white border'
-            }`} 
-            onClick={() => setStatusFilter(statusFilter === 'Overdue' ? 'All' : 'Overdue')}
-            title="Click to filter Overdue accounts"
-            style={{ cursor: 'pointer' }}
-          >
-            <small className="text-muted d-block font-monospace text-uppercase fw-semibold" style={{ fontSize: '0.68rem' }}>Overdue Accounts</small>
-            <h4 className="fw-bold text-danger mb-0">{overdueCount}</h4>
-            {statusFilter === 'Overdue' && <small className="badge bg-danger mt-1" style={{ fontSize: '0.6rem' }}>Filtered</small>}
+        <div className="col-6 col-md-3">
+          <div className="p-3 rounded-4 text-center dynamic-kpi-card" onClick={() => setStatusFilter('Overdue')}>
+            <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Overdue Accounts</small>
+            <h4 className="fw-bold text-danger my-1">{overdueCount}</h4>
+          </div>
+        </div>
+        <div className="col-6 col-md-3">
+          <div className="p-3 rounded-4 text-center dynamic-kpi-card" onClick={() => setStatusFilter('')}>
+            <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>All Transactions</small>
+            <h4 className="fw-bold text-primary my-1">{payments.length}</h4>
           </div>
         </div>
       </div>
 
-
-      {/* Filter Bar */}
+      {/* ── Search & Filter Bar ── */}
       <div className="card border-0 shadow-sm rounded-4 p-3 bg-white mb-4">
-        <div className="row g-3">
-          <div className="col-12 col-md-5">
+        <div className="row g-2 align-items-center">
+          <div className="col-12 col-md-4">
             <div className="input-group bg-light rounded-3 border">
               <span className="input-group-text bg-transparent border-0 pe-1">
                 <MdSearch size={20} className="text-muted" />
               </span>
               <input
                 type="text"
-                className="form-control bg-transparent border-0 box-shadow-none"
-                placeholder="Search by customer name, loan title, payment ID..."
+                className="form-control bg-transparent border-0 ps-1"
+                placeholder="Search borrower name, loan, or PAY-ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button className="btn btn-link text-muted pe-3" onClick={() => setSearchQuery('')}>✕</button>
+              )}
             </div>
           </div>
-          <div className="col-6 col-md-3">
-            <select className="form-select bg-light border" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">-- All Payment Statuses --</option>
-              <option value="Paid">Paid</option>
-              <option value="Upcoming">Upcoming</option>
-              <option value="Pending">Pending</option>
-              <option value="Overdue">Overdue</option>
+
+          <div className="col-6 col-md-2.5 col-lg-2">
+            <select className="form-select bg-light rounded-3 border fw-semibold" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="Paid">✓ Paid</option>
+              <option value="Upcoming">⏰ Upcoming</option>
+              <option value="Overdue">🚨 Overdue</option>
             </select>
           </div>
-          <div className="col-6 col-md-4">
-            <select className="form-select bg-light border" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
-              <option value="">-- All Payment Methods --</option>
+
+          <div className="col-6 col-md-2.5 col-lg-2">
+            <select className="form-select bg-light rounded-3 border fw-semibold" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
+              <option value="">All Methods</option>
               <option value="UPI">UPI / PhonePe</option>
               <option value="Net Banking">Net Banking</option>
               <option value="Cash">Cash</option>
-              <option value="Card">Debit/Credit Card</option>
+              <option value="Advance Payment">Advance Payment</option>
+              <option value="Card">Card</option>
               <option value="Cheque">Cheque</option>
             </select>
+          </div>
+
+          <div className="col-12 col-md-3 col-lg-4 d-flex justify-content-md-end gap-2">
+            {(searchQuery || statusFilter || methodFilter || custFilter) && (
+              <button
+                className="btn btn-outline-secondary rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-1"
+                onClick={() => { setSearchQuery(''); setStatusFilter(''); setMethodFilter(''); setCustFilter(''); }}
+              >
+                <MdRefresh size={16} /> Reset
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* EMI Ledger Table */}
-      <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="fw-bold text-dark mb-0">EMI Transactions History Ledger</h5>
-          <small className="text-muted">Showing {filteredPayments.length} of {payments.length} records</small>
-        </div>
-
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead className="bg-light text-muted small">
-              <tr>
-                <th className="py-2.5">Customer Name</th>
-                <th>Loan Contract</th>
-                <th>Due Date</th>
-                <th>Paid Date</th>
-                <th>EMI Amount</th>
-                <th>Late Fee</th>
-                <th>Method</th>
-                <th className="text-center">Status</th>
-                <th className="text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPayments.length === 0 ? (
+      {/* ── EMI Payments Content: Table or Cards View ── */}
+      {viewMode === 'table' ? (
+        /* TABLE VIEW */
+        <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light text-muted font-monospace small">
                 <tr>
-                  <td colSpan="9" className="text-center py-5 text-muted">
-                    No EMI payment records found.
-                  </td>
+                  <th className="ps-4">PAY ID &amp; DATE</th>
+                  <th>BORROWER / CUSTOMER</th>
+                  <th>LOAN ACCOUNT</th>
+                  <th>DUE DATE</th>
+                  <th>AMOUNT</th>
+                  <th>METHOD</th>
+                  <th>STATUS</th>
+                  <th className="text-end pe-4">ACTIONS</th>
                 </tr>
-              ) : (
-                filteredPayments.map((pay) => (
-                  <tr key={pay.id}>
-                    <td className="fw-bold text-dark">{pay.customerName}</td>
-                    <td className="text-secondary small">{pay.loanName}</td>
-                    <td className={`fw-semibold small ${
-                      pay.status === 'Paid' ? 'text-success' :
-                      pay.status === 'Overdue' ? 'text-danger' : 'text-warning'
-                    }`}>
-                      {formatIndianDate(pay.dueDate)}
-                    </td>
-                    <td className="text-muted small">{pay.paidDate ? formatIndianDate(pay.paidDate) : '-'}</td>
-
-                    <td className="fw-bold text-success">₹{Number(pay.amount).toLocaleString('en-IN')}</td>
-                    <td className="text-danger small">{pay.lateFee ? `+₹${pay.lateFee}` : '-'}</td>
-                    <td>
-                      <span className="badge bg-light text-dark border px-2.5 py-1">{pay.paymentMethod || 'UPI'}</span>
-                    </td>
-                    <td className="text-center">
-                      <span className={`badge rounded-pill px-3 py-1.5 ${
-                        pay.status === 'Paid' ? 'bg-success bg-opacity-10 text-success' :
-                        pay.status === 'Overdue' ? 'bg-danger bg-opacity-10 text-danger' :
-                        pay.status === 'Upcoming' ? 'bg-warning bg-opacity-10 text-dark' :
-                        'bg-secondary bg-opacity-10 text-secondary'
-                      }`}>
-                        {pay.status}
-                      </span>
-                    </td>
-                    <td className="text-end">
-                      <div className="d-flex justify-content-end gap-1.5">
-                        {pay.status !== 'Paid' && (
-                          <button
-                            className="btn btn-sm btn-success rounded-pill px-3 py-1 fw-bold shadow-2xs"
-                            onClick={() => openMarkPaidModal(pay)}
-                          >
-                            Mark Paid
-                          </button>
-                        )}
-                        <button
-                          className="btn btn-sm btn-light text-danger rounded-circle p-1.5 border"
-                          title="Delete Payment Record"
-                          onClick={() => setDeleteConfirmId(pay.id)}
-                        >
-                          <MdDelete size={16} />
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {filteredPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="text-center py-5 text-muted">
+                      <MdHourglassEmpty size={40} className="mb-2 opacity-50" />
+                      <p className="mb-0 fw-semibold">No EMI payment records found matching your filters.</p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                ) : (
+                  filteredPayments.map((pay) => {
+                    const cust = customers.find((c) => c.id === pay.customerId);
+                    const isPaid = pay.status === 'Paid';
+                    const isOverdue = pay.status === 'Overdue' || (!isPaid && pay.dueDate && pay.dueDate < todayStr);
 
-      {/* Mark Paid Modal */}
+                    return (
+                      <tr key={pay.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td className="ps-4">
+                          <div className="fw-bold font-monospace text-dark" style={{ fontSize: '0.85rem' }}>{pay.id}</div>
+                          <small className="text-muted">{isPaid && pay.paidDate ? `Paid: ${formatIndianDate(pay.paidDate)}` : 'Pending settlement'}</small>
+                        </td>
+
+                        <td>
+                          <div className="fw-bold text-dark">{pay.customerName || '—'}</div>
+                          {cust?.phone && (
+                            <small className="text-muted d-flex align-items-center gap-1 font-monospace">
+                              <MdPhone size={12} /> {cust.phone}
+                            </small>
+                          )}
+                        </td>
+
+                        <td>
+                          <span className="badge bg-light text-dark border px-2 py-1 rounded-2 fw-semibold">
+                            {pay.loanName || 'Loan Account'}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className={`fw-semibold ${isOverdue ? 'text-danger' : 'text-dark'}`}>
+                            {formatIndianDate(pay.dueDate)}
+                          </div>
+                          {isOverdue && <small className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style={{ fontSize: '0.65rem' }}>Overdue</small>}
+                        </td>
+
+                        <td>
+                          <div className="fw-bold text-dark fs-6">{fmtAmt(pay.amount)}</div>
+                          <small className="text-muted">{pay.notes || 'Installment'}</small>
+                        </td>
+
+                        <td>
+                          <span className="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1 rounded-pill fw-semibold">
+                            {pay.paymentMethod || 'UPI'}
+                          </span>
+                        </td>
+
+                        <td>
+                          {isPaid ? (
+                            <span className="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-pill fw-bold">
+                              ✓ Paid
+                            </span>
+                          ) : isOverdue ? (
+                            <span className="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-25 px-2.5 py-1 rounded-pill fw-bold">
+                              🚨 Overdue
+                            </span>
+                          ) : (
+                            <span className="badge bg-warning bg-opacity-15 text-dark border border-warning border-opacity-30 px-2.5 py-1 rounded-pill fw-bold">
+                              ⏰ Upcoming
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="text-end pe-4">
+                          <div className="d-flex align-items-center justify-content-end gap-1.5">
+                            {!isPaid && (
+                              <button
+                                type="button"
+                                className="btn btn-success btn-sm rounded-3 fw-bold px-2.5 py-1.5 shadow-2xs d-flex align-items-center gap-1"
+                                onClick={() => openMarkPaidModal(pay)}
+                                title="Mark as Paid"
+                              >
+                                <MdCheck size={16} /> Paid
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary btn-sm rounded-3 px-2 py-1.5 fw-bold d-flex align-items-center gap-1"
+                              onClick={() => setCommModal({
+                                open: true,
+                                customerId: pay.customerId,
+                                loanId: pay.loanId,
+                                templateKey: isOverdue ? 'overdue_reminder' : isPaid ? 'payment_received' : 'monthly_reminder'
+                              })}
+                              title="Send WhatsApp / Gmail Statement & Reminder"
+                            >
+                              <MdSend size={14} /> Send
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger btn-sm rounded-3 px-2 py-1.5"
+                              onClick={() => setDeleteConfirmId(pay.id)}
+                              title="Delete Record"
+                            >
+                              <MdDelete size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* CARD GRID VIEW */
+        <div className="row g-3 mb-4">
+          {filteredPayments.length === 0 ? (
+            <div className="col-12 text-center py-5 bg-white rounded-4 shadow-sm border text-muted">
+              <MdHourglassEmpty size={44} className="mb-2 opacity-50" />
+              <h6 className="fw-bold text-dark">No Payment Records Found</h6>
+              <p className="small mb-0">Try changing your search term or filter options.</p>
+            </div>
+          ) : (
+            filteredPayments.map((pay) => {
+              const cust = customers.find((c) => c.id === pay.customerId);
+              const isPaid = pay.status === 'Paid';
+              const isOverdue = pay.status === 'Overdue' || (!isPaid && pay.dueDate && pay.dueDate < todayStr);
+
+              return (
+                <div key={pay.id} className="col-12 col-md-6 col-lg-4">
+                  <div className="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white d-flex flex-column justify-content-between transition-all hover-lift">
+                    <div>
+                      <div className="d-flex align-items-center justify-content-between mb-2">
+                        <span className="font-monospace text-muted small fw-bold">{pay.id}</span>
+                        {isPaid ? (
+                          <span className="badge bg-success text-white rounded-pill px-2.5 py-1 fw-bold">✓ Paid</span>
+                        ) : isOverdue ? (
+                          <span className="badge bg-danger text-white rounded-pill px-2.5 py-1 fw-bold">🚨 Overdue</span>
+                        ) : (
+                          <span className="badge bg-warning text-dark rounded-pill px-2.5 py-1 fw-bold">⏰ Upcoming</span>
+                        )}
+                      </div>
+
+                      <h6 className="fw-bold text-dark mb-1">{pay.customerName || 'Borrower'}</h6>
+                      <div className="small text-muted mb-2">{pay.loanName}</div>
+
+                      <div className="p-2.5 bg-light rounded-3 border mb-3">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted small">Installment Amount</span>
+                          <span className="fw-bold text-dark fs-6">{fmtAmt(pay.amount)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center mt-1">
+                          <span className="text-muted small">Due Date</span>
+                          <span className={`fw-bold small ${isOverdue ? 'text-danger' : 'text-dark'}`}>{formatIndianDate(pay.dueDate)}</span>
+                        </div>
+                        {isPaid && pay.paidDate && (
+                          <div className="d-flex justify-content-between align-items-center mt-1">
+                            <span className="text-muted small">Paid On</span>
+                            <span className="fw-semibold text-success small">{formatIndianDate(pay.paidDate)} ({pay.paymentMethod || 'UPI'})</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="d-flex gap-2 pt-2 border-top">
+                      {!isPaid && (
+                        <button
+                          type="button"
+                          className="btn btn-success btn-sm rounded-3 flex-grow-1 fw-bold py-2 d-flex align-items-center justify-content-center gap-1 shadow-2xs"
+                          onClick={() => openMarkPaidModal(pay)}
+                        >
+                          <MdCheck size={16} /> Mark Paid
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary btn-sm rounded-3 flex-grow-1 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
+                        onClick={() => setCommModal({
+                          open: true,
+                          customerId: pay.customerId,
+                          loanId: pay.loanId,
+                          templateKey: isOverdue ? 'overdue_reminder' : isPaid ? 'payment_received' : 'monthly_reminder'
+                        })}
+                      >
+                        <MdSend size={14} /> Send
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger btn-sm rounded-3 px-2.5 py-2"
+                        onClick={() => setDeleteConfirmId(pay.id)}
+                        title="Delete Record"
+                      >
+                        <MdDelete size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ── Mark Paid / Advance Payment Modal ── */}
       {markingPayment && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', zIndex: 1070 }} tabIndex="-1">
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)', zIndex: 1070 }} tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
               <div className="modal-header border-0 bg-light py-3 px-4">
@@ -321,31 +484,101 @@ const EmiPayments = () => {
               <form onSubmit={handleConfirmPaid}>
                 <div className="modal-body p-4">
                   <div className="p-3 bg-light rounded-3 border mb-3">
-                    <div className="fw-bold text-dark">{markingPayment.customerName}</div>
-                    <div className="small text-muted">{markingPayment.loanName} • Due: {markingPayment.dueDate}</div>
-                    <div className="mt-2 fw-bold text-success fs-5">₹{Number(markingPayment.amount).toLocaleString('en-IN')}</div>
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div className="fw-bold text-dark fs-6">{markingPayment.customerName}</div>
+                        <div className="small text-muted">{markingPayment.loanName} • Due: {formatIndianDate(markingPayment.dueDate)}</div>
+                      </div>
+                      <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 font-monospace">
+                        {paidDetails.paymentType === 'Advance' ? '⚡ Advance Mode' : 'Regular EMI'}
+                      </span>
+                    </div>
+                    <div className="mt-2 fw-bold text-success fs-4">{fmtAmt(paidDetails.amount || markingPayment.amount)}</div>
                   </div>
+
+                  {/* Payment Type Selection (Regular vs Advance) */}
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold text-muted d-block mb-1.5">Collection Type</label>
+                    <div className="btn-group w-100 bg-light p-1 rounded-3 border">
+                      <button
+                        type="button"
+                        className={`btn btn-sm rounded-2 fw-bold py-1.5 ${paidDetails.paymentType === 'Regular' ? 'btn-primary shadow-sm' : 'btn-light text-muted'}`}
+                        onClick={() => {
+                          setPaidDetails({
+                            ...paidDetails,
+                            paymentType: 'Regular',
+                            amount: markingPayment.amount,
+                            paymentMethod: paidDetails.paymentMethod === 'Advance Payment' ? 'UPI' : paidDetails.paymentMethod,
+                            nextDueDate: addMonthsToDate(markingPayment.dueDate || getLocalDateString(), 1),
+                            notes: 'Installment due settlement',
+                          });
+                        }}
+                      >
+                        💳 Regular EMI
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm rounded-2 fw-bold py-1.5 ${paidDetails.paymentType === 'Advance' ? 'btn-warning text-dark shadow-sm' : 'btn-light text-muted'}`}
+                        onClick={() => {
+                          const advMo = 1;
+                          setPaidDetails({
+                            ...paidDetails,
+                            paymentType: 'Advance',
+                            advanceMonths: advMo,
+                            amount: Number(markingPayment.amount) * advMo,
+                            paymentMethod: 'Advance Payment',
+                            nextDueDate: addMonthsToDate(markingPayment.dueDate || getLocalDateString(), advMo + 1),
+                            notes: `Advance EMI payment for ${advMo} month(s)`,
+                          });
+                        }}
+                      >
+                        ⚡ Advance Payment
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Advance Payment Quick Multiplier Presets */}
+                  {paidDetails.paymentType === 'Advance' && (
+                    <div className="p-2.5 bg-warning bg-opacity-10 border border-warning border-opacity-30 rounded-3 mb-3">
+                      <div className="d-flex justify-content-between align-items-center mb-1.5">
+                        <small className="fw-bold text-dark">⚡ Advance Period Selector:</small>
+                        <small className="text-muted font-monospace">{paidDetails.advanceMonths} Month(s) Advance</small>
+                      </div>
+                      <div className="d-flex gap-1.5 flex-wrap">
+                        {[1, 2, 3, 6].map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            className={`btn btn-xs btn-sm rounded-2 fw-bold px-2.5 py-1 ${
+                              paidDetails.advanceMonths === m ? 'btn-warning text-dark shadow-2xs' : 'btn-white bg-white border text-dark'
+                            }`}
+                            onClick={() => {
+                              setPaidDetails({
+                                ...paidDetails,
+                                advanceMonths: m,
+                                amount: Number(markingPayment.amount) * m,
+                                nextDueDate: addMonthsToDate(markingPayment.dueDate || getLocalDateString(), m + 1),
+                                notes: `Advance EMI payment (${m} Months Advance)`,
+                              });
+                            }}
+                          >
+                            +{m} Mo ({fmtAmt(Number(markingPayment.amount) * m)})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="row g-3 mb-3">
                     <div className="col-6">
                       <label className="form-label small fw-semibold text-muted">Payment Date *</label>
-                      <div className="input-group">
-                        <input
-                          type="date"
-                          className="form-control"
-                          value={paidDetails.paidDate}
-                          onChange={(e) => setPaidDetails({ ...paidDetails, paidDate: e.target.value })}
-                          required
-                        />
-                        <button 
-                          type="button" 
-                          className="btn btn-outline-secondary btn-sm fw-bold"
-                          title="Advance 1 Month"
-                          onClick={() => setPaidDetails({ ...paidDetails, paidDate: addMonthsToDate(paidDetails.paidDate || getLocalDateString(), 1) })}
-                        >
-                          <MdFastForward size={16} />
-                        </button>
-                      </div>
+                      <input
+                        type="date"
+                        className="form-control fw-bold"
+                        value={paidDetails.paidDate}
+                        onChange={(e) => setPaidDetails({ ...paidDetails, paidDate: e.target.value })}
+                        required
+                      />
                     </div>
 
                     <div className="col-6">
@@ -358,6 +591,7 @@ const EmiPayments = () => {
                         <option value="UPI">UPI / PhonePe</option>
                         <option value="Net Banking">Net Banking</option>
                         <option value="Cash">Cash</option>
+                        <option value="Advance Payment">⚡ Advance Payment</option>
                         <option value="Card">Debit / Credit Card</option>
                         <option value="Cheque">Cheque</option>
                       </select>
@@ -365,44 +599,21 @@ const EmiPayments = () => {
                   </div>
 
                   <div className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-1">
-                      <label className="form-label small fw-semibold text-muted mb-0">Continue Next Month EMI Due Date *</label>
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm p-0 text-decoration-none fw-bold text-primary small d-flex align-items-center gap-1"
-                        onClick={() => setPaidDetails({ ...paidDetails, nextDueDate: addMonthsToDate(paidDetails.nextDueDate || getLocalDateString(), 1) })}
-                        title="Auto Advance Next Month (+1 Month)"
-                      >
-                        <MdFastForward size={14} /> +1 Month
-                      </button>
-                    </div>
-                    <div className="input-group">
-                      <input
-                        type="date"
-                        className="form-control fw-bold"
-                        value={paidDetails.nextDueDate}
-                        onChange={(e) => setPaidDetails({ ...paidDetails, nextDueDate: e.target.value })}
-                        required
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-outline-primary fw-bold text-nowrap d-flex align-items-center gap-1"
-                        title="Advance Next Month EMI (+1 Month)"
-                        onClick={() => setPaidDetails({ ...paidDetails, nextDueDate: addMonthsToDate(paidDetails.nextDueDate || getLocalDateString(), 1) })}
-                      >
-                        <MdFastForward size={16} /> +1 Mo
-                      </button>
-                    </div>
-                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.68rem' }}>Next month's EMI schedule will auto-continue on this date</small>
+                    <label className="form-label small fw-semibold text-muted">Next Due Date *</label>
+                    <input
+                      type="date"
+                      className="form-control fw-bold"
+                      value={paidDetails.nextDueDate}
+                      onChange={(e) => setPaidDetails({ ...paidDetails, nextDueDate: e.target.value })}
+                      required
+                    />
                   </div>
 
-
                   <div className="mb-2">
-                    <label className="form-label small fw-semibold text-muted">Payment Notes / Reference</label>
+                    <label className="form-label small fw-semibold text-muted">Notes</label>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Transaction reference, bank UTR, or Cheque No."
                       value={paidDetails.notes}
                       onChange={(e) => setPaidDetails({ ...paidDetails, notes: e.target.value })}
                     />
@@ -421,9 +632,20 @@ const EmiPayments = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* ── Send Statement / Communication Modal ── */}
+      {commModal.open && (
+        <SendStatementModal
+          isOpen={commModal.open}
+          onClose={() => setCommModal({ open: false, customerId: null, loanId: null, templateKey: 'monthly_reminder' })}
+          initialCustomerId={commModal.customerId}
+          initialLoanId={commModal.loanId}
+          initialTemplateKey={commModal.templateKey}
+        />
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
       {deleteConfirmId && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', zIndex: 1080 }} tabIndex="-1">
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)', zIndex: 1080 }} tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered modal-sm">
             <div className="modal-content border-0 shadow-lg rounded-4 p-4 text-center">
               <div className="text-danger mb-2">
@@ -439,6 +661,7 @@ const EmiPayments = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

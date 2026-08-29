@@ -1,5 +1,5 @@
 import { getLocalDateString, addMonthsToDate } from './dateUtils';
-import { googleSheetsSync } from './googleSheetsSync';
+
 
 const KEYS = {
   CUSTOMERS: 'emi_customers_data',
@@ -7,6 +7,8 @@ const KEYS = {
   PAYMENTS: 'emi_payments_data',
   REMINDERS: 'emi_reminders_data',
   SETTINGS: 'emi_settings_data',
+  COMMUNICATIONS: 'emi_communications_data',
+  COMM_TEMPLATES: 'emi_comm_templates_data',
 };
 
 // Initial Sample Seed Data
@@ -78,7 +80,6 @@ const defaultLoans = [
     startDate: '2025-01-15',
     tenureMonths: 240,
     dueDate: '2026-09-05',
-    lateFee: 500,
     status: 'Active',
     notes: 'Primary residence home loan disbursed via SBI Bank.',
   },
@@ -94,7 +95,6 @@ const defaultLoans = [
     startDate: '2025-02-10',
     tenureMonths: 60,
     dueDate: '2026-08-29', // Due today
-    lateFee: 250,
     status: 'Active',
     notes: 'Vehicle loan hypothecated to HDFC Bank.',
   },
@@ -110,7 +110,6 @@ const defaultLoans = [
     startDate: '2025-03-01',
     tenureMonths: 36,
     dueDate: '2026-08-15', // Overdue
-    lateFee: 350,
     status: 'Active',
     notes: 'Unsecured personal loan for office interior setup.',
   },
@@ -126,7 +125,6 @@ const defaultLoans = [
     startDate: '2025-03-10',
     tenureMonths: 60,
     dueDate: '2026-09-10',
-    lateFee: 200,
     status: 'Active',
     notes: 'Education loan for Master of Architecture degree.',
   },
@@ -142,7 +140,6 @@ const defaultLoans = [
     startDate: '2025-04-01',
     tenureMonths: 12,
     dueDate: '2026-09-01',
-    lateFee: 300,
     status: 'Active',
     notes: 'Equated monthly installment converted from credit card balance.',
   },
@@ -158,7 +155,6 @@ const defaultPayments = [
     amount: 39045,
     paidDate: '2026-07-05',
     dueDate: '2026-07-05',
-    lateFee: 0,
     paymentMethod: 'Net Banking',
     notes: 'Auto-debit processed successfully',
     status: 'Paid',
@@ -172,7 +168,6 @@ const defaultPayments = [
     amount: 39045,
     paidDate: '2026-08-05',
     dueDate: '2026-08-05',
-    lateFee: 0,
     paymentMethod: 'UPI',
     notes: 'Paid via PhonePe',
     status: 'Paid',
@@ -186,7 +181,6 @@ const defaultPayments = [
     amount: 25040,
     paidDate: '2026-07-28',
     dueDate: '2026-07-28',
-    lateFee: 0,
     paymentMethod: 'Net Banking',
     notes: 'Paid on time',
     status: 'Paid',
@@ -200,7 +194,6 @@ const defaultPayments = [
     amount: 25040,
     paidDate: '',
     dueDate: '2026-08-29',
-    lateFee: 0,
     paymentMethod: 'UPI',
     notes: 'Installment due today',
     status: 'Upcoming',
@@ -214,7 +207,6 @@ const defaultPayments = [
     amount: 16960,
     paidDate: '',
     dueDate: '2026-08-15',
-    lateFee: 350,
     paymentMethod: 'Cash',
     notes: 'Overdue penalty applied',
     status: 'Overdue',
@@ -228,7 +220,6 @@ const defaultPayments = [
     amount: 16180,
     paidDate: '2026-08-10',
     dueDate: '2026-08-10',
-    lateFee: 0,
     paymentMethod: 'Cheque',
     notes: 'Cheque #40912 cleared',
     status: 'Paid',
@@ -242,7 +233,6 @@ const defaultPayments = [
     amount: 22400,
     paidDate: '',
     dueDate: '2026-09-01',
-    lateFee: 0,
     paymentMethod: 'Card',
     notes: 'Scheduled upcoming EMI',
     status: 'Upcoming',
@@ -270,6 +260,82 @@ const defaultReminders = [
   },
 ];
 
+const defaultCommunicationTemplates = {
+  monthly_reminder: {
+    id: 'monthly_reminder',
+    name: 'Monthly EMI Reminder',
+    subject: 'EMI Reminder for {loanName} - Due on {dueDate}',
+    body: 'Dear {customerName},\n\nThis is a friendly reminder that your monthly EMI of {amount} for {loanName} is scheduled on {dueDate}.\n\nPlease ensure sufficient balance in your account.\n\nThank you,\n{companyName}',
+  },
+  due_today: {
+    id: 'due_today',
+    name: 'EMI Due Today',
+    subject: 'URGENT: EMI Due Today - {loanName}',
+    body: 'Dear {customerName},\n\nYour EMI payment of {amount} for {loanName} is DUE TODAY ({dueDate}).\n\nKindly make the payment via UPI or Net Banking to avoid any late marks.\n\nThank you,\n{companyName}',
+  },
+  upcoming_reminder: {
+    id: 'upcoming_reminder',
+    name: 'Upcoming EMI Reminder',
+    subject: 'Upcoming EMI Alert: {loanName}',
+    body: 'Dear {customerName},\n\nYour upcoming EMI of {amount} for {loanName} is due on {dueDate}.\n\nAccount Summary:\n- EMI Amount: {amount}\n- Due Date: {dueDate}\n\nWarm regards,\n{companyName}',
+  },
+  overdue_reminder: {
+    id: 'overdue_reminder',
+    name: 'Overdue EMI Alert',
+    subject: 'OVERDUE NOTICE: Immediate Payment Required for {loanName}',
+    body: 'Dear {customerName},\n\nYour EMI installment of {amount} for {loanName} is OVERDUE (Due Date was {dueDate}).\n\nPlease clear the overdue balance immediately.\n\nContact us if you need any assistance.\n{companyName}',
+  },
+  payment_received: {
+    id: 'payment_received',
+    name: 'Payment Received Confirmation',
+    subject: 'Payment Confirmation: Received {amount} for {loanName}',
+    body: 'Dear {customerName},\n\nWe have successfully received your EMI payment of {amount} for {loanName} on {paidDate}.\n\nYour updated remaining balance is {balance}.\n\nThank you for paying on time!\n{companyName}',
+  },
+  loan_statement: {
+    id: 'loan_statement',
+    name: 'Loan Account Statement',
+    subject: 'Account Statement for {loanName} - {customerName}',
+    body: 'Dear {customerName},\n\nPlease find attached the official Loan Account Statement for your loan {loanName}.\n\nLoan Summary:\n- Principal: {principal}\n- Total Paid: {paidAmount}\n- Outstanding Balance: {balance}\n\nFor any queries, please reach out to us.\n\nBest regards,\n{companyName}',
+  },
+  loan_closure: {
+    id: 'loan_closure',
+    name: 'Loan Closure Confirmation',
+    subject: 'Congratulations! Loan {loanName} Fully Repaid & Closed',
+    body: 'Dear {customerName},\n\nCongratulations! We are pleased to confirm that your loan {loanName} has been fully repaid and marked as CLOSED.\n\nThank you for banking with us!\n{companyName}',
+  },
+};
+
+const defaultCommunications = [
+  {
+    id: 'COMM-1001',
+    customerId: 'CUST-1001',
+    customerName: 'Rajesh Sharma',
+    channel: 'WhatsApp',
+    type: 'monthly_reminder',
+    typeName: 'Monthly EMI Reminder',
+    recipient: '+91 98765 43210',
+    subject: 'EMI Reminder for Jaipur Dream Villa Home Loan',
+    message: 'Dear Rajesh Sharma, this is a friendly reminder that your monthly EMI of ₹39,045 is due on 05 Sep 2026.',
+    status: 'Delivered',
+    sentAt: '2026-08-25T10:30:00.000Z',
+    hasAttachment: true,
+  },
+  {
+    id: 'COMM-1002',
+    customerId: 'CUST-1003',
+    customerName: 'Amit Vikram Singh',
+    channel: 'Gmail',
+    type: 'overdue_reminder',
+    typeName: 'Overdue EMI Alert',
+    recipient: 'amit.singh@example.com',
+    subject: 'OVERDUE NOTICE: Immediate Payment Required for Business Expansion Personal Loan',
+    message: 'Dear Amit Vikram Singh, your EMI installment of ₹16,960 is OVERDUE.',
+    status: 'Sent',
+    sentAt: '2026-08-28T14:15:00.000Z',
+    hasAttachment: true,
+  },
+];
+
 const defaultSettings = {
   companyName: 'RC Accountant Services Ltd.',
   companyTagline: 'Smart Financial & EMI Asset Management',
@@ -279,8 +345,15 @@ const defaultSettings = {
   address: 'Suite 405, Financial Tower, Cyber City, Gurugram, Haryana - 122002',
   gstNumber: '07AAAAA0000A1Z5',
   currencySymbol: '₹',
-  defaultLateFee: 350,
   autoSendReminders: true,
+  whatsappSenderName: 'RC Accountant Accounts',
+  emailSenderName: 'RC Accountant Billing',
+  reminderDaysBefore: '3',
+  quietHoursStart: '21:00',
+  quietHoursEnd: '09:00',
+  enableEmailReminders: true,
+  enableWhatsappReminders: true,
+  enableSmsReminders: false,
 };
 
 
@@ -302,6 +375,12 @@ export const loanStore = {
     }
     if (!localStorage.getItem(KEYS.SETTINGS)) {
       localStorage.setItem(KEYS.SETTINGS, JSON.stringify(defaultSettings));
+    }
+    if (!localStorage.getItem(KEYS.COMMUNICATIONS)) {
+      localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify(defaultCommunications));
+    }
+    if (!localStorage.getItem(KEYS.COMM_TEMPLATES)) {
+      localStorage.setItem(KEYS.COMM_TEMPLATES, JSON.stringify(defaultCommunicationTemplates));
     }
   },
 
@@ -428,7 +507,6 @@ export const loanStore = {
         amount: Number(loanData.emiAmount),
         paidDate: '',
         dueDate: loanData.dueDate || addMonthsToDate(loanData.startDate, 1),
-        lateFee: 0,
         paymentMethod: 'UPI',
         notes: 'Initial scheduled EMI',
         status: 'Upcoming',
@@ -493,9 +571,9 @@ export const loanStore = {
         return {
           ...p,
           status: 'Paid',
+          amount: Number(details.amount !== undefined ? details.amount : p.amount),
           paidDate: details.paidDate || today,
           paymentMethod: details.paymentMethod || p.paymentMethod || 'UPI',
-          lateFee: details.lateFee !== undefined ? Number(details.lateFee) : p.lateFee || 0,
           notes: details.notes || p.notes || 'Marked as paid',
         };
       }
@@ -531,7 +609,6 @@ export const loanStore = {
           amount: loan.emiAmount,
           paidDate: '',
           dueDate: nextDueDate,
-          lateFee: 0,
           paymentMethod: 'UPI',
           notes: 'Auto scheduled next installment',
           status: 'Upcoming',
@@ -604,6 +681,59 @@ export const loanStore = {
     return updated;
   },
 
+  // 6. Communications & Templates
+  getCommunications(customerId = null) {
+    this.init();
+    try {
+      const all = JSON.parse(localStorage.getItem(KEYS.COMMUNICATIONS)) || [];
+      if (customerId) {
+        return all.filter((c) => c.customerId === customerId);
+      }
+      return all;
+    } catch {
+      return defaultCommunications;
+    }
+  },
+
+  addCommunication(comm) {
+    this.init();
+    const list = this.getCommunications();
+    const newRecord = {
+      id: `COMM-${Date.now()}`,
+      sentAt: new Date().toISOString(),
+      status: comm.status || 'Sent',
+      hasAttachment: !!comm.hasAttachment,
+      ...comm,
+    };
+    const updated = [newRecord, ...list];
+    localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify(updated));
+    this.notify();
+    return newRecord;
+  },
+
+  deleteCommunication(commId) {
+    this.init();
+    const list = this.getCommunications().filter((c) => c.id !== commId);
+    localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify(list));
+    this.notify();
+  },
+
+  getCommunicationTemplates() {
+    this.init();
+    try {
+      return JSON.parse(localStorage.getItem(KEYS.COMM_TEMPLATES)) || defaultCommunicationTemplates;
+    } catch {
+      return defaultCommunicationTemplates;
+    }
+  },
+
+  saveCommunicationTemplates(templates) {
+    this.init();
+    localStorage.setItem(KEYS.COMM_TEMPLATES, JSON.stringify(templates));
+    this.notify();
+    return templates;
+  },
+
   // Export / Import / Reset Data
   exportBackup() {
     this.init();
@@ -613,6 +743,8 @@ export const loanStore = {
       payments: this.getPayments(),
       reminders: this.getReminders(),
       settings: this.getSettings(),
+      communications: this.getCommunications(),
+      templates: this.getCommunicationTemplates(),
       exportedAt: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -632,6 +764,8 @@ export const loanStore = {
       if (parsed.payments) localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(parsed.payments));
       if (parsed.reminders) localStorage.setItem(KEYS.REMINDERS, JSON.stringify(parsed.reminders));
       if (parsed.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(parsed.settings));
+      if (parsed.communications) localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify(parsed.communications));
+      if (parsed.templates) localStorage.setItem(KEYS.COMM_TEMPLATES, JSON.stringify(parsed.templates));
       this.notify();
       return true;
     } catch (e) {
@@ -646,6 +780,8 @@ export const loanStore = {
     localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(defaultPayments));
     localStorage.setItem(KEYS.REMINDERS, JSON.stringify(defaultReminders));
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(defaultSettings));
+    localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify(defaultCommunications));
+    localStorage.setItem(KEYS.COMM_TEMPLATES, JSON.stringify(defaultCommunicationTemplates));
     this.notify();
   },
 

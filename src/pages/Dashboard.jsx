@@ -57,7 +57,7 @@ const Dashboard = () => {
 
   // Overdue EMI Amount
   const overduePayments = payments.filter(p => p.status === 'Overdue' || (p.status !== 'Paid' && p.dueDate && p.dueDate < todayStr));
-  const overdueEmiAmount = overduePayments.reduce((s, p) => s + Number(p.amount || 0) + Number(p.lateFee || 0), 0);
+  const overdueEmiAmount = overduePayments.reduce((s, p) => s + Number(p.amount || 0), 0);
 
   // Upcoming EMI Due Today
   const dueTodayPayments = payments.filter(p => p.dueDate === todayStr && p.status !== 'Paid');
@@ -79,8 +79,12 @@ const Dashboard = () => {
     alert('✓ Marked EMI as PAID successfully!');
   };
 
-  const handleSendReminder = (customerName, amount) => {
-    alert(`📱 WhatsApp / SMS Reminder Sent to ${customerName} for pending amount ₹${Number(amount).toLocaleString('en-IN')}`);
+  const handleSendReminder = (customerName, amount, phone, dueDate, loanName) => {
+    const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+    const formattedPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+    const message = `Namaskar ${customerName} ji,\n\nAapka EMI *${loanName}* ki EMI ka bhugtan abhi baki hai.\n\n📅 Due Date: ${dueDate || 'N/A'}\n💰 Payable Amount: ₹${Number(amount).toLocaleString('en-IN')}\n\nKripya jald se jald bhugtan karein. Dhanyavaad! 🙏\n\n- RC Accountant`;
+    const waUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
   };
 
   // Loan Balance by Loan Type Data
@@ -398,14 +402,22 @@ const Dashboard = () => {
                     <div>
                       <div className="fw-bold text-dark small">{pay.customerName}</div>
                       <small className="text-muted d-block">{pay.loanName} • Due: <span className="text-danger fw-bold">{formatIndianDate(pay.dueDate)}</span></small>
-                      <small className="text-danger fw-bold">Overdue Amount: ₹{Number(pay.amount).toLocaleString('en-IN')} (+₹{pay.lateFee || 0} Late Fee)</small>
+                      <small className="text-danger fw-bold">Overdue Amount: ₹{Number(pay.amount).toLocaleString('en-IN')}</small>
                     </div>
 
                     <button 
-                      className="btn btn-danger btn-sm rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1 shadow-sm"
-                      onClick={() => handleSendReminder(pay.customerName, pay.amount)}
+                      className="btn btn-success btn-sm rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1 shadow-sm"
+                      style={{ backgroundColor: '#25D366', borderColor: '#25D366' }}
+                      onClick={() => {
+                        const cust = customers.find(c => c.id === pay.customerId);
+                        handleSendReminder(pay.customerName, pay.amount, cust?.phone, formatIndianDate(pay.dueDate), pay.loanName);
+                      }}
                     >
-                      <MdSend size={14} /> Send Reminder
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style={{marginRight: '2px'}}>
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.856L.054 23.447a.5.5 0 0 0 .492.553.5.5 0 0 0 .151-.024l5.805-1.938A11.938 11.938 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.97 0-3.81-.572-5.362-1.558l-.383-.24-3.985 1.33 1.222-3.874-.265-.399A9.937 9.937 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                      </svg>
+                      WhatsApp Bhejo
                     </button>
                   </div>
                 ))}

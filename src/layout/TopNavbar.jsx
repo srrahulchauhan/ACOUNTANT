@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MdMenu, MdSearch, MdDownload, MdPerson, MdSecurity, MdLogout, MdDarkMode, MdLightMode, MdSync } from 'react-icons/md';
+import { MdMenu, MdSearch, MdDownload, MdPerson, MdLogout } from 'react-icons/md';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationBell from '../components/NotificationBell';
 import { useAuth } from '../context/AuthContext';
 import { loanStore } from '../utils/loanStore';
-import { googleSheetsSync } from '../utils/googleSheetsSync';
 import logo from '../assets/logo.png';
 
 const routeTitles = {
@@ -27,56 +26,6 @@ const TopNavbar = ({ toggleSidebar }) => {
   const location = useLocation();
 
   const currentTitle = routeTitles[location.pathname] || 'RC Accountant Dashboard';
-
-  // Google Sheet Sync States
-  const [syncStatus, setSyncStatus] = useState(googleSheetsSync.getSyncStatus());
-  const [lastSyncTime, setLastSyncTime] = useState(googleSheetsSync.getLastSyncTime());
-  const [isSyncingManual, setIsSyncingManual] = useState(false);
-
-  useEffect(() => {
-    const handleSyncChange = (e) => setSyncStatus(e.detail || 'synced');
-    const handleTimeChange = (e) => setLastSyncTime(e.detail || googleSheetsSync.getLastSyncTime());
-    
-    window.addEventListener('googleSyncStatusChanged', handleSyncChange);
-    window.addEventListener('googleSyncTimeChanged', handleTimeChange);
-
-    return () => {
-      window.removeEventListener('googleSyncStatusChanged', handleSyncChange);
-      window.removeEventListener('googleSyncTimeChanged', handleTimeChange);
-    };
-  }, []);
-
-
-  const handleManualSyncNow = async () => {
-    setIsSyncingManual(true);
-    googleSheetsSync.setSyncStatus('syncing');
-
-    // Trigger full sync
-    const res = await googleSheetsSync.fetchFullSheetData();
-    setIsSyncingManual(false);
-
-    if (res.success && res.data) {
-      if (res.data.customers) loanStore.saveCustomers(res.data.customers);
-      if (res.data.loans) loanStore.saveLoans(res.data.loans);
-      if (res.data.payments) loanStore.savePayments(res.data.payments);
-      alert('✓ Google Sheet Synced successfully!');
-    } else {
-      googleSheetsSync.setSyncStatus('synced');
-      alert('✓ Synced with Cloud Database Google Sheet.');
-    }
-  };
-
-  // Theme State (light/dark)
-  const [theme, setTheme] = useState(localStorage.getItem('app_theme') || 'light');
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('app_theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
 
   // Smart Search States
   const [searchQuery, setSearchQuery] = useState('');
@@ -167,7 +116,7 @@ const TopNavbar = ({ toggleSidebar }) => {
               <span>RC Accountant</span>
               <span className="text-muted fw-normal d-none d-sm-inline" style={{ fontSize: '0.85rem' }}>| {currentTitle}</span>
             </h5>
-            <small className="text-muted d-none d-sm-block" style={{ fontSize: '0.7rem' }}>Financial & EMI Control Center</small>
+            <small className="text-muted d-none d-sm-block" style={{ fontSize: '0.7rem' }}>Financial &amp; EMI Control Center</small>
           </div>
         </div>
 
@@ -219,44 +168,8 @@ const TopNavbar = ({ toggleSidebar }) => {
         )}
       </div>
 
-      {/* Right: Controls, Google Sheet Sync Status, Notification Bell, User Profile */}
+      {/* Right: Controls, Notification Bell, User Profile */}
       <div className="d-flex align-items-center gap-2">
-
-        {/* Google Sheet Sync Status Indicator Pill */}
-        <div 
-          className={`d-none d-md-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill border ${
-            syncStatus === 'synced' ? 'bg-success bg-opacity-10 border-success border-opacity-20 text-success' :
-            syncStatus === 'syncing' || isSyncingManual ? 'bg-warning bg-opacity-10 border-warning border-opacity-20 text-dark' :
-            'bg-danger bg-opacity-10 border-danger border-opacity-20 text-danger'
-          }`}
-          style={{ fontSize: '0.75rem', fontWeight: 600 }}
-          title={`Google Sheet Sync: ${syncStatus.toUpperCase()} (ID: 1sPsulYHlyYIh1J7SljlhAp5cm29MR0cwHOGSoFVyCMM)`}
-        >
-          <span 
-            className={`rounded-circle ${
-              syncStatus === 'synced' ? 'bg-success pulse-live' :
-              syncStatus === 'syncing' || isSyncingManual ? 'bg-warning' :
-              'bg-danger'
-            }`} 
-            style={{ width: '8px', height: '8px', display: 'inline-block' }}
-          ></span>
-          <span>
-            {syncStatus === 'synced' ? `Synced • Last synced: ${lastSyncTime}` : syncStatus === 'syncing' || isSyncingManual ? 'Syncing...' : 'Sync Failed'}
-          </span>
-        </div>
-
-
-        {/* Sync Now Manual Refresh Button */}
-        <button
-          className="btn btn-light btn-sm rounded-pill px-2.5 py-1 text-primary shadow-2xs border fw-bold d-flex align-items-center gap-1"
-          style={{ fontSize: '0.75rem' }}
-          title="Manual Sync to Google Sheet"
-          onClick={handleManualSyncNow}
-          disabled={isSyncingManual}
-        >
-          <MdSync size={16} className={isSyncingManual ? 'spinner-border spinner-border-sm p-0' : ''} />
-          <span className="d-none d-sm-inline">Sync Now</span>
-        </button>
 
         {/* JSON Backup Button */}
         <button
@@ -266,7 +179,6 @@ const TopNavbar = ({ toggleSidebar }) => {
         >
           <MdDownload size={20} />
         </button>
-
 
         {/* Notification Bell */}
         <NotificationBell payments={payments} />
@@ -301,7 +213,7 @@ const TopNavbar = ({ toggleSidebar }) => {
             </li>
             <li>
               <button className="dropdown-item py-2 d-flex align-items-center gap-2 text-secondary" onClick={() => navigate('/settings')}>
-                <MdPerson size={18} /> Settings & Profile
+                <MdPerson size={18} /> Settings &amp; Profile
               </button>
             </li>
             <li>
@@ -320,6 +232,3 @@ const TopNavbar = ({ toggleSidebar }) => {
 };
 
 export default TopNavbar;
-
-
-

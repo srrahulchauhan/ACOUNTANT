@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MdSearch, MdPersonAdd, MdEdit, MdDelete, MdPhone, MdEmail, 
-  MdHome, MdAccountBalance, MdPayment, MdFileUpload, MdBadge, MdWork
+  MdHome, MdAccountBalance, MdPayment, MdFileUpload, MdBadge, MdWork,
+  MdSend, MdChat, MdHistory
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { formatIndianDate } from '../utils/dateUtils';
+import SendStatementModal from '../components/SendStatementModal';
 
 
 const Customers = () => {
@@ -20,6 +22,7 @@ const Customers = () => {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [commModal, setCommModal] = useState({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -235,12 +238,22 @@ const Customers = () => {
                     </div>
                   </div>
 
-                  <button
-                    className="btn btn-outline-primary btn-sm rounded-3 w-100 fw-bold py-2 mt-auto"
-                    onClick={() => setSelectedProfile({ ...cust, custLoans, totalLoanAmt, outstandingBalance, totalMonthlyEmi })}
-                  >
-                    View Full Profile & Loan History
-                  </button>
+                  <div className="d-flex gap-2 mt-auto">
+                    <button
+                      className="btn btn-outline-success btn-sm rounded-3 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
+                      style={{ flex: '0 0 auto' }}
+                      title="Send Statement via WhatsApp / Gmail"
+                      onClick={() => setCommModal({ open: true, customerId: cust.id, loanId: custLoans[0]?.id || null, templateKey: 'loan_statement' })}
+                    >
+                      <MdSend size={15} /> Send
+                    </button>
+                    <button
+                      className="btn btn-outline-primary btn-sm rounded-3 flex-grow-1 fw-bold py-2"
+                      onClick={() => setSelectedProfile({ ...cust, custLoans, totalLoanAmt, outstandingBalance, totalMonthlyEmi })}
+                    >
+                      View Profile
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -435,12 +448,31 @@ const Customers = () => {
                 </div>
               </div>
 
-              <div className="modal-footer border-0 bg-light py-3 px-4">
+              <div className="modal-footer border-0 bg-light py-3 px-4 d-flex justify-content-between">
+                <button
+                  type="button"
+                  className="btn btn-success rounded-3 px-3 fw-bold d-flex align-items-center gap-1.5"
+                  onClick={() => setCommModal({ open: true, customerId: selectedProfile.id, loanId: selectedProfile.custLoans?.[0]?.id || null, templateKey: 'loan_statement' })}
+                  title="Send Statement via WhatsApp / Gmail"
+                >
+                  <MdSend size={16} /> Send
+                </button>
                 <button type="button" className="btn btn-secondary rounded-3 px-4 fw-semibold" onClick={() => setSelectedProfile(null)}>Close Profile</button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Send Statement / Communication Modal */}
+      {commModal.open && (
+        <SendStatementModal
+          isOpen={commModal.open}
+          onClose={() => setCommModal({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' })}
+          initialCustomerId={commModal.customerId}
+          initialLoanId={commModal.loanId}
+          initialTemplateKey={commModal.templateKey}
+        />
       )}
 
       {/* Delete Confirmation Modal */}

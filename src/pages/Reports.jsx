@@ -57,7 +57,6 @@ const Reports = () => {
   const totalLoanCapital = loans.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
   const totalPaidCollection = payments.filter((p) => p.status === 'Paid').reduce((s, p) => s + Number(p.amount || 0), 0);
   const totalOutstandingBalance = Math.max(0, totalLoanCapital - totalPaidCollection);
-  const totalLateFeeCollection = payments.filter((p) => p.status === 'Paid').reduce((s, p) => s + Number(p.lateFee || 0), 0);
 
   // Interest collection estimation (~75% of EMI interest component)
   const totalInterestCollection = payments
@@ -78,9 +77,9 @@ const Reports = () => {
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = ['Payment ID,Customer Name,Loan Title,Due Date,Paid Date,EMI Amount,Late Fee,Status\n'];
+    const headers = ['Payment ID,Customer Name,Loan Title,Due Date,Paid Date,EMI Amount,Status\n'];
     const rows = filteredPayments.map(
-      (p) => `${p.id},"${p.customerName}","${p.loanName}",${p.dueDate || ''},${p.paidDate || ''},${p.amount},${p.lateFee || 0},${p.status}`
+      (p) => `${p.id},"${p.customerName}","${p.loanName}",${p.dueDate || ''},${p.paidDate || ''},${p.amount},${p.status}`
     );
     const csvContent = 'data:text/csv;charset=utf-8,' + headers.concat(rows).join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -102,7 +101,6 @@ const Reports = () => {
       'Due Date': p.dueDate,
       'Paid Date': p.paidDate || '-',
       'EMI Amount (₹)': Number(p.amount),
-      'Late Fee (₹)': Number(p.lateFee || 0),
       Status: p.status,
     }));
 
@@ -218,20 +216,6 @@ const Reports = () => {
           </div>
         </div>
 
-        <div className="col-12 col-sm-6 col-xl-3">
-          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
-            <div className="d-flex justify-content-between align-items-start">
-              <div>
-                <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.68rem' }}>Late Penalty Collected</small>
-                <h4 className="fw-bold text-danger my-1">₹{totalLateFeeCollection.toLocaleString('en-IN')}</h4>
-                <small className="text-danger fw-semibold">Late Fee Revenue</small>
-              </div>
-              <div className="bg-danger bg-opacity-10 text-danger rounded-3 p-2.5">
-                <MdWarning size={22} />
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Filter Bar */}
@@ -349,7 +333,6 @@ const Reports = () => {
                 <th>Due Date</th>
                 <th>Paid Date</th>
                 <th>Amount</th>
-                <th>Late Fee</th>
                 <th className="text-center">Status</th>
               </tr>
             </thead>
@@ -363,7 +346,6 @@ const Reports = () => {
                   <td className="fw-semibold">{p.dueDate}</td>
                   <td className="text-muted">{p.paidDate || '-'}</td>
                   <td className="fw-bold text-success">₹{Number(p.amount).toLocaleString('en-IN')}</td>
-                  <td className="text-danger">{p.lateFee ? `+₹${p.lateFee}` : '-'}</td>
                   <td className="text-center">
                     <span className={`badge rounded-pill ${
                       p.status === 'Paid' ? 'bg-success bg-opacity-10 text-success' :

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MdPrint, MdPictureAsPdf, MdFileUpload, MdFilterList, 
-  MdReceiptLong, MdSearch, MdBusiness
+  MdReceiptLong, MdSearch, MdBusiness, MdSend
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
+import SendStatementModal from '../components/SendStatementModal';
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -23,6 +24,7 @@ const Statements = () => {
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [loanTypeFilter, setLoanTypeFilter] = useState('');
+  const [commModal, setCommModal] = useState({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' });
 
   const statementPrintRef = useRef(null);
 
@@ -71,7 +73,6 @@ const Statements = () => {
   const totalPaidEmis = paidPayments.length;
   const tenureMonths = activeLoan ? Number(activeLoan.tenureMonths) : 12;
   const remainingEmis = Math.max(0, tenureMonths - totalPaidEmis);
-  const totalLateFee = statementPayments.reduce((s, p) => s + Number(p.lateFee || 0), 0);
 
   // Print Handler
   const handlePrint = () => {
@@ -120,14 +121,13 @@ const Statements = () => {
       p.dueDate || '-',
       p.paidDate || '-',
       `Rs. ${Number(p.amount).toLocaleString('en-IN')}`,
-      p.lateFee ? `Rs. ${p.lateFee}` : 'Rs. 0',
       p.paymentMethod || 'UPI',
       p.status,
     ]);
 
     doc.autoTable({
       startY: 68,
-      head: [['#', 'Due Date', 'Paid Date', 'EMI Amount', 'Late Fee', 'Method', 'Status']],
+      head: [['#', 'Due Date', 'Paid Date', 'EMI Amount', 'Method', 'Status']],
       body: tableRows,
       theme: 'striped',
       headStyles: { fillColor: [13, 110, 253] },
@@ -146,7 +146,6 @@ const Statements = () => {
       'Due Date': p.dueDate,
       'Paid Date': p.paidDate || '-',
       'EMI Amount (₹)': Number(p.amount),
-      'Late Fee (₹)': Number(p.lateFee || 0),
       'Payment Method': p.paymentMethod || 'UPI',
       Status: p.status,
     }));
@@ -167,7 +166,14 @@ const Statements = () => {
           <p className="text-muted small mb-0">Generate, print, and export itemized financial statements & loan balance summaries</p>
         </div>
 
-        <div className="d-flex gap-2">
+        <div className="d-flex flex-wrap gap-2">
+          <button
+            className="btn btn-primary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5 shadow-sm"
+            onClick={() => setCommModal({ open: true, customerId: activeCustomer.id || null, loanId: activeLoan?.id || null, templateKey: 'loan_statement' })}
+            title="Send WhatsApp / Gmail Statement"
+          >
+            <MdSend size={18} /> Send
+          </button>
           <button className="btn btn-outline-secondary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handlePrint}>
             <MdPrint size={18} /> Print Statement
           </button>
@@ -309,7 +315,6 @@ const Statements = () => {
                 <th>Due Date</th>
                 <th>Paid Date</th>
                 <th>EMI Amount</th>
-                <th>Late Fee / Penalty</th>
                 <th>Payment Method</th>
                 <th className="text-center">Status</th>
               </tr>
@@ -329,7 +334,6 @@ const Statements = () => {
                     <td className="text-muted">{p.paidDate ? formatIndianDate(p.paidDate) : '-'}</td>
 
                     <td className="fw-bold text-dark">₹{Number(p.amount).toLocaleString('en-IN')}</td>
-                    <td className="text-danger">{p.lateFee ? `₹${p.lateFee}` : '₹0'}</td>
                     <td>{p.paymentMethod || 'UPI'}</td>
                     <td className="text-center">
                       <span className={`badge rounded-pill ${
@@ -353,6 +357,17 @@ const Statements = () => {
           <span className="fw-bold text-dark">RC Accountant Financial Management System</span>
         </div>
       </div>
+
+      {/* Send Statement / Communication Modal */}
+      {commModal.open && (
+        <SendStatementModal
+          isOpen={commModal.open}
+          onClose={() => setCommModal({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' })}
+          initialCustomerId={commModal.customerId}
+          initialLoanId={commModal.loanId}
+          initialTemplateKey={commModal.templateKey}
+        />
+      )}
     </div>
   );
 };
