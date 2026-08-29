@@ -15,6 +15,8 @@ import ForgotPassword from './pages/ForgotPassword';
 
 
 
+import DailyExpenses from './pages/DailyExpenses';
+
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -33,6 +35,7 @@ function App() {
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="customers" element={<Customers />} />
+          <Route path="daily-expenses" element={<DailyExpenses />} />
           <Route path="new-entry" element={<NewEntry />} />
           <Route path="statements" element={<Statements />} />
           <Route path="reports" element={<Reports />} />

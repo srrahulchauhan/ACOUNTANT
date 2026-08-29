@@ -324,40 +324,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* EMI Dashboard Banner Widget */}
-      <div className="card modern-card border-0 p-3 p-md-4 mb-4 shadow-sm text-white animate-fadeIn" style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', borderRadius: '16px' }}>
-        <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-          <div className="d-flex align-items-center gap-3">
-            <div className="bg-white bg-opacity-20 p-3 rounded-circle text-white d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 52, height: 52 }}>
-              <MdPayment size={28} />
-            </div>
-            <div>
-              <div className="d-flex align-items-center gap-2 flex-wrap">
-                <h5 className="fw-bold mb-0 text-white">EMI & Loan Dashboard</h5>
-                <span className="badge bg-warning text-dark font-monospace fw-bold">{emiStats.pendingCount} Pending</span>
-                <span className="badge bg-white bg-opacity-20 text-white font-monospace">{emiStats.emiEntries.length} Total Records</span>
-              </div>
-              <p className="mb-0 text-white-50 small mt-1">
-                Pending Recovery: <strong className="text-white">₹{emiStats.pendingAmount.toLocaleString('en-IN')}</strong> | 
-                Cleared: <strong className="text-white">₹{emiStats.paidAmount.toLocaleString('en-IN')}</strong>
-                {emiStats.nextDue && (
-                  <span className="ms-2 badge bg-white bg-opacity-20 text-white font-monospace">
-                    Next Due: {new Date(emiStats.nextDue.dueDate || emiStats.nextDue.date).toLocaleDateString('en-IN')} ({emiStats.nextDue.name})
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <button 
-            className="btn btn-light fw-bold text-primary px-4 py-2 rounded-pill shadow-sm d-flex align-items-center justify-content-center gap-2 text-nowrap align-self-start align-self-md-center"
-            onClick={() => navigate('/emi-dashboard')}
-            style={{ fontWeight: '700', color: '#4f46e5' }}
-          >
-            <MdPayment size={18} /> EMI Dashboard →
-          </button>
-        </div>
-      </div>
-
       {/* ===== Payment Method Analytics ===== */}
       <div className="row g-4 mb-4">
         {/* Cash vs Online breakdown */}

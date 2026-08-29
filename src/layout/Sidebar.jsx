@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     MdDashboard, MdPeople, MdAddCircle, MdListAlt, MdBarChart, 
-    MdEvent, MdSettings, MdLogout, MdPayment 
+    MdEvent, MdSettings, MdLogout, MdPayment, MdReceiptLong
 } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
@@ -20,6 +20,7 @@ const Sidebar = ({ closeMobileSidebar }) => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: <MdDashboard size={22} /> },
+    { name: 'Daily Expenses', path: '/daily-expenses', icon: <MdReceiptLong size={22} /> },
     { name: 'Customers', path: '/customers', icon: <MdPeople size={22} /> },
     { name: 'EMI Dashboard', path: '/emi-dashboard', icon: <MdPayment size={22} /> },
     { name: 'New Entry', path: '/new-entry', icon: <MdAddCircle size={22} /> },
