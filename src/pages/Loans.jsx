@@ -60,7 +60,7 @@ const Loans = () => {
       loanName: '',
       type: 'Home Loan',
       totalAmount: '',
-      interestRate: '8.5',
+      interestRate: '0',
       emiAmount: '',
       startDate: getLocalDateString(),
       tenureMonths: 12,
@@ -83,11 +83,11 @@ const Loans = () => {
     setFormData((prev) => {
       const updated = { ...prev, [name]: value };
       if (['totalAmount', 'interestRate', 'tenureMonths'].includes(name)) {
-        const autoEmi = loanStore.calculateEmi(
-          name === 'totalAmount' ? value : prev.totalAmount,
-          name === 'interestRate' ? value : prev.interestRate,
-          name === 'tenureMonths' ? value : prev.tenureMonths
-        );
+        const p = Number(name === 'totalAmount' ? value : prev.totalAmount) || 0;
+        const rate = Number(name === 'interestRate' ? value : prev.interestRate) || 0;
+        const n = Number(name === 'tenureMonths' ? value : prev.tenureMonths) || 1;
+
+        const autoEmi = loanStore.calculateEmi(p, rate, n);
         if (autoEmi > 0) updated.emiAmount = autoEmi.toString();
       }
       if (name === 'startDate') {
@@ -96,6 +96,7 @@ const Loans = () => {
       return updated;
     });
   };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -308,8 +309,10 @@ const Loans = () => {
 
                     <div className="col-12 col-md-4">
                       <label className="form-label small fw-semibold text-muted">Interest Rate (% p.a.)</label>
-                      <input type="number" step="0.1" className="form-control" name="interestRate" placeholder="8.5" value={formData.interestRate} onChange={handleFormChange} />
+                      <input type="number" step="0.1" className="form-control" name="interestRate" placeholder="0" value={formData.interestRate} onChange={handleFormChange} />
+                      <small className="text-muted" style={{ fontSize: '0.68rem' }}>Default: 0% Interest Free</small>
                     </div>
+
 
                     <div className="col-12 col-md-4">
                       <label className="form-label small fw-semibold text-muted">Tenure (Months) *</label>
