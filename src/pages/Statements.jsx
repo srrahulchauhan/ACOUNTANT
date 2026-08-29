@@ -1,402 +1,355 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-
-import { MdDelete, MdEdit, MdSearch, MdFilterList, MdSave, MdClose, MdShare, MdPictureAsPdf, MdTableChart, MdWhatsapp, MdEmail, MdSms } from 'react-icons/md';
-import { fetchTransactions, deleteTransaction, updateTransaction } from '../api';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  MdPrint, MdPictureAsPdf, MdFileUpload, MdFilterList, 
+  MdReceiptLong, MdSearch, MdBusiness
+} from 'react-icons/md';
+import { loanStore } from '../utils/loanStore';
 import { getLocalDateString } from '../utils/dateUtils';
-import { getAppDetails } from '../utils/paymentApps';
-import AnimatedNumber from '../components/AnimatedNumber';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const Statements = () => {
-  const { customPaymentApps } = useAuth();
-  const [allTransactions, setAllTransactions] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterMonth, setFilterMonth] = useState('');
-  const [filterYear, setFilterYear] = useState('');
-  const [editId, setEditId] = useState(null);
-  const [editData, setEditData] = useState({});
-  const [selected, setSelected] = useState([]);
-  const [showShare, setShowShare] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [customers, setCustomers] = useState([]);
+  const [loans, setLoans] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [settings, setSettings] = useState({});
+
+  // Filters State
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedLoanId, setSelectedLoanId] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [loanTypeFilter, setLoanTypeFilter] = useState('');
+
+  const statementPrintRef = useRef(null);
+
+  const loadData = () => {
+    const custs = loanStore.getCustomers();
+    const lns = loanStore.getLoans();
+    setCustomers(custs);
+    setLoans(lns);
+    setPayments(loanStore.getPayments());
+    setSettings(loanStore.getSettings());
+
+    if (custs.length > 0 && !selectedCustomerId) {
+      setSelectedCustomerId(custs[0].id);
+    }
+  };
 
   useEffect(() => {
-    const s = searchParams.get('search');
-    if (s) setSearch(s);
-  }, [searchParams]);
+    loadData();
+    window.addEventListener('loanStoreUpdated', loadData);
+    return () => window.removeEventListener('loanStoreUpdated', loadData);
+  }, []);
 
+  // Filter loans for selected customer
+  const customerLoans = loans.filter((l) => l.customerId === selectedCustomerId);
+  const activeLoan = selectedLoanId ? loans.find((l) => l.id === selectedLoanId) : customerLoans[0] || loans[0];
+  const activeCustomer = customers.find((c) => c.id === selectedCustomerId) || customers[0] || {};
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await fetchTransactions();
-      setAllTransactions(res.data);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+  // Filter statement payments
+  const statementPayments = payments.filter((p) => {
+    let matchesCustomer = !selectedCustomerId || p.customerId === selectedCustomerId;
+    let matchesLoan = !selectedLoanId || p.loanId === selectedLoanId;
+    let matchesStatus = !statusFilter || p.status === statusFilter;
+    let matchesDate = true;
+    if (startDate && p.dueDate && p.dueDate < startDate) matchesDate = false;
+    if (endDate && p.dueDate && p.dueDate > endDate) matchesDate = false;
+
+    return matchesCustomer && matchesLoan && matchesStatus && matchesDate;
+  });
+
+  // Calculate Metrics for Active Statement
+  const totalLoanAmount = activeLoan ? Number(activeLoan.totalAmount) : 0;
+  const paidPayments = statementPayments.filter((p) => p.status === 'Paid');
+  const totalPaidAmount = paidPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const outstandingBalance = Math.max(0, totalLoanAmount - totalPaidAmount);
+
+  const totalPaidEmis = paidPayments.length;
+  const tenureMonths = activeLoan ? Number(activeLoan.tenureMonths) : 12;
+  const remainingEmis = Math.max(0, tenureMonths - totalPaidEmis);
+  const totalLateFee = statementPayments.reduce((s, p) => s + Number(p.lateFee || 0), 0);
+
+  // Print Handler
+  const handlePrint = () => {
+    window.print();
   };
 
-  useEffect(() => { loadData(); }, []);
-
-  useEffect(() => {
-    let data = allTransactions;
-    if (filterMonth && filterYear) {
-      data = data.filter(t => { const d = new Date(t.date); return d.getMonth() + 1 === parseInt(filterMonth) && d.getFullYear() === parseInt(filterYear); });
-    } else if (filterYear) {
-      data = data.filter(t => new Date(t.date).getFullYear() === parseInt(filterYear));
-    }
-    if (search) {
-      const s = search.toLowerCase();
-      data = data.filter(t => t.name?.toLowerCase().includes(s) || (t.lastName && t.lastName.toLowerCase().includes(s)) || (t.description && t.description.toLowerCase().includes(s)));
-    }
-    setTransactions(data);
-  }, [allTransactions, search, filterMonth, filterYear]);
-
-  const handleSearch = (e) => { e.preventDefault(); };
-  const handleDelete = async (id) => { if (!window.confirm('Delete?')) return; await deleteTransaction(id); setAllTransactions(p => p.filter(t => t._id !== id)); };
-  const handleDeleteSelected = async () => { if (!window.confirm(`Delete ${selected.length} entries?`)) return; for (const id of selected) await deleteTransaction(id); setAllTransactions(p => p.filter(t => !selected.includes(t._id))); setSelected([]); };
-  const startEdit = (t) => {
-    setEditId(t._id);
-    setEditData({
-      name: t.name,
-      lastName: t.lastName || '',
-      amount: t.amount,
-      type: t.type,
-      description: t.description || '',
-      date: t.date ? getLocalDateString(t.date) : '',
-      dueDate: t.dueDate ? getLocalDateString(t.dueDate) : (t.date ? getLocalDateString(t.date) : '')
-    });
-  };
-  const saveEdit = async () => { await updateTransaction(editId, editData); setAllTransactions(p => p.map(t => t._id === editId ? { ...t, ...editData } : t)); setEditId(null); };
-  const toggleSelect = (id) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-  const toggleAll = () => setSelected(selected.length === transactions.length ? [] : transactions.map(t => t._id));
-
-  const totalCredit = transactions.filter(t => t.type === 'Credit').reduce((s, t) => s + Number(t.amount), 0);
-  const totalDebit = transactions.filter(t => t.type === 'Debit' || t.type === 'EMI').reduce((s, t) => s + Number(t.amount), 0);
-
-
-  // Build text summary for sharing
-  const buildSummary = () => {
-    let text = `📊 *Statement Report*\n\nTotal Entries: ${transactions.length}\nTotal Credit: ₹${totalCredit.toLocaleString('en-IN')}\nTotal Debit: ₹${totalDebit.toLocaleString('en-IN')}\nNet: ₹${(totalCredit - totalDebit).toLocaleString('en-IN')}\n\n`;
-    transactions.forEach((t, i) => {
-      text += `${i + 1}. ${t.name} ${t.lastName || ''} | ${t.type} | ₹${Number(t.amount).toLocaleString('en-IN')} | ${new Date(t.date).toLocaleDateString('en-IN')}\n`;
-    });
-    return text;
-  };
-
-  // Export PDF
-  const exportPDF = () => {
+  // Export PDF using jsPDF
+  const handleExportPDF = () => {
     const doc = new jsPDF();
+
+    // Header Company Letterhead
     doc.setFontSize(18);
-    doc.text('Statement Report', 14, 20);
-    doc.setFontSize(10);
-    doc.text(`Credit: ₹${totalCredit.toLocaleString('en-IN')} | Debit: ₹${totalDebit.toLocaleString('en-IN')} | Net: ₹${(totalCredit - totalDebit).toLocaleString('en-IN')}`, 14, 28);
-    autoTable(doc, {
-      startY: 35,
-      head: [['#', 'Name', 'Date', 'Type', 'Amount', 'Description']],
-      body: transactions.map((t, i) => [i + 1, `${t.name} ${t.lastName || ''}`, new Date(t.date).toLocaleDateString('en-IN'), t.type, `₹${Number(t.amount).toLocaleString('en-IN')}`, t.description || '-']),
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(13, 110, 253);
+    doc.text(settings.companyName || 'RC Accountant Services Ltd.', 14, 20);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text(settings.address || 'Financial Tower, Cyber City, Haryana', 14, 26);
+    doc.text(`Email: ${settings.email || 'support@equiloan.com'} | Phone: ${settings.phone || '+91 1800 200 9999'}`, 14, 31);
+
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(200);
+    doc.line(14, 35, 196, 35);
+
+    // Customer & Loan Summary
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('STATEMENT OF ACCOUNT', 14, 43);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Customer Name: ${activeCustomer.name || 'N/A'}`, 14, 50);
+    doc.text(`Customer ID: ${activeCustomer.id || 'N/A'}`, 14, 55);
+    doc.text(`Mobile: ${activeCustomer.phone || 'N/A'}`, 14, 60);
+
+    doc.text(`Loan Account: ${activeLoan?.loanName || 'N/A'}`, 120, 50);
+    doc.text(`Total Amount: Rs. ${totalLoanAmount.toLocaleString('en-IN')}`, 120, 55);
+    doc.text(`Outstanding: Rs. ${outstandingBalance.toLocaleString('en-IN')}`, 120, 60);
+
+    // Payment History Table
+    const tableRows = statementPayments.map((p, idx) => [
+      idx + 1,
+      p.dueDate || '-',
+      p.paidDate || '-',
+      `Rs. ${Number(p.amount).toLocaleString('en-IN')}`,
+      p.lateFee ? `Rs. ${p.lateFee}` : 'Rs. 0',
+      p.paymentMethod || 'UPI',
+      p.status,
+    ]);
+
+    doc.autoTable({
+      startY: 68,
+      head: [['#', 'Due Date', 'Paid Date', 'EMI Amount', 'Late Fee', 'Method', 'Status']],
+      body: tableRows,
+      theme: 'striped',
+      headStyles: { fillColor: [13, 110, 253] },
     });
-    doc.save('statement-report.pdf');
+
+    doc.save(`Statement_${activeCustomer.name || 'Account'}_${getLocalDateString()}.pdf`);
   };
 
-  // Export Excel
-  const exportExcel = () => {
-    const data = transactions.map((t, i) => ({ 'S.No': i + 1, Name: `${t.name} ${t.lastName || ''}`, Date: new Date(t.date).toLocaleDateString('en-IN'), Type: t.type, Amount: Number(t.amount), Category: t.category || 'General', Description: t.description || '' }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Statements');
-    XLSX.writeFile(wb, 'statement-report.xlsx');
-  };
+  // Export Excel using XLSX
+  const handleExportExcel = () => {
+    const data = statementPayments.map((p, idx) => ({
+      'S.No': idx + 1,
+      'Customer ID': activeCustomer.id,
+      'Customer Name': activeCustomer.name,
+      'Loan Name': activeLoan?.loanName || p.loanName,
+      'Due Date': p.dueDate,
+      'Paid Date': p.paidDate || '-',
+      'EMI Amount (₹)': Number(p.amount),
+      'Late Fee (₹)': Number(p.lateFee || 0),
+      'Payment Method': p.paymentMethod || 'UPI',
+      Status: p.status,
+    }));
 
-  // Share via WhatsApp
-  const shareWhatsApp = () => { window.open(`https://wa.me/?text=${encodeURIComponent(buildSummary())}`, '_blank'); };
-  // Share via Email
-  const shareEmail = () => { window.open(`mailto:?subject=Statement Report&body=${encodeURIComponent(buildSummary())}`, '_blank'); };
-  // Share via SMS
-  const shareSMS = () => { window.open(`sms:?body=${encodeURIComponent(buildSummary())}`, '_blank'); };
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Statement');
+    XLSX.writeFile(workbook, `Loan_Statement_${activeCustomer.name || 'Customer'}.xlsx`);
+  };
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h3 className="fw-bold mb-0">Statements</h3>
-        <div className="position-relative">
-          <button
-            className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 shadow-sm"
-            style={{ borderRadius: 20 }}
-            onClick={() => setShowShare(!showShare)}
-          >
-            <MdShare /> Share / Export
+    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh' }}>
+      
+      {/* Header Bar */}
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 print-hide">
+        <div>
+          <h4 className="fw-bold text-dark mb-1">Customer & Loan Account Statements</h4>
+          <p className="text-muted small mb-0">Generate, print, and export itemized financial statements & loan balance summaries</p>
+        </div>
+
+        <div className="d-flex gap-2">
+          <button className="btn btn-outline-secondary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handlePrint}>
+            <MdPrint size={18} /> Print Statement
           </button>
+          <button className="btn btn-outline-danger rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handleExportPDF}>
+            <MdPictureAsPdf size={18} /> Download PDF
+          </button>
+          <button className="btn btn-outline-success rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handleExportExcel}>
+            <MdFileUpload size={18} /> Export Excel
+          </button>
+        </div>
+      </div>
 
-          {showShare && (
-            <div
-              className="position-absolute end-0 mt-2 shadow-lg"
-              style={{
-                zIndex: 9999, minWidth: 260,
-                background: '#fff', borderRadius: 16,
-                border: '1px solid #e5e7eb',
-                padding: 16, animation: 'fadeInDown 0.2s ease',
-              }}
-            >
-              {/* PDF Row */}
-              <div style={{ marginBottom: 10 }}>
-                <div className="text-muted fw-bold mb-2" style={{ fontSize: 10, letterSpacing: 1 }}>📄 PDF</div>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 fw-bold"
-                    style={{ background: '#ef4444', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={exportPDF}
-                  >
-                    <MdPictureAsPdf size={16} /> Download
-                  </button>
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 fw-bold"
-                    style={{ background: '#25D366', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={() => { exportPDF(); setTimeout(shareWhatsApp, 800); }}
-                    title="PDF download karke WhatsApp open karega"
-                  >
-                    <MdWhatsapp size={16} /> WhatsApp
-                  </button>
-                </div>
+      {/* Filters Bar */}
+      <div className="card border-0 shadow-sm rounded-4 p-3 bg-white mb-4 print-hide">
+        <div className="row g-3">
+          <div className="col-12 col-md-4">
+            <label className="form-label small fw-semibold text-muted">Select Customer Profile *</label>
+            <select className="form-select fw-bold" value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)}>
+              <option value="">-- Choose Customer --</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.id})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-12 col-md-4">
+            <label className="form-label small fw-semibold text-muted">Filter by Loan Account</label>
+            <select className="form-select fw-semibold" value={selectedLoanId} onChange={(e) => setSelectedLoanId(e.target.value)}>
+              <option value="">-- All Customer Loans --</option>
+              {customerLoans.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.loanName} (₹{Number(l.totalAmount).toLocaleString('en-IN')})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-6 col-md-2">
+            <label className="form-label small fw-semibold text-muted">From Date</label>
+            <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+
+          <div className="col-6 col-md-2">
+            <label className="form-label small fw-semibold text-muted">To Date</label>
+            <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      {/* Professional Statement Letterhead Layout Document */}
+      <div className="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white" ref={statementPrintRef} id="printable-statement">
+        
+        {/* Letterhead Header */}
+        <div className="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4">
+          <div>
+            <div className="d-flex align-items-center gap-2 mb-1">
+              <div className="bg-primary text-white rounded-3 p-2 fw-bold" style={{ fontSize: '1.2rem' }}>
+                EL
               </div>
-
-              {/* Excel Row */}
-              <div style={{ marginBottom: 12 }}>
-                <div className="text-muted fw-bold mb-2" style={{ fontSize: 10, letterSpacing: 1 }}>📊 EXCEL</div>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 fw-bold"
-                    style={{ background: '#10b981', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={exportExcel}
-                  >
-                    <MdTableChart size={16} /> Download
-                  </button>
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 fw-bold"
-                    style={{ background: '#25D366', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={() => { exportExcel(); setTimeout(shareWhatsApp, 800); }}
-                    title="Excel download karke WhatsApp open karega"
-                  >
-                    <MdWhatsapp size={16} /> WhatsApp
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10 }}>
-                <div className="text-muted fw-bold mb-2" style={{ fontSize: 10, letterSpacing: 1 }}>📤 TEXT SHARE</div>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm flex-fill d-flex align-items-center justify-content-center gap-1"
-                    style={{ background: '#25D366', color: '#fff', borderRadius: 10, fontSize: 12 }}
-                    onClick={shareWhatsApp}
-                  >
-                    <MdWhatsapp size={15} /> WhatsApp
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-primary flex-fill d-flex align-items-center justify-content-center gap-1"
-                    style={{ borderRadius: 10, fontSize: 12 }}
-                    onClick={shareEmail}
-                  >
-                    <MdEmail size={15} /> Email
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1"
-                    style={{ borderRadius: 10, fontSize: 12 }}
-                    onClick={shareSMS}
-                  >
-                    <MdSms size={15} /> SMS
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-muted mb-0 mt-2" style={{ fontSize: 9, lineHeight: 1.4 }}>
-                💡 WhatsApp button: pehle file download hogi, phir WhatsApp mein summary open hogi. File manually attach karein.
-              </p>
-
-              <style>{`
-                @keyframes fadeInDown {
-                  from { opacity:0; transform:translateY(-8px); }
-                  to   { opacity:1; transform:translateY(0); }
-                }
-              `}</style>
+              <h4 className="fw-bold text-primary mb-0">{settings.companyName || 'RC Accountant Services Ltd.'}</h4>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Summary */}
-      <div className="row g-3 mb-4">
-        <div className="col-4"><div className="card modern-card p-3 text-center"><small className="text-muted">Entries</small><h5 className="fw-bold mb-0"><AnimatedNumber value={transactions.length} /></h5></div></div>
-        <div className="col-4"><div className="card modern-card p-3 text-center"><small className="text-muted">Credit</small><h5 className="fw-bold text-success mb-0"><AnimatedNumber prefix="₹" value={totalCredit} isCurrency={true} /></h5></div></div>
-        <div className="col-4"><div className="card modern-card p-3 text-center"><small className="text-muted">Debit</small><h5 className="fw-bold text-danger mb-0"><AnimatedNumber prefix="₹" value={totalDebit} isCurrency={true} /></h5></div></div>
-      </div>
-
-      {/* Filters */}
-      <div className="card modern-card p-3 mb-4">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-5">
-            <form onSubmit={handleSearch} className="input-group input-group-sm">
-              <span className="input-group-text bg-transparent border-end-0"><MdSearch /></span>
-              <input type="text" className="form-control border-start-0" placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} />
-              <button className="btn btn-primary px-3" type="submit">Search</button>
-            </form>
+            <small className="text-muted d-block">{settings.companyTagline || 'Smart EMI & Asset Finance Management'}</small>
+            <small className="text-muted d-block">{settings.address}</small>
+            <small className="text-muted d-block">Phone: {settings.phone} | GST: {settings.gstNumber}</small>
           </div>
-          <div className="col-6 col-md-2">
-            <select className="form-select form-select-sm" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
-              <option value="">All Month</option>
-              {[...Array(12)].map((_, i) => <option key={i} value={i + 1}>{new Date(0, i).toLocaleString('en', { month: 'short' })}</option>)}
-            </select>
-          </div>
-          <div className="col-6 col-md-2">
-            <select className="form-select form-select-sm" value={filterYear} onChange={e => setFilterYear(e.target.value)}>
-              <option value="">All Year</option>
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <div className="col-12 col-md-3 text-end">
-            {selected.length > 0 && <button className="btn btn-danger btn-sm" onClick={handleDeleteSelected}><MdDelete /> Delete {selected.length}</button>}
+          <div className="text-end">
+            <h5 className="fw-bold text-dark mb-1">STATEMENT OF ACCOUNT</h5>
+            <small className="text-muted d-block">Date: {getLocalDateString()}</small>
+            <small className="text-primary font-monospace fw-bold">REF: STMT-{Math.floor(100000 + Math.random() * 900000)}</small>
           </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="card modern-card p-0 overflow-hidden">
-        {loading ? (
-          <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
-        ) : transactions.length === 0 ? (
-          <p className="text-center text-muted py-5">No transactions found.</p>
-        ) : (
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0">
-              <thead className="bg-light">
-                <tr className="small text-muted">
-                  <th style={{width: 40}}><input type="checkbox" checked={selected.length === transactions.length && transactions.length > 0} onChange={toggleAll} /></th>
-                  <th>Name</th>
-                  <th>Date</th>
-                  <th className="d-mobile-none">Payment</th>
-                  <th>Type</th>
-                  <th className="text-end">Amount</th>
-                  <th className="d-mobile-none">Description</th>
-                  <th className="text-center">Actions</th>
+        {/* Customer & Loan Profile Summary Cards */}
+        <div className="row g-3 mb-4">
+          <div className="col-12 col-md-6">
+            <div className="p-3 bg-light rounded-3 border h-100">
+              <h6 className="fw-bold text-primary border-bottom pb-2 mb-2">BORROWER DETAILS</h6>
+              <div className="small text-dark">
+                <div><strong>Customer Name:</strong> {activeCustomer.name || 'Select Customer'}</div>
+                <div><strong>Customer ID:</strong> {activeCustomer.id || '-'}</div>
+                <div><strong>Mobile Phone:</strong> {activeCustomer.phone || '-'}</div>
+                <div><strong>PAN / Aadhaar:</strong> {activeCustomer.panAadhaar || '-'}</div>
+                <div><strong>Address:</strong> {activeCustomer.address || '-'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-12 col-md-6">
+            <div className="p-3 bg-light rounded-3 border h-100">
+              <h6 className="fw-bold text-success border-bottom pb-2 mb-2">LOAN ACCOUNT SUMMARY</h6>
+              <div className="small text-dark">
+                <div><strong>Loan Title:</strong> {activeLoan?.loanName || 'General Account'}</div>
+                <div><strong>Loan Type:</strong> {activeLoan?.type || '-'}</div>
+                <div><strong>Interest Rate:</strong> {activeLoan?.interestRate || '0'}% p.a.</div>
+                <div><strong>Tenure:</strong> {activeLoan?.tenureMonths || 12} Months</div>
+                <div><strong>Monthly EMI:</strong> ₹{Number(activeLoan?.emiAmount || 0).toLocaleString('en-IN')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Financial Metrics Summary Banner */}
+        <div className="row g-3 text-center mb-4">
+          <div className="col-3">
+            <div className="p-3 bg-primary bg-opacity-10 rounded-3 border border-primary border-opacity-20">
+              <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Total Loan Amount</small>
+              <h5 className="fw-bold text-primary mb-0">₹{totalLoanAmount.toLocaleString('en-IN')}</h5>
+            </div>
+          </div>
+          <div className="col-3">
+            <div className="p-3 bg-success bg-opacity-10 rounded-3 border border-success border-opacity-20">
+              <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Total Paid Amount</small>
+              <h5 className="fw-bold text-success mb-0">₹{totalPaidAmount.toLocaleString('en-IN')}</h5>
+            </div>
+          </div>
+          <div className="col-3">
+            <div className="p-3 bg-danger bg-opacity-10 rounded-3 border border-danger border-opacity-20">
+              <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Outstanding Balance</small>
+              <h5 className="fw-bold text-danger mb-0">₹{outstandingBalance.toLocaleString('en-IN')}</h5>
+            </div>
+          </div>
+          <div className="col-3">
+            <div className="p-3 bg-warning bg-opacity-10 rounded-3 border border-warning border-opacity-20">
+              <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Paid / Remaining EMIs</small>
+              <h5 className="fw-bold text-dark mb-0">{totalPaidEmis} / {remainingEmis}</h5>
+            </div>
+          </div>
+        </div>
+
+        {/* Itemized Payment Schedule Table */}
+        <h6 className="fw-bold text-dark mb-3">Itemized EMI Payment & Collection Ledger</h6>
+        <div className="table-responsive mb-4">
+          <table className="table table-bordered align-middle mb-0 small">
+            <thead className="bg-light text-muted">
+              <tr>
+                <th className="text-center" style={{ width: '40px' }}>#</th>
+                <th>Due Date</th>
+                <th>Paid Date</th>
+                <th>EMI Amount</th>
+                <th>Late Fee / Penalty</th>
+                <th>Payment Method</th>
+                <th className="text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {statementPayments.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-4 text-muted">
+                    No payment records match the selected statement filters.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  let lastMonth = null;
-                  return transactions.map((t, idx) => {
-                    const date = new Date(t.date);
-                    const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-                    const isNewMonth = monthYear !== lastMonth;
-                    lastMonth = monthYear;
-                    
-                    const isEmiPaid = ['EMI', 'Loan', 'Advance Payment'].includes(t.type) && ['Paid', 'Success', 'Advance Paid', 'EMI Paid'].includes(t.status);
-                    
-                    return (
-                      <React.Fragment key={t._id}>
-                        {isNewMonth && (
-                          <tr className="bg-light bg-opacity-50">
-                            <td colSpan="8" className="py-2 px-3">
-                              <span className="badge bg-primary bg-opacity-10 text-primary fw-bold text-uppercase" style={{ letterSpacing: 1, fontSize: '0.65rem' }}>
-                                📅 {monthYear}
-                              </span>
-                            </td>
-                          </tr>
-                        )}
-                        <tr className={`${selected.includes(t._id) ? 'table-active ' : ''}${isEmiPaid ? 'table-success' : ''}`}>
-                          <td><input type="checkbox" checked={selected.includes(t._id)} onChange={() => toggleSelect(t._id)} /></td>
-                          <td className="fw-semibold">
-                            {editId === t._id ? (
-                              <div className="d-flex gap-1">
-                                <input className="form-control form-control-sm" value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} style={{width:80}} />
-                                <input className="form-control form-control-sm" value={editData.lastName} onChange={e => setEditData({...editData, lastName: e.target.value})} style={{width:80}} />
-                              </div>
-                            ) : `${t.name} ${t.lastName || ''}`}
-                          </td>
-                          <td className="small text-muted" style={{minWidth: 120}}>
-                            {editId === t._id ? (
-                              <div className="d-flex flex-column gap-1">
-                                <input type="date" className="form-control form-control-sm" value={editData.date} onChange={e => setEditData({...editData, date: e.target.value})} title="Entry Date" />
-                                {editData.type === 'EMI' && (
-                                  <input type="date" className="form-control form-control-sm mt-1 border-danger" value={editData.dueDate || ''} onChange={e => setEditData({...editData, dueDate: e.target.value})} title="Due Date" />
-                                )}
-                              </div>
-                            ) : (
-                              <div>
-                                {new Date(t.date).toLocaleDateString('en-IN')}
-                                {(t.type === 'EMI' || t.type === 'Loan') && t.dueDate && (
-                                  <div className="text-danger mt-1 fw-bold" style={{fontSize: '0.7rem'}}>
-                                    {t.type === 'Loan' ? 'Interest Due: ' : 'Due: '}
-                                    {new Date(t.dueDate).toLocaleDateString('en-IN')}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                          <td className="d-mobile-none">
-                            <div className="d-flex align-items-center gap-1">
-                              <div style={{ transform: 'scale(0.6)', transformOrigin: 'left center', width: 20 }}>
-                                {getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).logo}
-                              </div>
-                              <span className="small fw-semibold" style={{ color: getAppDetails(t.paymentApp || t.paymentMethod || 'Cash', customPaymentApps).color }}>
-                                {t.paymentApp || t.paymentMethod || 'Cash'}
-                              </span>
-                            </div>
-                          </td>
-                          <td>
-                            {editId === t._id ? (
-                              <select className="form-select form-select-sm" value={editData.type} onChange={e => setEditData({...editData, type: e.target.value})} style={{width:90}}>
-                                <option>Credit</option>
-                                <option>Debit</option>
-                                <option>EMI</option>
-                                <option>Loan</option>
-                                <option>Advance Payment</option>
-                              </select>
-                            ) : (
-                              <span className={`badge bg-${
-                                t.type === 'Credit' ? 'success' : 
-                                t.type === 'Debit' ? 'danger' : 
-                                t.type === 'EMI' ? 'warning' : 'info'
-                              } bg-opacity-10 text-${
-                                t.type === 'Credit' ? 'success' : 
-                                t.type === 'Debit' ? 'danger' : 
-                                t.type === 'EMI' ? 'warning' : 'info'
-                              } px-2 py-1 rounded-pill`}>
-                                {t.type} { (t.type === 'EMI' || t.type === 'Loan') && `- ${t.status || 'Pending'}`}
-                              </span>
-                            )}
-                          </td>
-                          <td className={`text-end fw-bold text-${
-                            t.type === 'Credit' ? 'success' : 
-                            (t.type === 'Debit' || t.type === 'EMI' || t.type === 'Loan') ? 'danger' : 'warning'
-                          }`}>
-                            {editId === t._id ? <input type="number" className="form-control form-control-sm text-end" value={editData.amount} onChange={e => setEditData({...editData, amount: e.target.value})} style={{width:100}} /> : `${(t.type==='Debit' || t.type === 'EMI' || t.type === 'Loan') ?'-':'+'}₹${Number(t.amount).toLocaleString('en-IN')}`}
-                          </td>
-                          <td className="small text-muted d-mobile-none">
-                            <div className="text-truncate" style={{maxWidth:150}}>
-                              {editId === t._id ? <input className="form-control form-control-sm" value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} /> : (t.description || '-')}
-                            </div>
-                          </td>
-                          <td className="text-center">
-                            {editId === t._id ? (
-                              <div className="d-flex gap-1 justify-content-center"><button className="btn btn-success btn-sm" onClick={saveEdit}><MdSave /></button><button className="btn btn-secondary btn-sm" onClick={() => setEditId(null)}><MdClose /></button></div>
-                            ) : (
-                              <div className="d-flex gap-1 justify-content-center"><button className="btn btn-outline-primary btn-sm" onClick={() => startEdit(t)}><MdEdit /></button><button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete(t._id)}><MdDelete /></button></div>
-                            )}
-                          </td>
-                        </tr>
-                      </React.Fragment>
-                    );
-                  });
-                })()}
-              </tbody>
+              ) : (
+                statementPayments.map((p, idx) => (
+                  <tr key={p.id || idx}>
+                    <td className="text-center fw-bold">{idx + 1}</td>
+                    <td>{p.dueDate || '-'}</td>
+                    <td className="text-muted">{p.paidDate || '-'}</td>
+                    <td className="fw-bold text-dark">₹{Number(p.amount).toLocaleString('en-IN')}</td>
+                    <td className="text-danger">{p.lateFee ? `₹${p.lateFee}` : '₹0'}</td>
+                    <td>{p.paymentMethod || 'UPI'}</td>
+                    <td className="text-center">
+                      <span className={`badge rounded-pill ${
+                        p.status === 'Paid' ? 'bg-success text-white' :
+                        p.status === 'Overdue' ? 'bg-danger text-white' :
+                        'bg-warning text-dark'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-            </table>
-          </div>
-        )}
+        {/* Statement Footer */}
+        <div className="border-top pt-3 text-muted small d-flex justify-content-between align-items-center">
+          <span>This is a computer-generated account statement and does not require a physical signature.</span>
+          <span className="fw-bold text-dark">RC Accountant Financial Management System</span>
+        </div>
       </div>
     </div>
   );

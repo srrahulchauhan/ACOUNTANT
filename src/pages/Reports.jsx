@@ -1,163 +1,381 @@
 import React, { useState, useEffect } from 'react';
-import { MdBarChart, MdPictureAsPdf, MdTableChart, MdWhatsapp, MdEmail, MdSms, MdShare } from 'react-icons/md';
-import { fetchTransactions } from '../api';
-import { Bar, Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend } from 'chart.js';
+import { 
+  MdBarChart, MdPrint, MdPictureAsPdf, MdFileUpload, 
+  MdSearch, MdAttachMoney, MdAccountBalance, MdPeople, MdWarning, MdShowChart
+} from 'react-icons/md';
+import { loanStore } from '../utils/loanStore';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
+const LOAN_TYPES = ['Home Loan', 'Car Loan', 'Personal Loan', 'Education Loan', 'Credit Card'];
 
 const Reports = () => {
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [showShare, setShowShare] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [loans, setLoans] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [settings, setSettings] = useState({});
+
+  // Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [loanTypeFilter, setLoanTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const loadData = () => {
+    setCustomers(loanStore.getCustomers());
+    setLoans(loanStore.getLoans());
+    setPayments(loanStore.getPayments());
+    setSettings(loanStore.getSettings());
+  };
 
   useEffect(() => {
-    const load = async () => {
-      try { const res = await fetchTransactions(); setTransactions(res.data); }
-      catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    };
-    load();
+    loadData();
+    window.addEventListener('loanStoreUpdated', loadData);
+    return () => window.removeEventListener('loanStoreUpdated', loadData);
   }, []);
 
-  const yearData = transactions.filter(t => new Date(t.date).getFullYear() === year);
-  const totalCredit = yearData.filter(t => t.type === 'Credit').reduce((s, t) => s + Number(t.amount), 0);
-  const totalDebit = yearData.filter(t => t.type === 'Debit' || t.type === 'EMI').reduce((s, t) => s + Number(t.amount), 0);
+  // Filtered Payments List
+  const filteredPayments = payments.filter((p) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !q ||
+      p.customerName.toLowerCase().includes(q) ||
+      p.loanName.toLowerCase().includes(q) ||
+      p.id.toLowerCase().includes(q);
 
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthlyCredit = months.map((_, i) => yearData.filter(t => t.type === 'Credit' && new Date(t.date).getMonth() === i).reduce((s, t) => s + Number(t.amount), 0));
-  const monthlyDebit = months.map((_, i) => yearData.filter(t => (t.type === 'Debit' || t.type === 'EMI') && new Date(t.date).getMonth() === i).reduce((s, t) => s + Number(t.amount), 0));
+    const matchesCustomer = !customerFilter || p.customerId === customerFilter;
+    const matchesStatus = !statusFilter || p.status === statusFilter;
+    const matchesDate = (!startDate || (p.dueDate && p.dueDate >= startDate)) && (!endDate || (p.dueDate && p.dueDate <= endDate));
 
-  const categories = [...new Set(yearData.map(t => t.category || 'General'))];
+    return matchesSearch && matchesCustomer && matchesStatus && matchesDate;
+  });
 
-  const catAmounts = categories.map(c => yearData.filter(t => (t.category || 'General') === c).reduce((s, t) => s + Number(t.amount), 0));
-  const catColors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#43e97b', '#fa709a', '#fee140'];
+  // KPI Analytics Metrics
+  const totalLoanCapital = loans.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
+  const totalPaidCollection = payments.filter((p) => p.status === 'Paid').reduce((s, p) => s + Number(p.amount || 0), 0);
+  const totalOutstandingBalance = Math.max(0, totalLoanCapital - totalPaidCollection);
+  const totalLateFeeCollection = payments.filter((p) => p.status === 'Paid').reduce((s, p) => s + Number(p.lateFee || 0), 0);
 
-  const barData = {
-    labels: months,
-    datasets: [
-      { label: 'Credit', data: monthlyCredit, backgroundColor: 'rgba(40, 167, 69, 0.7)', borderRadius: 6 },
-      { label: 'Debit', data: monthlyDebit, backgroundColor: 'rgba(220, 53, 69, 0.7)', borderRadius: 6 }
-    ]
-  };
+  // Interest collection estimation (~75% of EMI interest component)
+  const totalInterestCollection = payments
+    .filter((p) => p.status === 'Paid')
+    .reduce((s, p) => s + Math.round(Number(p.amount || 0) * 0.22), 0);
 
-  const doughnutData = {
-    labels: categories,
-    datasets: [{ data: catAmounts, backgroundColor: catColors.slice(0, categories.length), borderWidth: 0 }]
-  };
+  // Top Customers by Outstanding Balance
+  const topBorrowers = customers
+    .map((c) => {
+      const custLoans = loans.filter((l) => l.customerId === c.id);
+      const totalLoan = custLoans.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
+      const custPaid = payments.filter((p) => p.customerId === c.id && p.status === 'Paid').reduce((s, p) => s + Number(p.amount || 0), 0);
+      const outstanding = Math.max(0, totalLoan - custPaid);
+      return { customerName: c.name, customerId: c.id, totalLoan, outstanding, loanCount: custLoans.length };
+    })
+    .sort((a, b) => b.outstanding - a.outstanding)
+    .slice(0, 5);
 
-  // Build text for sharing
-  const buildSummary = () => {
-    let text = `📊 *Financial Report ${year}*\n\nTotal Credit: ₹${totalCredit.toLocaleString('en-IN')}\nTotal Debit: ₹${totalDebit.toLocaleString('en-IN')}\nNet Balance: ₹${(totalCredit - totalDebit).toLocaleString('en-IN')}\n\n*Monthly Breakdown:*\n`;
-    months.forEach((m, i) => {
-      if (monthlyCredit[i] || monthlyDebit[i]) {
-        text += `${m}: Credit ₹${monthlyCredit[i].toLocaleString('en-IN')} | Debit ₹${monthlyDebit[i].toLocaleString('en-IN')} | Net ₹${(monthlyCredit[i] - monthlyDebit[i]).toLocaleString('en-IN')}\n`;
-      }
-    });
-    return text;
-  };
-
-  // Export PDF
-  const exportPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text(`Financial Report - ${year}`, 14, 20);
-    doc.setFontSize(10);
-    doc.text(`Credit: ₹${totalCredit.toLocaleString('en-IN')} | Debit: ₹${totalDebit.toLocaleString('en-IN')} | Net: ₹${(totalCredit - totalDebit).toLocaleString('en-IN')}`, 14, 28);
-    autoTable(doc, {
-      startY: 35,
-      head: [['Month', 'Credit (₹)', 'Debit (₹)', 'Net (₹)']],
-      body: months.map((m, i) => [m, monthlyCredit[i].toLocaleString('en-IN'), monthlyDebit[i].toLocaleString('en-IN'), (monthlyCredit[i] - monthlyDebit[i]).toLocaleString('en-IN')]),
-      foot: [['Total', totalCredit.toLocaleString('en-IN'), totalDebit.toLocaleString('en-IN'), (totalCredit - totalDebit).toLocaleString('en-IN')]]
-    });
-    doc.save(`report-${year}.pdf`);
+  // Export CSV
+  const handleExportCSV = () => {
+    const headers = ['Payment ID,Customer Name,Loan Title,Due Date,Paid Date,EMI Amount,Late Fee,Status\n'];
+    const rows = filteredPayments.map(
+      (p) => `${p.id},"${p.customerName}","${p.loanName}",${p.dueDate || ''},${p.paidDate || ''},${p.amount},${p.lateFee || 0},${p.status}`
+    );
+    const csvContent = 'data:text/csv;charset=utf-8,' + headers.concat(rows).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `EMI_Loan_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Export Excel
-  const exportExcel = () => {
-    const data = months.map((m, i) => ({ Month: m, Credit: monthlyCredit[i], Debit: monthlyDebit[i], Net: monthlyCredit[i] - monthlyDebit[i] }));
-    data.push({ Month: 'TOTAL', Credit: totalCredit, Debit: totalDebit, Net: totalCredit - totalDebit });
+  const handleExportExcel = () => {
+    const data = filteredPayments.map((p, idx) => ({
+      '#': idx + 1,
+      'Payment ID': p.id,
+      'Customer Name': p.customerName,
+      'Loan Account': p.loanName,
+      'Due Date': p.dueDate,
+      'Paid Date': p.paidDate || '-',
+      'EMI Amount (₹)': Number(p.amount),
+      'Late Fee (₹)': Number(p.lateFee || 0),
+      Status: p.status,
+    }));
+
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Report ${year}`);
-    XLSX.writeFile(wb, `report-${year}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Financial Report');
+    XLSX.writeFile(wb, `Financial_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  const shareWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(buildSummary())}`, '_blank');
-  const shareEmail = () => window.open(`mailto:?subject=Financial Report ${year}&body=${encodeURIComponent(buildSummary())}`, '_blank');
-  const shareSMS = () => window.open(`sms:?body=${encodeURIComponent(buildSummary())}`, '_blank');
+  // Export PDF
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('FINANCIAL & EMI COLLECTION REPORT', 14, 20);
 
-  if (loading) return <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 14, 26);
+    doc.text(`Total Portfolio Capital: Rs. ${totalLoanCapital.toLocaleString('en-IN')}`, 14, 31);
+    doc.text(`Total Collections: Rs. ${totalPaidCollection.toLocaleString('en-IN')}`, 14, 36);
+
+    const rows = filteredPayments.map((p, i) => [
+      i + 1,
+      p.customerName,
+      p.loanName,
+      p.dueDate || '-',
+      `Rs. ${Number(p.amount).toLocaleString('en-IN')}`,
+      p.status,
+    ]);
+
+    doc.autoTable({
+      startY: 42,
+      head: [['#', 'Customer', 'Loan Account', 'Due Date', 'Amount', 'Status']],
+      body: rows,
+      theme: 'striped',
+      headStyles: { fillColor: [13, 110, 253] },
+    });
+
+    doc.save(`EMI_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh' }}>
+      
+      {/* Header Bar */}
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
-          <h3 className="fw-bold mb-0"><MdBarChart className="me-2 text-primary" />Reports</h3>
-          <p className="text-muted small mb-0">Financial summary & analytics</p>
+          <h4 className="fw-bold text-dark mb-1">Financial & Loan Analytics Reports</h4>
+          <p className="text-muted small mb-0">Generate summary reports, interest revenue metrics, and export data in PDF, Excel, and CSV formats</p>
         </div>
-        <div className="d-flex flex-wrap gap-2 align-items-center">
-          <select className="form-select form-select-sm w-auto shadow-sm" value={year} onChange={e => setYear(parseInt(e.target.value))}>
-            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <div className="position-relative">
-            <button className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 shadow-sm" onClick={() => setShowShare(!showShare)}>
-              <MdShare /> Share / Export
-            </button>
-            {showShare && (
-              <div className="position-absolute end-0 mt-2 glass-panel shadow-lg border-0 rounded-4 p-3 animate-fade-in" style={{ zIndex: 100, minWidth: 220 }}>
-                <h6 className="fw-bold mb-3 text-muted small">EXPORT</h6>
-                <button className="btn btn-outline-danger btn-sm w-100 mb-2 d-flex align-items-center gap-2" onClick={exportPDF}><MdPictureAsPdf /> Download PDF</button>
-                <button className="btn btn-outline-success btn-sm w-100 mb-3 d-flex align-items-center gap-2" onClick={exportExcel}><MdTableChart /> Download Excel</button>
-                <h6 className="fw-bold mb-3 text-muted small">SHARE VIA</h6>
-                <button className="btn btn-sm w-100 mb-2 d-flex align-items-center gap-2 shadow-sm" style={{background:'#25D366',color:'#fff'}} onClick={shareWhatsApp}><MdWhatsapp /> WhatsApp</button>
-                <button className="btn btn-outline-primary btn-sm w-100 mb-2 d-flex align-items-center gap-2" onClick={shareEmail}><MdEmail /> Email</button>
-                <button className="btn btn-outline-secondary btn-sm w-100 d-flex align-items-center gap-2" onClick={shareSMS}><MdSms /> SMS</button>
+
+        <div className="d-flex gap-2">
+          <button className="btn btn-outline-secondary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={() => window.print()}>
+            <MdPrint size={18} /> Print Report
+          </button>
+          <button className="btn btn-outline-danger rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handleExportPDF}>
+            <MdPictureAsPdf size={18} /> Download PDF
+          </button>
+          <button className="btn btn-outline-success rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5" onClick={handleExportExcel}>
+            <MdFileUpload size={18} /> Export Excel
+          </button>
+          <button className="btn btn-primary rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5 shadow-sm" onClick={handleExportCSV}>
+            <MdFileUpload size={18} /> Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards Row */}
+      <div className="row g-3 mb-4">
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex justify-content-between align-items-start">
+              <div>
+                <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.68rem' }}>Total Capital Disbursed</small>
+                <h4 className="fw-bold text-dark my-1">₹{totalLoanCapital.toLocaleString('en-IN')}</h4>
+                <small className="text-primary fw-semibold">{loans.length} Total Loans</small>
               </div>
-            )}
+              <div className="bg-primary bg-opacity-10 text-primary rounded-3 p-2.5">
+                <MdAccountBalance size={22} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex justify-content-between align-items-start">
+              <div>
+                <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.68rem' }}>EMI Collection Earned</small>
+                <h4 className="fw-bold text-success my-1">₹{totalPaidCollection.toLocaleString('en-IN')}</h4>
+                <small className="text-success fw-semibold">Principal & Interest Paid</small>
+              </div>
+              <div className="bg-success bg-opacity-10 text-success rounded-3 p-2.5">
+                <MdAttachMoney size={22} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex justify-content-between align-items-start">
+              <div>
+                <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.68rem' }}>Interest Income Earned</small>
+                <h4 className="fw-bold text-info my-1">₹{totalInterestCollection.toLocaleString('en-IN')}</h4>
+                <small className="text-info fw-semibold">Estimated Interest Revenue</small>
+              </div>
+              <div className="bg-info bg-opacity-10 text-info rounded-3 p-2.5">
+                <MdShowChart size={22} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex justify-content-between align-items-start">
+              <div>
+                <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.68rem' }}>Late Penalty Collected</small>
+                <h4 className="fw-bold text-danger my-1">₹{totalLateFeeCollection.toLocaleString('en-IN')}</h4>
+                <small className="text-danger fw-semibold">Late Fee Revenue</small>
+              </div>
+              <div className="bg-danger bg-opacity-10 text-danger rounded-3 p-2.5">
+                <MdWarning size={22} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="row g-3 mb-4 animate-fade-in">
-        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center h-100"><small className="text-muted fw-semibold">Total Credit</small><h4 className="fw-bold text-success mb-0 mt-1">₹{totalCredit.toLocaleString('en-IN')}</h4></div></div>
-        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center h-100"><small className="text-muted fw-semibold">Total Debit</small><h4 className="fw-bold text-danger mb-0 mt-1">₹{totalDebit.toLocaleString('en-IN')}</h4></div></div>
-        <div className="col-4"><div className="card modern-card p-3 p-md-4 text-center h-100"><small className="text-muted fw-semibold">Net Balance</small><h4 className="fw-bold text-primary mb-0 mt-1">₹{(totalCredit - totalDebit).toLocaleString('en-IN')}</h4></div></div>
+      {/* Filter Bar */}
+      <div className="card border-0 shadow-sm rounded-4 p-3 bg-white mb-4">
+        <div className="row g-3">
+          <div className="col-12 col-md-4">
+            <input
+              type="text"
+              className="form-control bg-light border"
+              placeholder="Search by Customer, Loan Title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="col-6 col-md-3">
+            <select className="form-select bg-light border" value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}>
+              <option value="">-- Filter by Customer --</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="col-6 col-md-3">
+            <select className="form-select bg-light border" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">-- Payment Status --</option>
+              <option value="Paid">Paid</option>
+              <option value="Upcoming">Upcoming</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
+          <div className="col-12 col-md-2">
+            <button className="btn btn-outline-secondary w-100 rounded-3" onClick={() => { setSearchQuery(''); setCustomerFilter(''); setStatusFilter(''); setStartDate(''); setEndDate(''); }}>
+              Reset Filters
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Charts */}
+      {/* Analytics Charts & Top Borrowers Row */}
       <div className="row g-4 mb-4">
-        <div className="col-12 col-lg-8">
-          <div className="card modern-card p-4 h-100">
-            <h5 className="fw-bold mb-3">Monthly Credit vs Debit ({year})</h5>
-            <Bar data={barData} options={{ responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }} />
+        {/* Top Customers by Outstanding Balance */}
+        <div className="col-12 col-lg-6">
+          <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 className="fw-bold text-dark mb-1">Top Borrowers by Outstanding Balance</h6>
+            <p className="text-muted small mb-3">Customers with highest remaining loan balances</p>
+
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0 small">
+                <thead className="bg-light text-muted">
+                  <tr>
+                    <th>Customer Name</th>
+                    <th>Loans</th>
+                    <th>Total Capital</th>
+                    <th className="text-end">Outstanding</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topBorrowers.map((b, idx) => (
+                    <tr key={idx}>
+                      <td className="fw-bold text-dark">{b.customerName}</td>
+                      <td><span className="badge bg-light text-dark border">{b.loanCount} Loans</span></td>
+                      <td>₹{b.totalLoan.toLocaleString('en-IN')}</td>
+                      <td className="text-end fw-bold text-danger">₹{b.outstanding.toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <div className="col-12 col-lg-4">
-          <div className="card modern-card p-4 h-100">
-            <h5 className="fw-bold mb-3">By Category</h5>
-            {categories.length > 0 ? <Doughnut data={doughnutData} options={{ responsive: true, plugins: { legend: { position: 'bottom' } } }} /> : <p className="text-muted text-center py-4">No data</p>}
+
+        {/* Category Breakdown */}
+        <div className="col-12 col-lg-6">
+          <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <h6 className="fw-bold text-dark mb-1">Loan Category Distribution & Revenue</h6>
+            <p className="text-muted small mb-3">Loan capital breakdown by loan type</p>
+
+            <div className="d-flex flex-column gap-3">
+              {LOAN_TYPES.map((type, idx) => {
+                const list = loans.filter((l) => l.type === type);
+                const amount = list.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
+                const percent = totalLoanCapital > 0 ? Math.round((amount / totalLoanCapital) * 100) : 0;
+                return (
+                  <div key={idx}>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-semibold text-dark small">{type} ({list.length} accounts)</span>
+                      <span className="fw-bold small text-secondary">₹{amount.toLocaleString('en-IN')} ({percent}%)</span>
+                    </div>
+                    <div className="progress rounded-pill" style={{ height: '7px' }}>
+                      <div className="progress-bar bg-primary" role="progressbar" style={{ width: `${percent}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Monthly Breakdown */}
-      <div className="card modern-card p-4">
-        <h5 className="fw-bold mb-3">Monthly Breakdown ({year})</h5>
+      {/* Comprehensive Report Data Table */}
+      <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="fw-bold text-dark mb-0">Detailed EMI Collection & Payment Report Table</h5>
+          <small className="text-muted">{filteredPayments.length} Report Entries</small>
+        </div>
+
         <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead className="bg-light"><tr className="small text-muted"><th>Month</th><th className="text-end text-success">Credit</th><th className="text-end text-danger">Debit</th><th className="text-end">Net</th></tr></thead>
+          <table className="table table-hover align-middle mb-0 small">
+            <thead className="bg-light text-muted">
+              <tr>
+                <th>#</th>
+                <th>Payment ID</th>
+                <th>Customer Name</th>
+                <th>Loan Account</th>
+                <th>Due Date</th>
+                <th>Paid Date</th>
+                <th>Amount</th>
+                <th>Late Fee</th>
+                <th className="text-center">Status</th>
+              </tr>
+            </thead>
             <tbody>
-              {months.map((m, i) => (
-                <tr key={i}><td className="fw-semibold">{m}</td><td className="text-end text-success">₹{monthlyCredit[i].toLocaleString('en-IN')}</td><td className="text-end text-danger">₹{monthlyDebit[i].toLocaleString('en-IN')}</td><td className={`text-end fw-bold ${monthlyCredit[i]-monthlyDebit[i]>=0?'text-success':'text-danger'}`}>₹{(monthlyCredit[i]-monthlyDebit[i]).toLocaleString('en-IN')}</td></tr>
+              {filteredPayments.map((p, idx) => (
+                <tr key={p.id}>
+                  <td className="fw-bold">{idx + 1}</td>
+                  <td className="font-monospace text-primary">{p.id}</td>
+                  <td className="fw-bold text-dark">{p.customerName}</td>
+                  <td className="text-secondary">{p.loanName}</td>
+                  <td className="fw-semibold">{p.dueDate}</td>
+                  <td className="text-muted">{p.paidDate || '-'}</td>
+                  <td className="fw-bold text-success">₹{Number(p.amount).toLocaleString('en-IN')}</td>
+                  <td className="text-danger">{p.lateFee ? `+₹${p.lateFee}` : '-'}</td>
+                  <td className="text-center">
+                    <span className={`badge rounded-pill ${
+                      p.status === 'Paid' ? 'bg-success bg-opacity-10 text-success' :
+                      p.status === 'Overdue' ? 'bg-danger bg-opacity-10 text-danger' :
+                      'bg-warning bg-opacity-10 text-dark'
+                    }`}>
+                      {p.status}
+                    </span>
+                  </td>
+                </tr>
               ))}
             </tbody>
-            <tfoot className="border-top"><tr className="fw-bold"><td>Total</td><td className="text-end text-success">₹{totalCredit.toLocaleString('en-IN')}</td><td className="text-end text-danger">₹{totalDebit.toLocaleString('en-IN')}</td><td className={`text-end ${totalCredit-totalDebit>=0?'text-success':'text-danger'}`}>₹{(totalCredit-totalDebit).toLocaleString('en-IN')}</td></tr></tfoot>
           </table>
         </div>
       </div>

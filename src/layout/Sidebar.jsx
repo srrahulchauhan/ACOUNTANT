@@ -1,8 +1,8 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-    MdDashboard, MdPeople, MdAddCircle, MdListAlt, MdBarChart, 
-    MdEvent, MdSettings, MdLogout, MdPayment, MdReceiptLong
+    MdDashboard, MdPeople, MdAccountBalance, MdPayment, 
+    MdEvent, MdReceiptLong, MdBarChart, MdSettings, MdLogout
 } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
@@ -22,58 +22,63 @@ const Sidebar = ({ closeMobileSidebar }) => {
     { name: 'Dashboard', path: '/', icon: <MdDashboard size={22} /> },
     { name: 'Daily Expenses', path: '/daily-expenses', icon: <MdReceiptLong size={22} /> },
     { name: 'Customers', path: '/customers', icon: <MdPeople size={22} /> },
-    { name: 'EMI Dashboard', path: '/emi-dashboard', icon: <MdPayment size={22} /> },
-    { name: 'New Entry', path: '/new-entry', icon: <MdAddCircle size={22} /> },
-    { name: 'Statements', path: '/statements', icon: <MdListAlt size={22} /> },
-    { name: 'Reports', path: '/reports', icon: <MdBarChart size={22} /> },
+    { name: 'Loans', path: '/loans', icon: <MdAccountBalance size={22} /> },
+    { name: 'EMI Payments', path: '/emi-payments', icon: <MdPayment size={22} /> },
     { name: 'Calendar', path: '/calendar', icon: <MdEvent size={22} /> },
+    { name: 'Statements', path: '/statements', icon: <MdReceiptLong size={22} /> },
+    { name: 'Reports', path: '/reports', icon: <MdBarChart size={22} /> },
     { name: 'Settings', path: '/settings', icon: <MdSettings size={22} /> },
   ];
 
+
   return (
-    <div className="d-flex flex-column h-100 p-3">
-      <div className="d-flex align-items-center mb-4 mt-2 px-1">
-        <div className="bg-white rounded-3 p-1 shadow-sm" style={{ width: '40px', height: '40px' }}>
-          <img src={userData?.appLogo || logo} alt="R Accounts" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+    <div className="d-flex flex-column h-100 p-3 bg-white border-end shadow-sm" style={{ minHeight: '100vh' }}>
+      <div className="d-flex align-items-center mb-4 mt-2 px-2">
+        <div className="bg-primary bg-opacity-10 rounded-3 p-2 shadow-sm d-flex align-items-center justify-content-center" style={{ width: '42px', height: '42px' }}>
+          <img src={userData?.appLogo || logo} alt="RC Accountant" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </div>
         <div className="ms-2 flex-grow-1 overflow-hidden">
-          <h5 className="mb-0 fw-bold text-dark text-truncate" style={{ letterSpacing: '-0.5px' }}>R Accounts</h5>
+          <h5 className="mb-0 fw-bold text-dark text-truncate" style={{ letterSpacing: '-0.5px', fontSize: '1.05rem' }}>RC Accountant</h5>
+          <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.62rem', letterSpacing: '0.5px' }}>Accounting & Loans</small>
         </div>
+
         <button className="btn btn-sm text-muted ms-auto d-lg-none" onClick={closeMobileSidebar}>✕</button>
       </div>
 
       <div className="flex-grow-1 overflow-auto">
-        <ul className="nav nav-pills flex-column mb-auto">
+        <ul className="nav nav-pills flex-column gap-1 mb-auto">
           {menuItems.map((item) => (
             <li className="nav-item" key={item.name}>
               <NavLink 
                 to={item.path} 
-                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                className={({ isActive }) => `nav-link d-flex align-items-center gap-3 px-3 py-2.5 rounded-3 fw-semibold transition-all ${
+                  isActive ? 'bg-primary text-white shadow-sm' : 'text-secondary hover-bg-light'
+                }`}
                 onClick={closeMobileSidebar}
               >
                 {item.icon}
-                <span>{item.name}</span>
+                <span style={{ fontSize: '0.95rem' }}>{item.name}</span>
               </NavLink>
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="mt-auto px-2 pb-3 pt-4 border-top" style={{ borderColor: 'var(--border-color) !important' }}>
+      <div className="mt-auto px-2 pb-2 pt-3 border-top">
         <div className="d-flex align-items-center mb-3">
           {userData?.profilePic || currentUser?.photoURL ? (
-             <img src={userData?.profilePic || currentUser?.photoURL} alt="Profile" className="rounded-circle border border-2 border-primary" style={{width: 40, height: 40, objectFit: 'cover', flexShrink: 0}} />
+             <img src={userData?.profilePic || currentUser?.photoURL} alt="Profile" className="rounded-circle border border-2 border-primary" style={{width: 38, height: 38, objectFit: 'cover', flexShrink: 0}} />
           ) : (
-            <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style={{width: 40, height: 40, flexShrink: 0}}>
-              {userData?.firstName ? userData.firstName.charAt(0).toUpperCase() : 'U'}
+            <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{width: 38, height: 38, flexShrink: 0}}>
+              {userData?.firstName ? userData.firstName.charAt(0).toUpperCase() : 'A'}
             </div>
           )}
-          <div className="ms-3 flex-grow-1 overflow-hidden">
-            <h6 className="mb-0 text-truncate" style={{color: 'var(--text-main)'}}>{userData?.firstName || 'User'} {userData?.lastName || ''}</h6>
-            <small className="text-muted">{currentUser?.email || 'Accountant'}</small>
+          <div className="ms-2.5 flex-grow-1 overflow-hidden">
+            <h6 className="mb-0 text-truncate fw-bold text-dark" style={{ fontSize: '0.88rem' }}>{userData?.firstName || 'Admin'} {userData?.lastName || ''}</h6>
+            <small className="text-muted text-truncate d-block" style={{ fontSize: '0.72rem' }}>{currentUser?.email || 'Loan Manager'}</small>
           </div>
         </div>
-        <button className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 rounded-3 py-2" onClick={handleLogout}>
+        <button className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 rounded-3 py-2 fw-semibold" onClick={handleLogout}>
           <MdLogout size={18} /> Logout
         </button>
       </div>
@@ -82,3 +87,4 @@ const Sidebar = ({ closeMobileSidebar }) => {
 };
 
 export default Sidebar;
+

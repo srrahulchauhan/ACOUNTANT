@@ -1,356 +1,205 @@
 import React, { useState, useEffect } from 'react';
-import { MdPerson, MdLock, MdDeleteForever, MdSecurity, MdNotifications, MdLogout, MdCloud, MdCheckCircle, MdAddAPhoto, MdBusiness } from 'react-icons/md';
-import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-
-const DEFAULT_CATEGORIES = ['General', 'Sales', 'Services', 'Rent', 'Utilities', 'Salary', 'Other'];
+import { 
+  MdSettings, MdBusiness, MdSave, MdDownload, 
+  MdUploadFile, MdRefresh, MdFileUpload, MdSecurity
+} from 'react-icons/md';
+import { loanStore } from '../utils/loanStore';
 
 const Settings = () => {
-  const { currentUser, userData, updateUserData, updatePassword, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const [userForm, setUserForm] = useState({
-    firstName: '',
-    lastName: '',
+  const [settings, setSettings] = useState({
+    companyName: '',
+    companyTagline: '',
+    companyLogo: '',
+    email: '',
     phone: '',
-    profilePic: ''
+    address: '',
+    gstNumber: '',
+    currencySymbol: '₹',
+    defaultLateFee: 350,
+    autoSendReminders: true,
   });
-  const [appLogo, setAppLogo] = useState('');
-  const [activeTab, setActiveTab] = useState('profile');
-
-  const [passwords, setPasswords] = useState({
-    newPassword: '',
-    confirmPassword: ''
-  });
-  
-  const [profileStatus, setProfileStatus] = useState({ loading: false, message: '', error: '' });
-  const [passwordStatus, setPasswordStatus] = useState({ loading: false, message: '', error: '' });
 
   useEffect(() => {
-    if (userData) {
-      setUserForm({
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
-        phone: userData.phone || '',
-        profilePic: userData.profilePic || currentUser?.photoURL || ''
-      });
-      setAppLogo(userData.appLogo || '');
-    }
-  }, [userData, currentUser]);
+    setSettings(loanStore.getSettings());
+  }, []);
 
-  const handleUserChange = (e) => setUserForm({ ...userForm, [e.target.name]: e.target.value });
-  const handlePasswordChange = (e) => setPasswords({ ...passwords, [e.target.name]: e.target.value });
-
-  const saveProfile = async () => {
-    setProfileStatus({ loading: true, message: '', error: '' });
-    try {
-      await updateUserData({
-        firstName: userForm.firstName,
-        lastName: userForm.lastName,
-        phone: userForm.phone,
-        profilePic: userForm.profilePic,
-        appLogo: appLogo
-      });
-      setProfileStatus({ loading: false, message: 'Profile updated successfully!', error: '' });
-      setTimeout(() => setProfileStatus({ loading: false, message: '', error: '' }), 3000);
-    } catch (err) {
-      setProfileStatus({ loading: false, message: '', error: 'Failed to update profile.' });
-    }
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setSettings((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
-  const handleUpdatePassword = async () => {
-    if (passwords.newPassword !== passwords.confirmPassword) {
-      setPasswordStatus({ loading: false, message: '', error: 'Passwords do not match.' });
-      return;
-    }
-    if (passwords.newPassword.length < 6) {
-      setPasswordStatus({ loading: false, message: '', error: 'Password must be at least 6 characters.' });
-      return;
-    }
-
-    setPasswordStatus({ loading: true, message: '', error: '' });
-    try {
-      await updatePassword(passwords.newPassword);
-      setPasswordStatus({ loading: false, message: 'Password updated successfully!', error: '' });
-      setPasswords({ newPassword: '', confirmPassword: '' });
-      setTimeout(() => setPasswordStatus({ loading: false, message: '', error: '' }), 3000);
-    } catch (err) {
-      setPasswordStatus({ loading: false, message: '', error: err.message || 'Failed to update password.' });
-    }
-  };
-
-  const handleImageUpload = (e, target) => {
+  const handleLogoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const maxSizeBytes = 20 * 1024 * 1024;
-      if (file.size > maxSizeBytes) { 
-        alert(`File too large (Max 20MB)`); 
-        return; 
-      }
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_SIZE = 400;
-          let width = img.width;
-          let height = img.height;
-          if (width > height) {
-            if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-          } else {
-            if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          if (target === 'profile') setUserForm({...userForm, profilePic: compressedDataUrl});
-          if (target === 'app') setAppLogo(compressedDataUrl);
-        };
-        img.src = event.target.result;
+      reader.onloadend = () => {
+        setSettings((prev) => ({ ...prev, companyLogo: reader.result }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) { console.error(error); }
+  const handleSave = (e) => {
+    e.preventDefault();
+    loanStore.saveSettings(settings);
+    alert('✓ App & Company Settings saved successfully!');
   };
 
-  const handleDeleteAccount = async () => {
-    if (window.confirm("Permanently delete account? This cannot be undone.")) {
-      localStorage.removeItem('account_transactions');
-      localStorage.removeItem('account_customers');
-      await logout();
-      navigate('/login');
+  const handleImportFile = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const success = loanStore.importBackup(event.target.result);
+        if (success) {
+          alert('✓ Data backup restored successfully!');
+          window.location.reload();
+        } else {
+          alert('❌ Failed to restore data backup file. Invalid format.');
+        }
+      };
+      reader.readAsText(file);
     }
   };
 
-  const menuItems = [
-    { id: 'profile', name: 'Profile', icon: <MdPerson /> },
-    { id: 'security', name: 'Security', icon: <MdLock /> },
-    { id: 'management', name: 'Account', icon: <MdSecurity /> },
-    { id: 'sync', name: 'Data', icon: <MdCloud /> },
-  ];
+  const handleResetDefaults = () => {
+    if (window.confirm('Are you sure you want to reset all data to default demo datasets? This will overwrite your current entries.')) {
+      loanStore.resetToDefaults();
+      alert('✓ Data reset to default demo dataset.');
+      window.location.reload();
+    }
+  };
 
   return (
-    <div className="container-fluid py-3 px-3 px-md-4">
+    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh' }}>
+      
+      {/* Header */}
       <div className="d-flex align-items-center justify-content-between mb-4">
-        <h4 className="fw-bold mb-0">Settings & Profile</h4>
-        <div className="d-flex gap-2">
-           <button className="btn btn-light btn-sm px-3 rounded-pill" onClick={() => navigate('/')}>Dashboard</button>
-           <button className="btn btn-outline-danger btn-sm px-3 rounded-pill" onClick={handleSignOut}>Sign Out</button>
+        <div>
+          <h4 className="fw-bold text-dark mb-1">System & Company Settings</h4>
+          <p className="text-muted small mb-0">Customize letterhead details, late fee rules, and manage JSON data backup & restore</p>
         </div>
       </div>
 
-      <div className="row g-3">
-        {/* Sidebar Navigation */}
-        <div className="col-12 col-md-3">
-          <div className="card modern-card p-2 shadow-sm border-0">
-            <div className="nav flex-column gap-1">
-              {menuItems.map(item => (
-                <button 
-                  key={item.id} 
-                  className={`nav-link text-start d-flex align-items-center gap-3 px-3 py-2 rounded-3 border-0 transition-all ${activeTab === item.id ? 'btn-primary text-white shadow-sm' : 'bg-transparent text-muted fw-semibold'}`}
-                  style={{fontSize: '0.9rem'}}
-                  onClick={() => setActiveTab(item.id)}
-                >
-                  <span className="fs-5">{item.icon}</span>
-                  {item.name}
+      <form onSubmit={handleSave}>
+        <div className="row g-4 mb-4">
+          
+          {/* Company Profile Settings */}
+          <div className="col-12 col-lg-8">
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
+              <h5 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2 border-bottom pb-2">
+                <MdBusiness className="text-primary" /> Company Branding & Letterhead Setup
+              </h5>
+
+              <div className="row g-3">
+                <div className="col-12 text-center mb-3">
+                  <div className="d-inline-block position-relative">
+                    {settings.companyLogo ? (
+                      <img src={settings.companyLogo} alt="Logo" className="rounded-3 border p-1 shadow-2xs" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                    ) : (
+                      <div className="rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 d-flex align-items-center justify-content-center mx-auto text-primary fw-bold" style={{ width: 80, height: 80, fontSize: '1.8rem' }}>
+                        EL
+                      </div>
+                    )}
+                    <label htmlFor="companyLogoUpload" className="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0 p-1 shadow" style={{ width: 28, height: 28, cursor: 'pointer' }} title="Upload Logo">
+                      <MdFileUpload size={16} />
+                    </label>
+                    <input id="companyLogoUpload" type="file" accept="image/*" className="d-none" onChange={handleLogoUpload} />
+                  </div>
+                  <small className="d-block text-muted mt-1">Statement & Letterhead Brand Logo</small>
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">Company Name *</label>
+                  <input type="text" className="form-control fw-bold" name="companyName" value={settings.companyName} onChange={handleChange} required />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">Tagline / Slogan</label>
+                  <input type="text" className="form-control" name="companyTagline" value={settings.companyTagline} onChange={handleChange} />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">Official Email Address</label>
+                  <input type="email" className="form-control" name="email" value={settings.email} onChange={handleChange} />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">Customer Helpline Phone</label>
+                  <input type="text" className="form-control" name="phone" value={settings.phone} onChange={handleChange} />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">GST / Tax Registration Number</label>
+                  <input type="text" className="form-control font-monospace text-uppercase" name="gstNumber" value={settings.gstNumber} onChange={handleChange} />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">Default Late Fee Penalty (₹)</label>
+                  <input type="number" className="form-control fw-bold text-danger" name="defaultLateFee" value={settings.defaultLateFee} onChange={handleChange} />
+                </div>
+
+                <div className="col-12">
+                  <label className="form-label small fw-semibold text-muted">Company Full Address</label>
+                  <textarea className="form-control" rows="2" name="address" value={settings.address} onChange={handleChange}></textarea>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-top d-flex justify-content-end">
+                <button type="submit" className="btn btn-primary rounded-3 px-4 fw-bold shadow-sm d-flex align-items-center gap-1.5">
+                  <MdSave size={18} /> Save Settings
                 </button>
-              ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Backup & Data Management Side Card */}
+          <div className="col-12 col-lg-4">
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+              <h5 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2 border-bottom pb-2">
+                <MdSecurity className="text-success" /> Data Persistence & Backup
+              </h5>
+
+              <p className="small text-muted mb-4">
+                All customer files, loan contracts, and EMI payment ledgers are saved locally in your browser's <strong className="text-dark">localStorage</strong>.
+              </p>
+
+              <div className="d-flex flex-column gap-3">
+                {/* Export Backup */}
+                <div className="p-3 bg-light rounded-3 border">
+                  <h6 className="fw-bold text-dark small mb-1">Export Complete JSON Backup</h6>
+                  <p className="text-muted" style={{ fontSize: '0.75rem' }}>Download a complete offline JSON file of all data</p>
+                  <button type="button" className="btn btn-outline-success btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-1.5" onClick={() => loanStore.exportBackup()}>
+                    <MdDownload size={18} /> Download Backup (.json)
+                  </button>
+                </div>
+
+                {/* Import Backup */}
+                <div className="p-3 bg-light rounded-3 border">
+                  <h6 className="fw-bold text-dark small mb-1">Restore from JSON File</h6>
+                  <p className="text-muted" style={{ fontSize: '0.75rem' }}>Restore database records from a saved backup file</p>
+                  <label htmlFor="importBackupInput" className="btn btn-outline-primary btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-1.5 cursor-pointer">
+                    <MdUploadFile size={18} /> Choose File & Restore
+                  </label>
+                  <input id="importBackupInput" type="file" accept=".json" className="d-none" onChange={handleImportFile} />
+                </div>
+
+                {/* Reset to Demo Seed */}
+                <div className="p-3 bg-danger bg-opacity-10 border border-danger border-opacity-20 rounded-3 mt-2">
+                  <h6 className="fw-bold text-danger small mb-1">Reset to Default Demo Data</h6>
+                  <p className="text-muted" style={{ fontSize: '0.75rem' }}>Re-populate database with default sample loan records</p>
+                  <button type="button" className="btn btn-danger btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-1.5" onClick={handleResetDefaults}>
+                    <MdRefresh size={18} /> Reset Demo Dataset
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Content Area */}
-        <div className="col-12 col-md-9">
-          <div className="card modern-card p-3 p-md-4 shadow-sm border-0 min-vh-50">
-            
-            {activeTab === 'profile' && (
-              <div className="animate-fade-in">
-                <div className="d-flex align-items-center gap-3 mb-4">
-                  <div className="bg-primary bg-opacity-10 text-primary p-2 rounded-3">
-                    <MdPerson size={24} />
-                  </div>
-                  <div>
-                    <h5 className="fw-bold mb-0">Profile & Branding</h5>
-                    <p className="text-muted small mb-0">Update your identity and business appearance</p>
-                  </div>
-                </div>
-
-                {profileStatus.message && (
-                  <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-3 border-0 bg-success bg-opacity-10 text-success">
-                    <MdCheckCircle /> {profileStatus.message}
-                  </div>
-                )}
-
-                <div className="row g-3">
-                  {/* Photo Uploads */}
-                  <div className="col-12 col-lg-6">
-                    <div className="p-3 rounded-4 bg-light border border-dashed text-center">
-                      <div className="position-relative d-inline-block mb-2">
-                        {userForm.profilePic ? (
-                          <img src={userForm.profilePic} alt="P" className="rounded-circle shadow-sm" style={{ width: 80, height: 80, objectFit: 'cover', border: '3px solid #fff' }} />
-                        ) : (
-                          <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm fw-bold" style={{ width: 80, height: 80, fontSize: '1.5rem', border: '3px solid #fff' }}>
-                            {userForm.firstName?.charAt(0) || 'U'}
-                          </div>
-                        )}
-                        <label className="position-absolute bottom-0 end-0 bg-white shadow-sm rounded-circle p-1 cursor-pointer" style={{transform: 'translate(5px, 5px)'}}>
-                          <MdAddAPhoto className="text-primary" size={16} />
-                          <input type="file" className="d-none" accept="image/*" onChange={(e) => handleImageUpload(e, 'profile')} />
-                        </label>
-                      </div>
-                      <h6 className="small fw-bold mb-1">Profile Photo</h6>
-                      <p className="text-muted x-small mb-0">Personalize your account</p>
-                    </div>
-                  </div>
-
-                  <div className="col-12 col-lg-6">
-                    <div className="p-3 rounded-4 bg-light border border-dashed text-center">
-                      <div className="position-relative d-inline-block mb-2">
-                        {appLogo ? (
-                          <img src={appLogo} alt="L" className="rounded-3 shadow-sm bg-white" style={{ width: 80, height: 80, objectFit: 'contain', padding: '10px' }} />
-                        ) : (
-                          <div className="rounded-3 bg-white text-primary d-flex align-items-center justify-content-center shadow-sm fw-bold border" style={{ width: 80, height: 80, fontSize: '1.5rem' }}>
-                            <MdBusiness />
-                          </div>
-                        )}
-                        <label className="position-absolute bottom-0 end-0 bg-white shadow-sm rounded-circle p-1 cursor-pointer" style={{transform: 'translate(5px, 5px)'}}>
-                          <MdAddAPhoto className="text-primary" size={16} />
-                          <input type="file" className="d-none" accept="image/*" onChange={(e) => handleImageUpload(e, 'app')} />
-                        </label>
-                      </div>
-                      <h6 className="small fw-bold mb-1">Business Logo</h6>
-                      <p className="text-muted x-small mb-0">Appears on your navbar</p>
-                    </div>
-                  </div>
-
-                  {/* Form Fields */}
-                  <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">First Name</label>
-                    <input type="text" className="form-control form-control-custom py-2" name="firstName" value={userForm.firstName} onChange={handleUserChange} style={{fontSize: '0.9rem'}} />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">Last Name</label>
-                    <input type="text" className="form-control form-control-custom py-2" name="lastName" value={userForm.lastName} onChange={handleUserChange} style={{fontSize: '0.9rem'}} />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">Phone Number</label>
-                    <input type="text" className="form-control form-control-custom py-2" name="phone" value={userForm.phone} onChange={handleUserChange} style={{fontSize: '0.9rem'}} />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label small fw-bold text-muted">Email Address</label>
-                    <input type="email" className="form-control form-control-custom py-2 bg-light text-muted" value={currentUser?.email || ''} disabled readOnly style={{fontSize: '0.9rem'}} />
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-top text-end">
-                  <button className="btn btn-primary px-4 py-2 rounded-pill fw-bold shadow-sm" onClick={saveProfile} disabled={profileStatus.loading}>
-                    {profileStatus.loading ? 'Saving...' : 'Update Profile'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'security' && (
-              <div className="animate-fade-in">
-                <div className="d-flex align-items-center gap-3 mb-4">
-                  <div className="bg-danger bg-opacity-10 text-danger p-2 rounded-3">
-                    <MdLock size={24} />
-                  </div>
-                  <div>
-                    <h5 className="fw-bold mb-0">Security Settings</h5>
-                    <p className="text-muted small mb-0">Keep your account safe and secure</p>
-                  </div>
-                </div>
-
-                {passwordStatus.message && (
-                  <div className="alert alert-success py-2 px-3 small mb-3 border-0 bg-success bg-opacity-10 text-success">
-                    <MdCheckCircle /> {passwordStatus.message}
-                  </div>
-                )}
-                {passwordStatus.error && (
-                  <div className="alert alert-danger py-2 px-3 small mb-3 border-0 bg-danger bg-opacity-10 text-danger">
-                    {passwordStatus.error}
-                  </div>
-                )}
-
-                <div className="p-3 p-md-4 rounded-4 bg-light">
-                  <h6 className="fw-bold mb-3">Change Password</h6>
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold text-muted">New Password</label>
-                      <input type="password" name="newPassword" value={passwords.newPassword} onChange={handlePasswordChange} className="form-control form-control-custom bg-white py-2" placeholder="••••••••" />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold text-muted">Confirm Password</label>
-                      <input type="password" name="confirmPassword" value={passwords.confirmPassword} onChange={handlePasswordChange} className="form-control form-control-custom bg-white py-2" placeholder="••••••••" />
-                    </div>
-                  </div>
-                  <button className="btn btn-dark mt-3 px-4 rounded-pill fw-bold btn-sm" onClick={handleUpdatePassword} disabled={passwordStatus.loading}>
-                    {passwordStatus.loading ? 'Updating...' : 'Save New Password'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'management' && (
-              <div className="animate-fade-in">
-                <div className="d-flex align-items-center gap-3 mb-4">
-                  <div className="bg-warning bg-opacity-10 text-warning p-2 rounded-3">
-                    <MdSecurity size={24} />
-                  </div>
-                  <div>
-                    <h5 className="fw-bold mb-0">Account Management</h5>
-                    <p className="text-muted small mb-0">Data control and account actions</p>
-                  </div>
-                </div>
-
-                <div className="p-3 p-md-4 rounded-4 border border-danger border-opacity-25 bg-danger bg-opacity-5">
-                   <div className="d-flex align-items-start gap-3">
-                      <div className="bg-white p-2 rounded-circle shadow-sm text-danger">
-                        <MdDeleteForever size={24} />
-                      </div>
-                      <div>
-                        <h6 className="fw-bold text-danger mb-1">Permanently Delete Account</h6>
-                        <p className="text-muted small mb-3">This will wipe all your transactions, customers, and personal data from this browser. This action is irreversible.</p>
-                        <button className="btn btn-danger btn-sm px-4 rounded-pill fw-bold" onClick={handleDeleteAccount}>Wipe All Data & Delete</button>
-                      </div>
-                   </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'sync' && (
-              <div className="animate-fade-in text-center py-5">
-                <div className="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-circle mb-3" style={{ width: 64, height: 64 }}>
-                  <MdCloud size={32} />
-                </div>
-                <h5 className="fw-bold">Local Data Storage</h5>
-                <p className="text-muted small mx-auto" style={{maxWidth: '300px'}}>Your data is currently stored locally in this browser. We are working on cloud backup features for future releases.</p>
-                <div className="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill mt-2">
-                  <MdCheckCircle className="me-1" /> Data Saved Locally
-                </div>
-              </div>
-            )}
-
-          </div>
-        </div>
-      </div>
-
-      <style>{`
-        .x-small { font-size: 0.65rem; }
-        .cursor-pointer { cursor: pointer; }
-        .transition-all { transition: all 0.2s ease; }
-        .min-vh-50 { min-height: 50vh; }
-        .border-dashed { border-style: dashed !important; border-width: 2px !important; border-color: var(--border-color) !important; }
-      `}</style>
+      </form>
     </div>
   );
 };

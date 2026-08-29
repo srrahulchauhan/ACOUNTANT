@@ -1,21 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Dashboard from './pages/Dashboard';
+import DailyExpenses from './pages/DailyExpenses';
 import Customers from './pages/Customers';
-import NewEntry from './pages/NewEntry';
+import Loans from './pages/Loans';
+import EmiPayments from './pages/EmiPayments';
 import Statements from './pages/Statements';
 import Reports from './pages/Reports';
 import CalendarView from './pages/CalendarView';
 import Settings from './pages/Settings';
-import EmiDashboard from './pages/EmiDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
-
-
-
-import DailyExpenses from './pages/DailyExpenses';
 
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -34,14 +31,14 @@ function App() {
         {/* Protected Routes */}
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
-          <Route path="customers" element={<Customers />} />
           <Route path="daily-expenses" element={<DailyExpenses />} />
-          <Route path="new-entry" element={<NewEntry />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="loans" element={<Loans />} />
+          <Route path="emi-payments" element={<EmiPayments />} />
+          <Route path="calendar" element={<CalendarView />} />
           <Route path="statements" element={<Statements />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="calendar" element={<CalendarView />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="emi-dashboard" element={<EmiDashboard />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -51,3 +48,5 @@ function App() {
 }
 
 export default App;
+
+

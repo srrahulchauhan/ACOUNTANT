@@ -284,7 +284,7 @@ const DailyExpenses = () => {
   }, [expenses]);
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="container-fluid py-4 px-3 px-md-4 page-transition" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       
       {/* Header & Budget Warning Alert */}
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
