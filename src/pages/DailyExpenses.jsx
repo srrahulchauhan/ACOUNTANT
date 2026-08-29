@@ -348,11 +348,16 @@ const DailyExpenses = () => {
         </div>
       )}
 
-      {/* Top Spending & Budget Metrics Cards */}
+      {/* Top Spending & Budget Metrics Cards (Interactively Clickable) */}
       <div className="row g-3 g-lg-4 mb-4">
-        {/* Today's Total */}
+        {/* Today's Total Card */}
         <div className="col-6 col-lg-3">
-          <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: '4px solid #10b981' }}>
+          <div 
+            className={`card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm hover-lift transition-all cursor-pointer ${dateFilter === 'Today' ? 'ring-2 ring-emerald-500' : ''}`}
+            style={{ borderTop: '4px solid #10b981', cursor: 'pointer' }}
+            onClick={() => setDateFilter('Today')}
+            title="Click to filter Today's expenses"
+          >
             <div className="d-flex justify-content-between align-items-start">
               <div>
                 <p className="text-muted small mb-1 fw-semibold">Today's Spending</p>
@@ -366,14 +371,19 @@ const DailyExpenses = () => {
           </div>
         </div>
 
-        {/* Daily Budget */}
+        {/* Daily Budget Card */}
         <div className="col-6 col-lg-3">
-          <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: '4px solid #0ea5e9' }}>
+          <div 
+            className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm hover-lift transition-all cursor-pointer"
+            style={{ borderTop: '4px solid #0ea5e9', cursor: 'pointer' }}
+            onClick={() => { setEditingBudget(true); setTempBudget(dailyBudget); }}
+            title="Click to edit Daily Budget Limit"
+          >
             <div className="d-flex justify-content-between align-items-start">
               <div>
                 <p className="text-muted small mb-1 fw-semibold">Daily Budget</p>
                 <h3 className="fw-bold mb-0 text-primary">₹{dailyBudget.toLocaleString('en-IN')}</h3>
-                <small className="text-muted">Target per day</small>
+                <small className="text-muted">Target per day (Click to Edit)</small>
               </div>
               <div className="p-3 rounded-3" style={{ background: 'rgba(14, 165, 233, 0.12)', color: '#0ea5e9' }}>
                 <MdAccountBalanceWallet size={24} />
@@ -382,9 +392,14 @@ const DailyExpenses = () => {
           </div>
         </div>
 
-        {/* Remaining Balance */}
+        {/* Remaining Balance Card */}
         <div className="col-6 col-lg-3">
-          <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: `4px solid ${remainingBudget < 0 ? '#ef4444' : '#8b5cf6'}` }}>
+          <div 
+            className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm hover-lift transition-all cursor-pointer"
+            style={{ borderTop: `4px solid ${remainingBudget < 0 ? '#ef4444' : '#8b5cf6'}`, cursor: 'pointer' }}
+            onClick={() => { setEditingBudget(true); setTempBudget(dailyBudget); }}
+            title="Click to adjust Daily Budget"
+          >
             <div className="d-flex justify-content-between align-items-start">
               <div>
                 <p className="text-muted small mb-1 fw-semibold">Remaining Balance</p>
@@ -400,9 +415,14 @@ const DailyExpenses = () => {
           </div>
         </div>
 
-        {/* Monthly Summary */}
+        {/* Monthly Summary Card */}
         <div className="col-6 col-lg-3">
-          <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: '4px solid #f59e0b' }}>
+          <div 
+            className={`card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm hover-lift transition-all cursor-pointer ${dateFilter === 'This Month' ? 'ring-2 ring-amber-500' : ''}`}
+            style={{ borderTop: '4px solid #f59e0b', cursor: 'pointer' }}
+            onClick={() => setDateFilter('This Month')}
+            title="Click to filter This Month's expenses"
+          >
             <div className="d-flex justify-content-between align-items-start">
               <div>
                 <p className="text-muted small mb-1 fw-semibold">This Month Spending</p>
@@ -416,6 +436,7 @@ const DailyExpenses = () => {
           </div>
         </div>
       </div>
+
 
       {/* Budget Progress Bar */}
       <div className="card modern-card p-3 mb-4 border-0 shadow-sm">
