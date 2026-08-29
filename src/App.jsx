@@ -11,8 +11,6 @@ import Reports from './pages/Reports';
 import CalendarView from './pages/CalendarView';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
 
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -21,32 +19,29 @@ function App() {
   const { currentUser } = useAuth();
 
   return (
-    <>
-      <Routes>
-        {/* Auth Routes */}
-        <Route path="/login" element={!currentUser ? <Login /> : <Navigate to="/" replace />} />
-        <Route path="/register" element={!currentUser ? <Register /> : <Navigate to="/" replace />} />
-        <Route path="/forgot-password" element={!currentUser ? <ForgotPassword /> : <Navigate to="/" replace />} />
+    <Routes>
+      {/* Auth Passcode Route */}
+      <Route path="/login" element={!currentUser ? <Login /> : <Navigate to="/" replace />} />
 
-        {/* Protected Routes */}
-        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route index element={<Dashboard />} />
-          <Route path="daily-expenses" element={<DailyExpenses />} />
-          <Route path="customers" element={<Customers />} />
-          <Route path="loans" element={<Loans />} />
-          <Route path="emi-payments" element={<EmiPayments />} />
-          <Route path="calendar" element={<CalendarView />} />
-          <Route path="statements" element={<Statements />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />
+      {/* Protected Main Application Routes */}
+      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Dashboard />} />
+        <Route path="daily-expenses" element={<DailyExpenses />} />
+        <Route path="customers" element={<Customers />} />
+        <Route path="loans" element={<Loans />} />
+        <Route path="emi-payments" element={<EmiPayments />} />
+        <Route path="calendar" element={<CalendarView />} />
+        <Route path="statements" element={<Statements />} />
+        <Route path="reports" element={<Reports />} />
+        <Route path="settings" element={<Settings />} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
   );
 }
 
 export default App;
+
 
 

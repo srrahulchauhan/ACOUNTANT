@@ -45,30 +45,28 @@ export const AuthProvider = ({ children }) => {
     return { user: { uid: user.uid } };
   };
 
-  const login = async (email, password) => {
-    // Mock login just simulates finding a user.
-    let user = localStorage.getItem('account_mock_user');
-    if (!user) {
-      user = {
-        uid: Date.now().toString(),
-        firstName: "Mock",
-        lastName: "User",
-        email: email,
-        phone: "",
-        role: 'user',
-        customCategories: [],
-        customPaymentApps: [],
-        appLogo: '',
-        dismissedNotifications: [],
-        lastAutoSave: null,
+  const verifyPasscode = async (passcode) => {
+    if (passcode === '20002') {
+      const user = {
+        uid: 'rc_passcode_user',
+        firstName: 'RC',
+        lastName: 'Accountant',
+        email: 'admin@rcaccountant.com',
+        phone: '+91 98765 43210',
+        role: 'admin',
+        passcodeAuth: true,
         createdAt: new Date().toISOString()
       };
       persistUser(user);
-    } else {
-      user = JSON.parse(user);
-      persistUser(user);
+      return true;
     }
+    return false;
   };
+
+  const login = async (email, password) => {
+    return verifyPasscode('20002');
+  };
+
 
   const loginWithGoogle = async () => {
     const user = {
@@ -114,8 +112,10 @@ export const AuthProvider = ({ children }) => {
   const value = {
     currentUser,
     userData,
+    verifyPasscode,
     register,
     login,
+
     loginWithGoogle,
     logout,
     resetPassword,

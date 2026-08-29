@@ -4,7 +4,8 @@ import {
   MdCheckCircle, MdSend, MdPerson, MdAddCircle, MdClose, MdEvent
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
+
 import { useNavigate } from 'react-router-dom';
 
 const CalendarView = () => {
@@ -334,8 +335,9 @@ const CalendarView = () => {
             <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
               <div className="modal-header border-0 bg-primary text-white py-3 px-4">
                 <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
-                  <MdEvent /> Schedule Details for {selectedDate.dateStr}
+                  <MdEvent /> Schedule Details for {formatIndianDate(selectedDate.dateStr)}
                 </h5>
+
                 <button type="button" className="btn-close btn-close-white" onClick={() => setSelectedDate(null)}></button>
               </div>
 

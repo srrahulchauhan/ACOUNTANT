@@ -4,7 +4,8 @@ import {
   MdReceiptLong, MdSearch, MdBusiness
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
+
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -324,8 +325,9 @@ const Statements = () => {
                 statementPayments.map((p, idx) => (
                   <tr key={p.id || idx}>
                     <td className="text-center fw-bold">{idx + 1}</td>
-                    <td>{p.dueDate || '-'}</td>
-                    <td className="text-muted">{p.paidDate || '-'}</td>
+                    <td className="fw-semibold text-dark">{formatIndianDate(p.dueDate)}</td>
+                    <td className="text-muted">{p.paidDate ? formatIndianDate(p.paidDate) : '-'}</td>
+
                     <td className="fw-bold text-dark">₹{Number(p.amount).toLocaleString('en-IN')}</td>
                     <td className="text-danger">{p.lateFee ? `₹${p.lateFee}` : '₹0'}</td>
                     <td>{p.paymentMethod || 'UPI'}</td>

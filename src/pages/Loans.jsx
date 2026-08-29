@@ -4,7 +4,8 @@ import {
   MdReceipt, MdCalendarToday, MdInfo, MdVisibility
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { getLocalDateString, addMonthsToDate } from '../utils/dateUtils';
+import { getLocalDateString, addMonthsToDate, formatIndianDate } from '../utils/dateUtils';
+
 
 const LOAN_TYPES = ['Home Loan', 'Car Loan', 'Personal Loan', 'Education Loan', 'Credit Card', 'Other Loan'];
 
@@ -414,7 +415,8 @@ const Loans = () => {
                         {selectedLoanDetails.schedule.map((row) => (
                           <tr key={row.installmentNumber}>
                             <td className="fw-bold">{row.installmentNumber}</td>
-                            <td>{row.dueDate}</td>
+                            <td className="fw-semibold text-primary">{formatIndianDate(row.dueDate)}</td>
+
                             <td className="fw-bold text-dark">₹{row.emiAmount.toLocaleString('en-IN')}</td>
                             <td className="text-success">₹{row.principalComponent.toLocaleString('en-IN')}</td>
                             <td className="text-muted">₹{row.interestComponent.toLocaleString('en-IN')}</td>

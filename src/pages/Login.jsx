@@ -1,207 +1,210 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { 
-  MdEmail, 
-  MdLock, 
-  MdLogin, 
-  MdArrowForward,
-  MdInfo
-} from 'react-icons/md';
-import { FcGoogle } from 'react-icons/fc';
+import { useNavigate } from 'react-router-dom';
+import { MdLock, MdLockOpen, MdSecurity, MdKey, MdCheckCircle, MdErrorOutline, MdBackspace } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
 
 const Login = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [loading, setLoading] = useState(false);
+  const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-  const { login, loginWithGoogle, loginAsGuest } = useAuth();
+  const { verifyPasscode } = useAuth();
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handlePasscodeSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!passcode) {
+      setError('Please enter your passcode!');
+      return;
+    }
 
-  const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
-    try {
-      await loginWithGoogle();
-      navigate('/');
-    } catch (err) {
-      console.error(err);
-      setError('Google login failed: ' + (err.message || 'Please try again.'));
-    } finally {
+
+    // Verify passcode
+    const isCorrect = await verifyPasscode(passcode.trim());
+    if (isCorrect) {
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/');
+      }, 500);
+    } else {
+      setError('❌ Incorrect Passcode! Access Denied.');
+      setPasscode('');
       setLoading(false);
     }
   };
 
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      await login(formData.email, formData.password);
-      navigate('/');
-    } catch (err) {
-      setError('Invalid email or password. Please try again.');
-    } finally {
-      setLoading(false);
+  const handleKeyClick = (val) => {
+    if (passcode.length < 10) {
+      setPasscode(prev => prev + val);
+      setError('');
     }
+  };
+
+  const handleBackspace = () => {
+    setPasscode(prev => prev.slice(0, -1));
+    setError('');
+  };
+
+  const handleClear = () => {
+    setPasscode('');
+    setError('');
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center py-5 px-3" style={{ backgroundColor: '#ffffff', fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-vh-100 d-flex align-items-center justify-content-center py-5 px-3 position-relative overflow-hidden" style={{ backgroundColor: '#0f172a', fontFamily: "'Inter', sans-serif" }}>
       
-      {/* Very subtle background glow */}
-      <div className="position-absolute top-0 start-50 translate-middle-x w-100 overflow-hidden" style={{ height: '500px', zIndex: 0, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '-200px', left: '50%', transform: 'translateX(-50%)', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(13,110,253,0.03) 0%, rgba(255,255,255,0) 70%)', borderRadius: '50%' }}></div>
+      {/* Subtle Background Glow */}
+      <div className="position-absolute top-50 start-50 translate-middle w-100 h-100 pointer-events-none" style={{ zIndex: 0 }}>
+        <div style={{ position: 'absolute', top: '20%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(13, 110, 253, 0.15) 0%, rgba(15, 23, 42, 0) 70%)', borderRadius: '50%' }}></div>
       </div>
 
-      <div className="container" style={{ position: 'relative', zIndex: 1, maxWidth: '420px' }}>
+      <div className="container position-relative" style={{ zIndex: 1, maxWidth: '420px' }}>
         
-        {/* Logo/Brand */}
+        {/* Brand Header */}
         <div className="text-center mb-4">
-          <div className="d-inline-flex align-items-center justify-content-center bg-white rounded-4 shadow-sm mb-3 overflow-hidden" style={{ width: '80px', height: '80px' }}>
-            <img src={logo} alt="R Accounts Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div className="d-inline-flex align-items-center justify-content-center bg-white bg-opacity-10 backdrop-blur rounded-4 p-3 mb-3 border border-light border-opacity-10 shadow-lg" style={{ width: '84px', height: '84px' }}>
+            <img src={logo} alt="RC Accountant" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <h2 className="fw-bold mb-1" style={{ color: '#0f172a', letterSpacing: '-0.5px', fontSize: '1.75rem' }}>Welcome Back</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Sign in to access your R Accounts dashboard.</p>
+          <h3 className="fw-bold mb-1 text-white" style={{ letterSpacing: '-0.5px' }}>RC Accountant</h3>
+          <p className="text-slate-400 small mb-0" style={{ color: '#94a3b8' }}>Secure Passcode Verification</p>
         </div>
 
-        <div className="card border-0 shadow-none" style={{ background: 'transparent' }}>
-          <div className="card-body p-0">
+        {/* Lock Card */}
+        <div className="card border-0 shadow-2xl rounded-4 p-4" style={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="card-body p-0 text-center">
             
+            <div className="d-flex justify-content-center align-items-center gap-2 mb-3">
+              {success ? (
+                <MdLockOpen size={36} className="text-success animate-bounce" />
+              ) : (
+                <MdSecurity size={36} className="text-primary" />
+              )}
+            </div>
+
+            <h5 className="fw-bold text-white mb-1">Enter Passcode</h5>
+            <small className="text-slate-400 d-block mb-3" style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
+              Enter your secret security passcode to unlock system
+            </small>
+
+            {/* Error Message Alert */}
             {error && (
-              <div className="alert border-0 d-flex align-items-center gap-3 py-3 mb-4" 
-                   style={{ backgroundColor: '#fef2f2', color: '#dc2626', borderRadius: '12px' }}>
-                <MdLock size={20} className="flex-shrink-0" />
-                <div className="fw-medium small m-0">{error}</div>
+              <div className="alert border-0 py-2 px-3 mb-3 d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#450a0a', color: '#fca5a5', borderRadius: '10px', fontSize: '0.85rem' }}>
+                <MdErrorOutline size={18} />
+                <span>{error}</span>
               </div>
             )}
 
-            <div className="col-12 mb-2">
-              <button type="button" className="btn w-100 py-3 premium-btn-google d-flex align-items-center justify-content-center gap-3" onClick={handleGoogleLogin} disabled={loading}>
-                <FcGoogle size={24} /> <span className="fw-bold" style={{ fontSize: '1.05rem', color: '#0f172a' }}>Continue with Google</span>
-              </button>
-            </div>
-
-
-            <div className="col-12 text-center my-3">
-              <div className="d-flex align-items-center gap-3">
-                <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
-                <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', letterSpacing: '1px' }}>OR USE EMAIL</span>
-                <div className="flex-grow-1" style={{ height: '1px', backgroundColor: '#e2e8f0' }}></div>
+            {/* Success Alert */}
+            {success && (
+              <div className="alert border-0 py-2 px-3 mb-3 d-flex align-items-center justify-content-center gap-2" style={{ backgroundColor: '#064e3b', color: '#6ee7b7', borderRadius: '10px', fontSize: '0.85rem' }}>
+                <MdCheckCircle size={18} />
+                <span>✓ Passcode Verified! Unlocking...</span>
               </div>
-            </div>
+            )}
 
-            <form onSubmit={handleSubmit}>
-              <div className="col-12">
-                <label className="form-label fw-semibold mb-1" style={{ color: '#334155', fontSize: '0.85rem' }}>Email Address</label>
-                <input type="email" className="form-control premium-input" name="email" placeholder="john@example.com" value={formData.email} onChange={handleChange} required />
+            {/* Passcode Input Field Form */}
+            <form onSubmit={handlePasscodeSubmit}>
+              <div className="position-relative mb-4">
+                <input
+                  type="password"
+                  className="form-control text-center fw-bold text-white letter-spacing-lg border-2 shadow-inner"
+                  style={{
+                    backgroundColor: '#0f172a',
+                    borderColor: error ? '#ef4444' : success ? '#10b981' : '#334155',
+                    fontSize: '1.75rem',
+                    letterSpacing: '8px',
+                    borderRadius: '14px',
+                    height: '56px'
+                  }}
+                  placeholder="•••••"
+                  value={passcode}
+                  onChange={(e) => { setPasscode(e.target.value); setError(''); }}
+                  maxLength={10}
+                  autoFocus
+                />
               </div>
 
-              <div className="col-12 mt-3">
-                <div className="d-flex justify-content-between align-items-center mb-1">
-                  <label className="form-label fw-semibold mb-0" style={{ color: '#334155', fontSize: '0.85rem' }}>Password</label>
-                  <Link to="/forgot-password" className="text-primary fw-semibold text-decoration-none premium-link" style={{ fontSize: '0.8rem' }}>Forgot Password?</Link>
+              {/* Number Keypad (0-9) */}
+              <div className="row g-2 mb-3">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                  <div className="col-4" key={num}>
+                    <button
+                      type="button"
+                      className="btn w-100 py-3 fw-bold text-white rounded-3 hover-lift border-0"
+                      style={{ backgroundColor: '#334155', fontSize: '1.25rem', transition: 'all 0.15s ease' }}
+                      onClick={() => handleKeyClick(num)}
+                    >
+                      {num}
+                    </button>
+                  </div>
+                ))}
+                <div className="col-4">
+                  <button
+                    type="button"
+                    className="btn w-100 py-3 fw-semibold text-slate-400 rounded-3 border-0"
+                    style={{ backgroundColor: '#0f172a', color: '#94a3b8', fontSize: '0.85rem' }}
+                    onClick={handleClear}
+                  >
+                    Clear
+                  </button>
                 </div>
-                <input type="password" className="form-control premium-input" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />
+                <div className="col-4">
+                  <button
+                    type="button"
+                    className="btn w-100 py-3 fw-bold text-white rounded-3 hover-lift border-0"
+                    style={{ backgroundColor: '#334155', fontSize: '1.25rem', transition: 'all 0.15s ease' }}
+                    onClick={() => handleKeyClick('0')}
+                  >
+                    0
+                  </button>
+                </div>
+                <div className="col-4">
+                  <button
+                    type="button"
+                    className="btn w-100 py-3 text-warning rounded-3 border-0"
+                    style={{ backgroundColor: '#0f172a' }}
+                    onClick={handleBackspace}
+                    title="Backspace"
+                  >
+                    <MdBackspace size={22} />
+                  </button>
+                </div>
               </div>
 
-              <div className="col-12 mt-4 pt-2">
-                <button type="submit" className="btn btn-primary w-100 py-2 premium-btn d-flex align-items-center justify-content-center gap-2" disabled={loading}>
-                  {loading ? (
-                    <span className="spinner-border spinner-border-sm" role="status"></span>
-                  ) : (
-                    <span className="fw-semibold" style={{ fontSize: '1rem' }}>Sign In with Email</span>
-                  )}
-                </button>
-              </div>
-
-              <div className="col-12 text-center mt-4 pt-2">
-                <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-                  Don't have an account? <Link to="/register" className="text-primary fw-semibold text-decoration-none premium-link">Create an account</Link>
-                </p>
-              </div>
+              {/* Submit Unlock Button */}
+              <button
+                type="submit"
+                className="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-lg d-flex align-items-center justify-content-center gap-2 hover-lift"
+                style={{ background: 'linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%)', fontSize: '1.05rem' }}
+                disabled={loading || success}
+              >
+                {loading ? (
+                  <span className="spinner-border spinner-border-sm" role="status"></span>
+                ) : (
+                  <>
+                    <MdKey size={20} />
+                    <span>Unlock System</span>
+                  </>
+                )}
+              </button>
             </form>
-          </div>
-        </div>
-        
-        <div className="text-center mt-5">
-          <div className="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', color: '#64748b', fontSize: '0.8rem' }}>
-            <MdInfo size={16} className="text-primary" /> <span className="fw-medium">Secure SSL Encrypted Connection</span>
-          </div>
-        </div>
-      </div>
 
-      <style>{`
-        .premium-input {
-          background-color: #ffffff;
-          border: 1px solid #cbd5e1;
-          border-radius: 10px;
-          padding: 0.65rem 1rem;
-          color: #0f172a;
-          font-weight: 500;
-          font-size: 0.95rem;
-          transition: all 0.2s ease;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-        }
-        
-        .premium-input::placeholder {
-          color: #94a3b8;
-          font-weight: 400;
-        }
-        
-        .premium-input:focus {
-          border-color: #0d6efd;
-          box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
-          outline: none;
-        }
-        
-        .premium-btn {
-          background-color: #0d6efd;
-          border: none;
-          border-radius: 10px;
-          padding: 0.75rem;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 6px -1px rgba(13, 110, 253, 0.2), 0 2px 4px -1px rgba(13, 110, 253, 0.1);
-        }
-        
-        .premium-btn:hover {
-          background-color: #0b5ed7;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 8px -1px rgba(13, 110, 253, 0.25), 0 3px 6px -1px rgba(13, 110, 253, 0.15);
-        }
-        
-        .premium-btn:active {
-          transform: translateY(0);
-        }
-        
-        .premium-btn-google {
-          background-color: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          padding: 0.75rem;
-          transition: all 0.2s ease;
-          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-        }
-        
-        .premium-btn-google:hover {
-          background-color: #f8fafc;
-          border-color: #cbd5e1;
-        }
-        
-        .premium-link {
-          transition: color 0.2s ease;
-        }
-        
-        .premium-link:hover {
-          color: #0b5ed7 !important;
-          text-decoration: underline !important;
-        }
-      `}</style>
+          </div>
+        </div>
+
+        <div className="text-center mt-4">
+          <small style={{ color: '#64748b', fontSize: '0.78rem' }}>
+            RC Accountant Personal & Loan Financial System • Encrypted Access
+          </small>
+        </div>
+
+      </div>
     </div>
   );
 };
 
 export default Login;
+

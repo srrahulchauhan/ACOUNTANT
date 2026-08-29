@@ -5,7 +5,7 @@ import {
   MdDelete, MdAddCircle, MdNotifications
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
 
 const EmiPayments = () => {
   const location = useLocation();
@@ -17,7 +17,6 @@ const EmiPayments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(location.state?.status || '');
   const [methodFilter, setMethodFilter] = useState('');
-
 
   // Mark Paid Modal state
   const [markingPayment, setMarkingPayment] = useState(null);
@@ -67,19 +66,22 @@ const EmiPayments = () => {
     alert('✓ Payment record removed.');
   };
 
-  // Filter payments
-  const filteredPayments = payments.filter((p) => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      p.customerName.toLowerCase().includes(q) ||
-      p.loanName.toLowerCase().includes(q) ||
-      p.id.toLowerCase().includes(q);
+  // Filter payments and sort nearest-to-farthest by dueDate
+  const filteredPayments = payments
+    .filter((p) => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        p.customerName.toLowerCase().includes(q) ||
+        p.loanName.toLowerCase().includes(q) ||
+        p.id.toLowerCase().includes(q);
 
-    const matchesStatus = !statusFilter || p.status === statusFilter;
-    const matchesMethod = !methodFilter || p.paymentMethod === methodFilter;
+      const matchesStatus = !statusFilter || p.status === statusFilter;
+      const matchesMethod = !methodFilter || p.paymentMethod === methodFilter;
 
-    return matchesSearch && matchesStatus && matchesMethod;
-  });
+      return matchesSearch && matchesStatus && matchesMethod;
+    })
+    .sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+
 
   const todayStr = getLocalDateString();
   const overdueCount = payments.filter((p) => p.status === 'Overdue' || (p.status !== 'Paid' && p.dueDate && p.dueDate < todayStr)).length;
@@ -252,8 +254,14 @@ const EmiPayments = () => {
                   <tr key={pay.id}>
                     <td className="fw-bold text-dark">{pay.customerName}</td>
                     <td className="text-secondary small">{pay.loanName}</td>
-                    <td className="fw-semibold text-primary small">{pay.dueDate || '-'}</td>
-                    <td className="text-muted small">{pay.paidDate || '-'}</td>
+                    <td className={`fw-semibold small ${
+                      pay.status === 'Paid' ? 'text-success' :
+                      pay.status === 'Overdue' ? 'text-danger' : 'text-warning'
+                    }`}>
+                      {formatIndianDate(pay.dueDate)}
+                    </td>
+                    <td className="text-muted small">{pay.paidDate ? formatIndianDate(pay.paidDate) : '-'}</td>
+
                     <td className="fw-bold text-success">₹{Number(pay.amount).toLocaleString('en-IN')}</td>
                     <td className="text-danger small">{pay.lateFee ? `+₹${pay.lateFee}` : '-'}</td>
                     <td>

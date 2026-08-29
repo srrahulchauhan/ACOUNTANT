@@ -1,4 +1,5 @@
 import { getLocalDateString, addMonthsToDate } from './dateUtils';
+import { googleSheetsSync } from './googleSheetsSync';
 
 const KEYS = {
   CUSTOMERS: 'emi_customers_data',
@@ -308,6 +309,20 @@ export const loanStore = {
     window.dispatchEvent(new Event('loanStoreUpdated'));
   },
 
+  // Duplicate Phone Check
+  checkDuplicatePhone(phone, excludeCustomerId = null) {
+    if (!phone) return false;
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    if (!cleanPhone) return false;
+
+    const list = this.getCustomers();
+    return list.some((c) => {
+      if (excludeCustomerId && c.id === excludeCustomerId) return false;
+      const existingClean = (c.phone || '').replace(/[^0-9]/g, '');
+      return existingClean && existingClean === cleanPhone;
+    });
+  },
+
   // 1. Customers
   getCustomers() {
     this.init();
@@ -320,20 +335,36 @@ export const loanStore = {
 
   saveCustomer(customerData) {
     this.init();
+
+    // Prevent duplicate mobile numbers
+    if (this.checkDuplicatePhone(customerData.phone, customerData.id)) {
+      throw new Error(`❌ Duplicate Mobile Number! A customer with phone "${customerData.phone}" already exists.`);
+    }
+
     const list = this.getCustomers();
     let updated;
+    let actionType = 'CREATE';
+    let targetCust;
+
     if (customerData.id && list.some((c) => c.id === customerData.id)) {
+      actionType = 'UPDATE';
+      targetCust = { ...customerData };
       updated = list.map((c) => (c.id === customerData.id ? { ...c, ...customerData } : c));
     } else {
-      const newCust = {
+      targetCust = {
         ...customerData,
         id: customerData.id || 'CUST-' + Math.floor(1000 + Math.random() * 9000),
         createdAt: customerData.createdAt || getLocalDateString(),
       };
-      updated = [newCust, ...list];
+      updated = [targetCust, ...list];
     }
+
     localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(updated));
     this.notify();
+
+    // Async sync to Google Sheet (Tab: Customers)
+    googleSheetsSync.sendToGoogleSheet(actionType, 'Customers', targetCust);
+
     return updated;
   },
 
@@ -350,7 +381,11 @@ export const loanStore = {
     localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(payments));
 
     this.notify();
+
+    // Async sync deletion to Google Sheet (Tab: Customers)
+    googleSheetsSync.sendToGoogleSheet('DELETE', 'Customers', { id: customerId });
   },
+
 
   // 2. Loans
   getLoans() {

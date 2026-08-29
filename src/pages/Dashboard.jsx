@@ -6,7 +6,7 @@ import {
   MdCheckCircle, MdSend, MdAddCircle, MdCalendarToday, MdReceiptLong, MdBarChart, MdArrowForward
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
 import AnimatedNumber from '../components/AnimatedNumber';
 
 const Dashboard = () => {
@@ -397,9 +397,10 @@ const Dashboard = () => {
                   <div key={pay.id} className="p-3 bg-danger bg-opacity-10 border border-danger border-opacity-20 rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <div>
                       <div className="fw-bold text-dark small">{pay.customerName}</div>
-                      <small className="text-muted d-block">{pay.loanName} • Due: {pay.dueDate || 'Past'}</small>
+                      <small className="text-muted d-block">{pay.loanName} • Due: <span className="text-danger fw-bold">{formatIndianDate(pay.dueDate)}</span></small>
                       <small className="text-danger fw-bold">Overdue Amount: ₹{Number(pay.amount).toLocaleString('en-IN')} (+₹{pay.lateFee || 0} Late Fee)</small>
                     </div>
+
                     <button 
                       className="btn btn-danger btn-sm rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1 shadow-sm"
                       onClick={() => handleSendReminder(pay.customerName, pay.amount)}
@@ -441,7 +442,8 @@ const Dashboard = () => {
                   <div key={pay.id} className="p-3 bg-light rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-2 border">
                     <div>
                       <div className="fw-bold text-dark small">{pay.customerName}</div>
-                      <small className="text-muted d-block">{pay.loanName} • Due: <span className="fw-semibold text-primary">{pay.dueDate}</span></small>
+                      <small className="text-muted d-block">{pay.loanName} • Due: <span className="fw-semibold text-warning">{formatIndianDate(pay.dueDate)}</span></small>
+
                     </div>
                     <div className="d-flex align-items-center gap-3">
                       <span className="fw-bold text-success">₹{Number(pay.amount).toLocaleString('en-IN')}</span>

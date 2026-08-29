@@ -4,6 +4,8 @@ import {
   MdHome, MdAccountBalance, MdPayment, MdFileUpload, MdBadge, MdWork
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
+import { formatIndianDate } from '../utils/dateUtils';
+
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -388,7 +390,7 @@ const Customers = () => {
                     <div className="col-6 col-md-3"><strong>Phone:</strong> {selectedProfile.phone || '-'}</div>
                     <div className="col-6 col-md-3"><strong>Email:</strong> {selectedProfile.email || '-'}</div>
                     <div className="col-6 col-md-3"><strong>PAN / Aadhaar:</strong> <span className="font-monospace fw-bold">{selectedProfile.panAadhaar || '-'}</span></div>
-                    <div className="col-6 col-md-3"><strong>DOB:</strong> {selectedProfile.dob || '-'}</div>
+                    <div className="col-6 col-md-3"><strong>DOB:</strong> {formatIndianDate(selectedProfile.dob)}</div>
                     <div className="col-6 col-md-3"><strong>Monthly Income:</strong> ₹{Number(selectedProfile.monthlyIncome || 0).toLocaleString('en-IN')}</div>
                     <div className="col-12 col-md-9"><strong>Residential Address:</strong> {selectedProfile.address || '-'}</div>
                   </div>
@@ -421,7 +423,7 @@ const Customers = () => {
                               <td className="fw-bold text-dark">₹{Number(l.totalAmount).toLocaleString('en-IN')}</td>
                               <td>{l.interestRate}% p.a.</td>
                               <td className="fw-bold text-success">₹{Number(l.emiAmount).toLocaleString('en-IN')}</td>
-                              <td className="fw-semibold text-primary">{l.dueDate}</td>
+                              <td className="fw-semibold text-primary">{formatIndianDate(l.dueDate)}</td>
                               <td><span className="badge bg-success bg-opacity-10 text-success">{l.status}</span></td>
                             </tr>
                           ))}
