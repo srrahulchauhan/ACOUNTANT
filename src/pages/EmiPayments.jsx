@@ -47,10 +47,11 @@ const EmiPayments = () => {
     setPaidDetails({
       paidDate: getLocalDateString(),
       paymentMethod: pay.paymentMethod || 'UPI',
-      lateFee: pay.lateFee || 0,
-      notes: pay.notes || 'Marked as paid',
+      nextDueDate: addMonthsToDate(pay.dueDate || getLocalDateString(), 1),
+      notes: pay.notes || 'Payment received',
     });
   };
+
 
   const handleConfirmPaid = (e) => {
     e.preventDefault();
@@ -364,14 +365,37 @@ const EmiPayments = () => {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label small fw-semibold text-muted">Late Penalty Fee (₹)</label>
-                    <input
-                      type="number"
-                      className="form-control text-danger fw-semibold"
-                      value={paidDetails.lateFee}
-                      onChange={(e) => setPaidDetails({ ...paidDetails, lateFee: e.target.value })}
-                    />
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <label className="form-label small fw-semibold text-muted mb-0">Continue Next Month EMI Due Date *</label>
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 text-decoration-none fw-bold text-primary small d-flex align-items-center gap-1"
+                        onClick={() => setPaidDetails({ ...paidDetails, nextDueDate: addMonthsToDate(paidDetails.nextDueDate || getLocalDateString(), 1) })}
+                        title="Auto Advance Next Month (+1 Month)"
+                      >
+                        <MdFastForward size={14} /> +1 Month
+                      </button>
+                    </div>
+                    <div className="input-group">
+                      <input
+                        type="date"
+                        className="form-control fw-bold"
+                        value={paidDetails.nextDueDate}
+                        onChange={(e) => setPaidDetails({ ...paidDetails, nextDueDate: e.target.value })}
+                        required
+                      />
+                      <button 
+                        type="button" 
+                        className="btn btn-outline-primary fw-bold text-nowrap d-flex align-items-center gap-1"
+                        title="Advance Next Month EMI (+1 Month)"
+                        onClick={() => setPaidDetails({ ...paidDetails, nextDueDate: addMonthsToDate(paidDetails.nextDueDate || getLocalDateString(), 1) })}
+                      >
+                        <MdFastForward size={16} /> +1 Mo
+                      </button>
+                    </div>
+                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.68rem' }}>Next month's EMI schedule will auto-continue on this date</small>
                   </div>
+
 
                   <div className="mb-2">
                     <label className="form-label small fw-semibold text-muted">Payment Notes / Reference</label>

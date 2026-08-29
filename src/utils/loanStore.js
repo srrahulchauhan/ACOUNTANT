@@ -508,8 +508,9 @@ export const loanStore = {
     if (targetPayment.loanId) {
       const loan = loans.find((l) => l.id === targetPayment.loanId);
       if (loan) {
-        const nextDueDate = addMonthsToDate(targetPayment.dueDate || loan.dueDate, 1);
+        const nextDueDate = details.nextDueDate || addMonthsToDate(targetPayment.dueDate || loan.dueDate, 1);
         const updatedLoans = loans.map((l) => {
+
           if (l.id === targetPayment.loanId) {
             return {
               ...l,
