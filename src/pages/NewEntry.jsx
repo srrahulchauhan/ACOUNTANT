@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MdPerson, MdDateRange, MdAttachMoney, MdDescription, MdSave, MdPayment, MdAdd, MdClose } from 'react-icons/md';
+import { MdPerson, MdDateRange, MdAttachMoney, MdDescription, MdSave, MdPayment, MdAdd, MdClose, MdAutorenew } from 'react-icons/md';
 import { createTransaction, fetchTransactions } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, addMonthsToDate, calculateMonthsBetween } from '../utils/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { DEFAULT_APPS, CUSTOM_COLORS } from '../utils/paymentApps';
 
@@ -20,11 +20,14 @@ const NewEntry = () => {
     description: '',
     date: getLocalDateString(),
     loanDate: getLocalDateString(),
-    dueDate: getLocalDateString(new Date().setMonth(new Date().getMonth() + 1)),
+    dueDate: addMonthsToDate(getLocalDateString(), 1),
     interestRate: '',
     loanDuration: '',
     paymentMethod: 'Cash',
-    paymentApp: ''
+    paymentApp: '',
+    emiMonths: 1,
+    createMultipleInstallments: true,
+    installmentAmountMode: 'per_month'
   });
   const [loading, setLoading] = useState(false);
   const [showAddMode, setShowAddMode] = useState(false);
@@ -92,6 +95,39 @@ const NewEntry = () => {
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
+  const handleEmiMonthsChange = (months) => {
+    const numMonths = Math.max(1, parseInt(months || 1, 10));
+    const startDate = formData.loanDate || formData.date || getLocalDateString();
+    const newDueDate = addMonthsToDate(startDate, numMonths);
+    setFormData(prev => ({
+      ...prev,
+      emiMonths: numMonths,
+      dueDate: newDueDate
+    }));
+  };
+
+  const handleStartDateChange = (e) => {
+    const newDate = e.target.value;
+    const newDueDate = addMonthsToDate(newDate, formData.emiMonths || 1);
+    setFormData(prev => ({
+      ...prev,
+      date: newDate,
+      loanDate: newDate,
+      dueDate: newDueDate
+    }));
+  };
+
+  const handleDueDateChange = (e) => {
+    const newDueDate = e.target.value;
+    const startDate = formData.loanDate || formData.date || getLocalDateString();
+    const months = calculateMonthsBetween(startDate, newDueDate);
+    setFormData(prev => ({
+      ...prev,
+      dueDate: newDueDate,
+      emiMonths: months
+    }));
+  };
+
   const handleAddCustomMode = async () => {
     const trimmed = newModeName.trim();
     if (!trimmed) return;
@@ -142,8 +178,42 @@ const NewEntry = () => {
         delete submitData.loanDuration;
       }
 
-      await createTransaction(submitData);
-      navigate('/', { state: { msg: 'Entry saved!' } });
+      if (formData.type === 'EMI' && formData.createMultipleInstallments && Number(formData.emiMonths) > 1) {
+        const totalMonths = Number(formData.emiMonths);
+        const baseAmount = Number(formData.amount) || 0;
+        const monthlyAmt = formData.installmentAmountMode === 'total' 
+          ? (baseAmount / totalMonths).toFixed(2) 
+          : baseAmount;
+
+        const startDate = formData.loanDate || formData.date || getLocalDateString();
+        const promises = [];
+
+        for (let i = 1; i <= totalMonths; i++) {
+          const entryDueDate = addMonthsToDate(startDate, i);
+          const entryDate = addMonthsToDate(startDate, i - 1);
+          
+          const singleEntry = {
+            ...submitData,
+            amount: Number(monthlyAmt),
+            date: entryDate,
+            loanDate: startDate,
+            dueDate: entryDueDate,
+            description: submitData.description 
+              ? `${submitData.description} (EMI ${i}/${totalMonths})`
+              : `EMI Installment ${i}/${totalMonths}`,
+            installmentIndex: i,
+            totalInstallments: totalMonths,
+            emiMonths: totalMonths
+          };
+          promises.push(createTransaction(singleEntry));
+        }
+
+        await Promise.all(promises);
+        navigate('/', { state: { msg: `Saved ${totalMonths} monthly EMI entries!` } });
+      } else {
+        await createTransaction(submitData);
+        navigate('/', { state: { msg: 'Entry saved!' } });
+      }
     } catch (err) {
       alert('❌ Error: ' + (err.response?.data?.message || err.message));
     } finally {
@@ -206,7 +276,7 @@ const NewEntry = () => {
                 {/* Date */}
                 <div className="col-6 col-md-3">
                   <label className="form-label text-muted fw-semibold mb-1 d-flex align-items-center"><MdDateRange className="me-1" size={16} /> Date</label>
-                  <input type="date" className="form-control form-control-custom p-2" name="date" value={formData.date} onChange={handleChange} required />
+                  <input type="date" className="form-control form-control-custom p-2" name="date" value={formData.date} onChange={handleStartDateChange} required />
                 </div>
 
                 {/* Amount */}
@@ -265,15 +335,50 @@ const NewEntry = () => {
                 {/* EMI, Loan & Advance Specific Fields */}
                 {(formData.type === 'EMI' || formData.type === 'Loan' || formData.type === 'Advance Payment') && (
                   <div className="col-12 py-3 bg-light bg-opacity-50 rounded-3 px-3 border my-2">
-                    <div className="row g-3">
+                    <div className="row g-3 align-items-center">
                       <div className="col-6 col-md-3">
                         <label className="form-label text-muted fw-semibold mb-1 d-flex align-items-center"><MdDateRange className="me-1" size={14} /> {formData.type === 'Loan' ? 'Start' : 'Date'}</label>
-                        <input type="date" className="form-control form-control-custom p-2" name="loanDate" value={formData.loanDate} onChange={handleChange} required />
+                        <input type="date" className="form-control form-control-custom p-2" name="loanDate" value={formData.loanDate} onChange={handleStartDateChange} required />
                       </div>
+
+                      {formData.type === 'EMI' && (
+                        <div className="col-12 col-md-6">
+                          <label className="form-label text-muted fw-semibold mb-1 d-flex align-items-center justify-content-between">
+                            <span><MdDateRange className="me-1" size={14} /> EMI Months (Duration)</span>
+                            <span className="badge bg-warning text-dark font-monospace">{formData.emiMonths} {formData.emiMonths == 1 ? 'Month' : 'Months'}</span>
+                          </label>
+                          <div className="d-flex flex-wrap gap-1 align-items-center">
+                            {[1, 3, 6, 12, 18, 24].map(m => (
+                              <button
+                                key={m}
+                                type="button"
+                                className={`btn btn-sm rounded-pill px-2 py-1 fw-semibold ${Number(formData.emiMonths) === m ? 'btn-warning text-dark shadow-sm fw-bold' : 'btn-outline-secondary bg-white'}`}
+                                style={{ fontSize: '0.75rem' }}
+                                onClick={() => handleEmiMonthsChange(m)}
+                              >
+                                {m} {m === 1 ? 'Mo' : 'Mos'}
+                              </button>
+                            ))}
+                            <div className="d-flex align-items-center gap-1 ms-auto" style={{ maxWidth: '100px' }}>
+                              <input
+                                type="number"
+                                min="1"
+                                max="120"
+                                className="form-control form-control-sm text-center fw-bold"
+                                placeholder="Custom"
+                                value={formData.emiMonths}
+                                onChange={(e) => handleEmiMonthsChange(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="col-6 col-md-3">
-                        <label className="form-label text-muted fw-semibold mb-1 d-flex align-items-center"><MdDateRange className="me-1" size={14} /> Due</label>
-                        <input type="date" className="form-control form-control-custom p-2" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
+                        <label className="form-label text-muted fw-semibold mb-1 d-flex align-items-center"><MdDateRange className="me-1" size={14} /> Due Date</label>
+                        <input type="date" className="form-control form-control-custom p-2" name="dueDate" value={formData.dueDate} onChange={handleDueDateChange} required />
                       </div>
+
                       {formData.type === 'Loan' && (
                         <>
                           <div className="col-6 col-md-3">
@@ -287,8 +392,85 @@ const NewEntry = () => {
                         </>
                       )}
                     </div>
+
+                    {/* EMI Multi-Month Continuous Entries Controls */}
+                    {formData.type === 'EMI' && Number(formData.emiMonths) > 1 && (
+                      <div className="mt-3 pt-3 border-top">
+                        <div className="form-check form-switch d-flex align-items-center justify-content-between bg-white p-2 px-3 rounded-3 border mb-2 shadow-sm">
+                          <div>
+                            <label className="form-check-label fw-bold text-dark cursor-pointer mb-0 d-flex align-items-center gap-1" htmlFor="continueEmiSwitch">
+                              <MdAutorenew className="text-warning spin-slow" size={18} /> Continue EMI for Next {formData.emiMonths} Months (Generate Monthly Entries)
+                            </label>
+                            <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>
+                              Creates {formData.emiMonths} individual monthly due entries automatically for upcoming consecutive months.
+                            </small>
+                          </div>
+                          <input
+                            className="form-check-input ms-3 cursor-pointer"
+                            type="checkbox"
+                            role="switch"
+                            id="continueEmiSwitch"
+                            checked={formData.createMultipleInstallments}
+                            onChange={(e) => setFormData({ ...formData, createMultipleInstallments: e.target.checked })}
+                            style={{ width: '2.5em', height: '1.3em' }}
+                          />
+                        </div>
+
+                        {formData.createMultipleInstallments && (
+                          <div className="bg-white p-3 rounded-3 border">
+                            <div className="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+                              <span className="small fw-bold text-secondary">Monthly Amount Option:</span>
+                              <div className="btn-group btn-group-sm">
+                                <button
+                                  type="button"
+                                  className={`btn btn-sm ${formData.installmentAmountMode === 'per_month' ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary'}`}
+                                  onClick={() => setFormData({ ...formData, installmentAmountMode: 'per_month' })}
+                                >
+                                  ₹{Number(formData.amount || 0).toLocaleString('en-IN')} / month
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`btn btn-sm ${formData.installmentAmountMode === 'total' ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary'}`}
+                                  onClick={() => setFormData({ ...formData, installmentAmountMode: 'total' })}
+                                >
+                                  Split Total (₹{(Number(formData.amount || 0) / Number(formData.emiMonths)).toFixed(0)} / mo)
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Monthly Preview List */}
+                            <div className="mt-2">
+                              <small className="fw-semibold text-muted mb-1 d-block">Monthly Schedule Preview ({formData.emiMonths} Installments):</small>
+                              <div className="d-flex gap-2 overflow-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+                                {Array.from({ length: Math.min(Number(formData.emiMonths), 12) }).map((_, idx) => {
+                                  const i = idx + 1;
+                                  const monthDueDate = addMonthsToDate(formData.loanDate || formData.date, i);
+                                  const amt = formData.installmentAmountMode === 'total'
+                                    ? (Number(formData.amount || 0) / Number(formData.emiMonths)).toFixed(0)
+                                    : formData.amount || 0;
+
+                                  return (
+                                    <div key={i} className="badge bg-warning bg-opacity-10 text-dark border border-warning px-2 py-1 text-start" style={{ minWidth: '115px' }}>
+                                      <div className="fw-bold small">Month {i}/{formData.emiMonths}</div>
+                                      <div className="text-danger fw-bold">₹{Number(amt).toLocaleString('en-IN')}</div>
+                                      <div className="text-muted" style={{ fontSize: '0.65rem' }}>Due: {monthDueDate}</div>
+                                    </div>
+                                  );
+                                })}
+                                {Number(formData.emiMonths) > 12 && (
+                                  <div className="badge bg-light text-muted border px-2 py-2 d-flex align-items-center">
+                                    +{Number(formData.emiMonths) - 12} more months...
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
+
 
                 {/* Payment Method */}
                 <div className="col-12 col-md-6">

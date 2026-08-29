@@ -255,7 +255,14 @@ const EmiDashboard = () => {
                               {t.name.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <span className="fw-bold d-block">{t.name} {t.lastName}</span>
+                              <span className="fw-bold d-block">
+                                {t.name} {t.lastName}
+                                {t.totalInstallments && (
+                                  <span className="badge bg-warning text-dark ms-1 font-monospace" style={{ fontSize: '0.65rem' }}>
+                                    {t.installmentIndex}/{t.totalInstallments}
+                                  </span>
+                                )}
+                              </span>
                               <small className="text-muted" style={{fontSize: '0.7rem'}}>{t.category || 'Finance'}</small>
                             </div>
                           </div>
