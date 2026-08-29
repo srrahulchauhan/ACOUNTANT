@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import TopNavbar from './TopNavbar';
 import Sidebar from './Sidebar';
 import ScrollArrows from '../components/ScrollArrows';
+import FloatingActionButton from '../components/FloatingActionButton';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -70,6 +71,7 @@ const Layout = () => {
         >
           <Outlet />
           <ScrollArrows />
+          <FloatingActionButton />
         </div>
       </div>
     </div>
