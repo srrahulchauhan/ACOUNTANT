@@ -11,7 +11,7 @@ import {
 } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { getLocalDateString, addMonthsToDate } from '../utils/dateUtils';
-import { fetchTransactions, createTransaction, updateTransaction } from '../api';
+import { fetchTransactions, createTransaction, updateTransaction, fetchCustomers } from '../api';
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, 
@@ -36,9 +36,30 @@ const getLoanMeta = (typeId) => {
 const EmiDashboard = () => {
   // State
   const [loans, setLoans] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'calendar', 'history'
   const [filterType, setFilterType] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Load Customers
+  useEffect(() => {
+    const loadCust = async () => {
+      try {
+        const res = await fetchCustomers();
+        let list = res.data || [];
+        const saved = localStorage.getItem('customers_extended_profiles');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          list = list.map(c => {
+            const extra = parsed.find(x => x._id === c._id || x.customerId === c.customerId);
+            return extra ? { ...c, ...extra } : c;
+          });
+        }
+        setCustomers(list);
+      } catch (e) { console.error(e); }
+    };
+    loadCust();
+  }, []);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -514,8 +535,24 @@ const EmiDashboard = () => {
 
       {/* Key Summary Cards */}
       <div className="row g-3 g-lg-4 mb-4">
+        {/* Total Customers */}
+        <div className="col-6 col-md-4 col-xl">
+          <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: '4px solid #6366f1' }}>
+            <div className="d-flex justify-content-between align-items-start">
+              <div>
+                <p className="text-muted small mb-1 fw-semibold">Total Customers</p>
+                <h3 className="fw-bold mb-0" style={{ color: '#6366f1' }}>{customers.length}</h3>
+                <small className="text-muted">Registered profiles</small>
+              </div>
+              <div className="p-3 rounded-3" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#6366f1' }}>
+                <MdPerson size={24} />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Total Outstanding Loan Amount */}
-        <div className="col-6 col-lg-3">
+        <div className="col-6 col-md-4 col-xl">
           <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: '4px solid #0284c7' }}>
             <div className="d-flex justify-content-between align-items-start">
               <div>
@@ -531,7 +568,7 @@ const EmiDashboard = () => {
         </div>
 
         {/* Total Monthly EMI Amount */}
-        <div className="col-6 col-lg-3">
+        <div className="col-6 col-md-4 col-xl">
           <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: '4px solid #10b981' }}>
             <div className="d-flex justify-content-between align-items-start">
               <div>
@@ -547,7 +584,7 @@ const EmiDashboard = () => {
         </div>
 
         {/* Upcoming EMI Due */}
-        <div className="col-6 col-lg-3">
+        <div className="col-6 col-md-4 col-xl">
           <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: '4px solid #f59e0b' }}>
             <div className="d-flex justify-content-between align-items-start">
               <div>
@@ -567,7 +604,7 @@ const EmiDashboard = () => {
         </div>
 
         {/* Paid vs Remaining EMIs */}
-        <div className="col-6 col-lg-3">
+        <div className="col-6 col-md-4 col-xl">
           <div className="card modern-card p-3 p-lg-4 h-100 border-0 shadow-sm" style={{ borderTop: '4px solid #8b5cf6' }}>
             <div className="d-flex justify-content-between align-items-start">
               <div>
