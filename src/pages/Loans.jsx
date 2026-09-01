@@ -158,12 +158,13 @@ const Loans = () => {
   };
 
   // Filter Loans
-  const filteredLoans = loans.filter((l) => {
-    const q = searchQuery.toLowerCase();
+  const filteredLoans = (loans || []).filter((l) => {
+    if (!l) return false;
+    const q = (searchQuery || '').toLowerCase();
     const matchesSearch =
-      l.loanName.toLowerCase().includes(q) ||
-      l.customerName.toLowerCase().includes(q) ||
-      l.id.toLowerCase().includes(q);
+      (l.loanName || '').toLowerCase().includes(q) ||
+      (l.customerName || '').toLowerCase().includes(q) ||
+      (l.id || '').toLowerCase().includes(q);
 
     const matchesType = !typeFilter || l.type === typeFilter;
     const matchesStatus = !statusFilter || l.status === statusFilter;

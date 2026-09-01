@@ -124,10 +124,11 @@ const Customers = () => {
   };
 
   // Filter Customers
-  const filteredCustomers = customers.filter((c) => {
-    const q = searchQuery.toLowerCase();
+  const filteredCustomers = (customers || []).filter((c) => {
+    if (!c) return false;
+    const q = (searchQuery || '').toLowerCase();
     const matchesSearch =
-      c.name.toLowerCase().includes(q) ||
+      (c.name || '').toLowerCase().includes(q) ||
       (c.phone && c.phone.includes(q)) ||
       (c.email && c.email.toLowerCase().includes(q)) ||
       (c.id && c.id.toLowerCase().includes(q)) ||
