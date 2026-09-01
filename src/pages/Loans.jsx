@@ -324,17 +324,19 @@ const Loans = () => {
                         </td>
 
                         <td style={{ minWidth: '120px' }}>
-                          <select
-                            className="form-select form-select-sm py-0 px-2 fw-medium border rounded-2 text-dark bg-white"
-                            style={{ fontSize: '0.72rem', height: '26px', width: 'auto', minWidth: '105px', cursor: 'pointer' }}
-                            value={loan.status || 'Active'}
-                            onChange={(e) => handleQuickStatusChange(loan.id, e.target.value)}
-                            title="Change Status"
-                          >
-                            <option value="Active">Active</option>
-                            <option value="Closed">Closed</option>
-                            <option value="Permanently Closed">Permanent Close</option>
-                          </select>
+                          {loan.status === 'Closed' ? (
+                            <span className="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2.5 py-1 rounded-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                              Closed
+                            </span>
+                          ) : loan.status === 'Permanently Closed' ? (
+                            <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2.5 py-1 rounded-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                              Permanent Close
+                            </span>
+                          ) : (
+                            <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                              Active
+                            </span>
+                          )}
                         </td>
 
                         <td className="text-end pe-4" style={{ minWidth: '160px' }}>
@@ -441,24 +443,26 @@ const Loans = () => {
                         </div>
                       </div>
 
-                      {/* Loan Title & Status Selector */}
+                      {/* Loan Title & Status Badge */}
                       <div className="d-flex align-items-start justify-content-between gap-2 mb-3">
                         <div className="overflow-hidden">
                           <h6 className="fw-bold text-dark mb-0 text-truncate">{loan.loanName}</h6>
                           <small className="text-muted fw-semibold d-block text-truncate">Borrower: {loan.customerName}</small>
                         </div>
                         <div className="flex-shrink-0">
-                          <select
-                            className="form-select form-select-sm py-0 px-2 fw-medium border rounded-2 text-dark bg-white"
-                            style={{ fontSize: '0.72rem', height: '26px', width: 'auto', minWidth: '100px', cursor: 'pointer' }}
-                            value={loan.status || 'Active'}
-                            onChange={(e) => handleQuickStatusChange(loan.id, e.target.value)}
-                            title="Change Status"
-                          >
-                            <option value="Active">Active</option>
-                            <option value="Closed">Closed</option>
-                            <option value="Permanently Closed">Permanent Close</option>
-                          </select>
+                          {loan.status === 'Closed' ? (
+                            <span className="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-0.5 rounded-2 fw-semibold" style={{ fontSize: '0.72rem' }}>
+                              Closed
+                            </span>
+                          ) : loan.status === 'Permanently Closed' ? (
+                            <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-0.5 rounded-2 fw-semibold" style={{ fontSize: '0.72rem' }}>
+                              Permanent Close
+                            </span>
+                          ) : (
+                            <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 rounded-2 fw-semibold" style={{ fontSize: '0.72rem' }}>
+                              Active
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
