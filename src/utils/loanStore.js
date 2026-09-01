@@ -11,249 +11,12 @@ const KEYS = {
   COMM_TEMPLATES: 'emi_comm_templates_data',
 };
 
-// Initial Sample Seed Data
-const defaultCustomers = [
-  {
-    id: 'CUST-1001',
-    name: 'Rajesh Sharma',
-    phone: '+91 98765 43210',
-    email: 'rajesh.sharma@example.com',
-    address: '42, Park Street, Civil Lines, Jaipur, Rajasthan',
-    panAadhaar: 'ABCPS1234F',
-    dob: '1985-06-15',
-    employment: 'Business Owner - Software Solutions',
-    monthlyIncome: '125000',
-    profilePhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    createdAt: '2025-01-10',
-  },
-  {
-    id: 'CUST-1002',
-    name: 'Priya Patel',
-    phone: '+91 98123 45678',
-    email: 'priya.patel@example.com',
-    address: '108, Sunrise Heights, SG Highway, Ahmedabad, Gujarat',
-    panAadhaar: 'BVCPP8821K',
-    dob: '1990-11-22',
-    employment: 'Senior Software Engineer - TechCorp',
-    monthlyIncome: '110000',
-    profilePhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    createdAt: '2025-02-01',
-  },
-  {
-    id: 'CUST-1003',
-    name: 'Amit Vikram Singh',
-    phone: '+91 97654 32109',
-    email: 'amit.singh@example.com',
-    address: '15/2, MG Road, Indiranagar, Bengaluru, Karnataka',
-    panAadhaar: 'DFGPS5432M',
-    dob: '1988-04-10',
-    employment: 'Financial Analyst - Global Advisory',
-    monthlyIncome: '95000',
-    profilePhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    createdAt: '2025-02-15',
-  },
-  {
-    id: 'CUST-1004',
-    name: 'Sunita Verma',
-    phone: '+91 99887 76655',
-    email: 'sunita.verma@example.com',
-    address: '77, Green Park Extension, New Delhi',
-    panAadhaar: 'KLMPO9988Q',
-    dob: '1993-08-30',
-    employment: 'Architect - Studio Design',
-    monthlyIncome: '85000',
-    profilePhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    createdAt: '2025-03-01',
-  },
-];
-
-const defaultLoans = [
-  {
-    id: 'LOAN-1001',
-    customerId: 'CUST-1001',
-    customerName: 'Rajesh Sharma',
-    loanName: 'Jaipur Dream Villa Home Loan',
-    type: 'Home Loan',
-    totalAmount: 4500000,
-    emiAmount: 18750,
-    startDate: '2025-01-15',
-    tenureMonths: 240,
-    dueDate: '2026-09-05',
-    status: 'Active',
-    notes: 'Primary residence home loan disbursed via SBI Bank.',
-  },
-  {
-    id: 'LOAN-1002',
-    customerId: 'CUST-1002',
-    customerName: 'Priya Patel',
-    loanName: 'Hyundai SUV Car Loan',
-    type: 'Car Loan',
-    totalAmount: 1200000,
-    emiAmount: 20000,
-    startDate: '2025-02-10',
-    tenureMonths: 60,
-    dueDate: '2026-08-29', // Due today
-    status: 'Active',
-    notes: 'Vehicle loan hypothecated to HDFC Bank.',
-  },
-  {
-    id: 'LOAN-1003',
-    customerId: 'CUST-1003',
-    customerName: 'Amit Vikram Singh',
-    loanName: 'Business Expansion Personal Loan',
-    type: 'Personal Loan',
-    totalAmount: 500000,
-    emiAmount: 13889,
-    startDate: '2025-03-01',
-    tenureMonths: 36,
-    dueDate: '2026-08-15', // Overdue
-    status: 'Active',
-    notes: 'Unsecured personal loan for office interior setup.',
-  },
-  {
-    id: 'LOAN-1004',
-    customerId: 'CUST-1004',
-    customerName: 'Sunita Verma',
-    loanName: 'Higher Education Masters Loan',
-    type: 'Education Loan',
-    totalAmount: 800000,
-    emiAmount: 13333,
-    startDate: '2025-03-10',
-    tenureMonths: 60,
-    dueDate: '2026-09-10',
-    status: 'Active',
-    notes: 'Education loan for Master of Architecture degree.',
-  },
-  {
-    id: 'LOAN-1005',
-    customerId: 'CUST-1001',
-    customerName: 'Rajesh Sharma',
-    loanName: 'Corporate Platinum Card',
-    type: 'Credit Card',
-    totalAmount: 250000,
-    emiAmount: 20833,
-    startDate: '2025-04-01',
-    tenureMonths: 12,
-    dueDate: '2026-09-01',
-    status: 'Active',
-    notes: 'Equated monthly installment converted from credit card balance.',
-  },
-];
-
-const defaultPayments = [
-  {
-    id: 'PAY-1001',
-    loanId: 'LOAN-1001',
-    customerId: 'CUST-1001',
-    customerName: 'Rajesh Sharma',
-    loanName: 'Jaipur Dream Villa Home Loan',
-    amount: 39045,
-    paidDate: '2026-07-05',
-    dueDate: '2026-07-05',
-    paymentMethod: 'Net Banking',
-    notes: 'Auto-debit processed successfully',
-    status: 'Paid',
-  },
-  {
-    id: 'PAY-1002',
-    loanId: 'LOAN-1001',
-    customerId: 'CUST-1001',
-    customerName: 'Rajesh Sharma',
-    loanName: 'Jaipur Dream Villa Home Loan',
-    amount: 39045,
-    paidDate: '2026-08-05',
-    dueDate: '2026-08-05',
-    paymentMethod: 'UPI',
-    notes: 'Paid via PhonePe',
-    status: 'Paid',
-  },
-  {
-    id: 'PAY-1003',
-    loanId: 'LOAN-1002',
-    customerId: 'CUST-1002',
-    customerName: 'Priya Patel',
-    loanName: 'Hyundai SUV Car Loan',
-    amount: 25040,
-    paidDate: '2026-07-28',
-    dueDate: '2026-07-28',
-    paymentMethod: 'Net Banking',
-    notes: 'Paid on time',
-    status: 'Paid',
-  },
-  {
-    id: 'PAY-1004',
-    loanId: 'LOAN-1002',
-    customerId: 'CUST-1002',
-    customerName: 'Priya Patel',
-    loanName: 'Hyundai SUV Car Loan',
-    amount: 25040,
-    paidDate: '',
-    dueDate: '2026-08-29',
-    paymentMethod: 'UPI',
-    notes: 'Installment due today',
-    status: 'Upcoming',
-  },
-  {
-    id: 'PAY-1005',
-    loanId: 'LOAN-1003',
-    customerId: 'CUST-1003',
-    customerName: 'Amit Vikram Singh',
-    loanName: 'Business Expansion Personal Loan',
-    amount: 16960,
-    paidDate: '',
-    dueDate: '2026-08-15',
-    paymentMethod: 'Cash',
-    notes: 'Overdue penalty applied',
-    status: 'Overdue',
-  },
-  {
-    id: 'PAY-1006',
-    loanId: 'LOAN-1004',
-    customerId: 'CUST-1004',
-    customerName: 'Sunita Verma',
-    loanName: 'Higher Education Masters Loan',
-    amount: 16180,
-    paidDate: '2026-08-10',
-    dueDate: '2026-08-10',
-    paymentMethod: 'Cheque',
-    notes: 'Cheque #40912 cleared',
-    status: 'Paid',
-  },
-  {
-    id: 'PAY-1007',
-    loanId: 'LOAN-1005',
-    customerId: 'CUST-1001',
-    customerName: 'Rajesh Sharma',
-    loanName: 'Corporate Platinum Card',
-    amount: 22400,
-    paidDate: '',
-    dueDate: '2026-09-01',
-    paymentMethod: 'Card',
-    notes: 'Scheduled upcoming EMI',
-    status: 'Upcoming',
-  },
-];
-
-const defaultReminders = [
-  {
-    id: 'REM-1001',
-    title: 'Collect EMI Cheque - Rajesh Sharma',
-    date: '2026-09-05',
-    type: 'Reminder',
-    customerId: 'CUST-1001',
-    loanId: 'LOAN-1001',
-    notes: 'Call customer before 11:00 AM regarding SBI bank auto-debit.',
-  },
-  {
-    id: 'REM-1002',
-    title: 'Follow-up Overdue Payment - Amit Vikram',
-    date: '2026-08-30',
-    type: 'Follow-up',
-    customerId: 'CUST-1003',
-    loanId: 'LOAN-1003',
-    notes: 'Customer promised cash deposit by 4:00 PM.',
-  },
-];
+// Initial Sample Seed Data (Empty for fresh user onboarding)
+const defaultCustomers = [];
+const defaultLoans = [];
+const defaultPayments = [];
+const defaultReminders = [];
+const defaultCommunications = [];
 
 const defaultCommunicationTemplates = {
   monthly_reminder: {
@@ -300,37 +63,6 @@ const defaultCommunicationTemplates = {
   },
 };
 
-const defaultCommunications = [
-  {
-    id: 'COMM-1001',
-    customerId: 'CUST-1001',
-    customerName: 'Rajesh Sharma',
-    channel: 'WhatsApp',
-    type: 'monthly_reminder',
-    typeName: 'Monthly EMI Reminder',
-    recipient: '+91 98765 43210',
-    subject: 'EMI Reminder for Jaipur Dream Villa Home Loan',
-    message: 'Dear Rajesh Sharma, this is a friendly reminder that your monthly EMI of ₹39,045 is due on 05 Sep 2026.',
-    status: 'Delivered',
-    sentAt: '2026-08-25T10:30:00.000Z',
-    hasAttachment: true,
-  },
-  {
-    id: 'COMM-1002',
-    customerId: 'CUST-1003',
-    customerName: 'Amit Vikram Singh',
-    channel: 'Gmail',
-    type: 'overdue_reminder',
-    typeName: 'Overdue EMI Alert',
-    recipient: 'amit.singh@example.com',
-    subject: 'OVERDUE NOTICE: Immediate Payment Required for Business Expansion Personal Loan',
-    message: 'Dear Amit Vikram Singh, your EMI installment of ₹16,960 is OVERDUE.',
-    status: 'Sent',
-    sentAt: '2026-08-28T14:15:00.000Z',
-    hasAttachment: true,
-  },
-];
-
 const defaultSettings = {
   companyName: 'RC Accountant Services Ltd.',
   companyTagline: 'Smart Financial & EMI Asset Management',
@@ -354,25 +86,35 @@ const defaultSettings = {
 
 // LocalStorage Helper with Fallbacks & Listeners
 export const loanStore = {
-  // Initialize storage if missing
+  // Initialize storage if missing or clean reset for fresh user
   init() {
+    if (!localStorage.getItem('rc_fresh_account_clean_v3')) {
+      localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify([]));
+      localStorage.setItem(KEYS.LOANS, JSON.stringify([]));
+      localStorage.setItem(KEYS.PAYMENTS, JSON.stringify([]));
+      localStorage.setItem(KEYS.REMINDERS, JSON.stringify([]));
+      localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify([]));
+      localStorage.removeItem('daily_expenses_tracker');
+      localStorage.setItem('rc_fresh_account_clean_v3', 'true');
+    }
+
     if (!localStorage.getItem(KEYS.CUSTOMERS)) {
-      localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(defaultCustomers));
+      localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify([]));
     }
     if (!localStorage.getItem(KEYS.LOANS)) {
-      localStorage.setItem(KEYS.LOANS, JSON.stringify(defaultLoans));
+      localStorage.setItem(KEYS.LOANS, JSON.stringify([]));
     }
     if (!localStorage.getItem(KEYS.PAYMENTS)) {
-      localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(defaultPayments));
+      localStorage.setItem(KEYS.PAYMENTS, JSON.stringify([]));
     }
     if (!localStorage.getItem(KEYS.REMINDERS)) {
-      localStorage.setItem(KEYS.REMINDERS, JSON.stringify(defaultReminders));
+      localStorage.setItem(KEYS.REMINDERS, JSON.stringify([]));
     }
     if (!localStorage.getItem(KEYS.SETTINGS)) {
       localStorage.setItem(KEYS.SETTINGS, JSON.stringify(defaultSettings));
     }
     if (!localStorage.getItem(KEYS.COMMUNICATIONS)) {
-      localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify(defaultCommunications));
+      localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify([]));
     }
     if (!localStorage.getItem(KEYS.COMM_TEMPLATES)) {
       localStorage.setItem(KEYS.COMM_TEMPLATES, JSON.stringify(defaultCommunicationTemplates));

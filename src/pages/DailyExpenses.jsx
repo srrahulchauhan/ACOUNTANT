@@ -71,14 +71,8 @@ const DailyExpenses = () => {
       if (savedExpenses) {
         setExpenses(JSON.parse(savedExpenses));
       } else {
-        const samples = [
-          { id: '1', amount: 150, category: 'Food', date: getLocalDateString(), notes: 'Lunch thali' },
-          { id: '2', amount: 80, category: 'Travel', date: getLocalDateString(), notes: 'Cab fare' },
-          { id: '3', amount: 450, category: 'Shopping', date: getLocalDateString(), notes: 'Groceries' },
-          { id: '4', amount: 300, category: 'Bills', date: getLocalDateString(new Date(Date.now() - 86400000)), notes: 'Mobile recharge' },
-        ];
-        setExpenses(samples);
-        localStorage.setItem(LOCAL_STORAGE_EXPENSES_KEY, JSON.stringify(samples));
+        setExpenses([]);
+        localStorage.setItem(LOCAL_STORAGE_EXPENSES_KEY, JSON.stringify([]));
       }
 
       const savedBudget = localStorage.getItem(LOCAL_STORAGE_BUDGET_KEY);
