@@ -189,7 +189,6 @@ LOAN ACCOUNT DETAILS
 Loan Name     : ${selectedLoan?.loanName}
 Loan Type     : ${selectedLoan?.type}
 Principal Amt : ${fmtAmt(selectedLoan?.totalAmount)}
-Interest Rate : ${selectedLoan?.interestRate}% p.a.
 Monthly EMI   : ${fmtAmt(selectedLoan?.emiAmount)}
 Tenure        : ${selectedLoan?.tenureMonths} Months
 Start Date    : ${formatIndianDate(selectedLoan?.startDate)}

@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   MdSearch, MdPayment, MdCheckCircle, MdWarning, MdHourglassEmpty, 
-  MdDelete, MdAddCircle, MdNotifications, MdFastForward, MdSend,
+  MdDelete, MdAddCircle, MdNotifications, MdFastForward,
   MdViewList, MdViewModule, MdFilterList, MdRefresh, MdCalendarToday,
   MdPhone, MdAccountBalance, MdCheck
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
 import { getLocalDateString, formatIndianDate, addMonthsToDate } from '../utils/dateUtils';
-import SendStatementModal from '../components/SendStatementModal';
 
 const fmtAmt = (a) => a != null ? '₹' + Number(a).toLocaleString('en-IN') : '₹0';
 
@@ -42,14 +41,6 @@ const EmiPayments = () => {
   });
 
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-
-  // Send Statement / Reminder Modal
-  const [commModal, setCommModal] = useState({
-    open: false,
-    customerId: null,
-    loanId: null,
-    templateKey: 'monthly_reminder',
-  });
 
   const loadData = () => {
     setPayments(loanStore.getPayments());
@@ -118,7 +109,7 @@ const EmiPayments = () => {
   const totalCollected = payments.filter((p) => p.status === 'Paid').reduce((s, p) => s + Number(p.amount || 0), 0);
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh', paddingBottom: '80px' }}>
+    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh', paddingBottom: '100px' }}>
       
       {/* ── Page Header ── */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -157,15 +148,6 @@ const EmiPayments = () => {
             title="Record New EMI / Advance Payment"
           >
             <MdPayment size={17} /> Record Payment
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-success rounded-3 px-3 py-2 fw-bold d-flex align-items-center gap-1.5 shadow-sm"
-            onClick={() => setCommModal({ open: true, customerId: null, loanId: null, templateKey: 'monthly_reminder' })}
-            title="Send WhatsApp / Gmail Statement & Reminder"
-          >
-            <MdSend size={16} /> Send
           </button>
         </div>
       </div>
@@ -348,12 +330,12 @@ const EmiPayments = () => {
             </select>
           </div>
 
-          <div className="col-6 col-md-2">
-            <select className="form-select bg-light rounded-3 border fw-semibold" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="Paid">✓ Paid</option>
-              <option value="Upcoming">⏰ Upcoming</option>
-              <option value="Overdue">🚨 Overdue</option>
+          <div className="col-12 col-md-6 col-lg-3">
+            <select className="form-select bg-light border" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">-- All Payment Statuses --</option>
+              <option value="Paid">Paid</option>
+              <option value="Upcoming">Upcoming</option>
+              <option value="Overdue">Overdue</option>
             </select>
           </div>
 
@@ -397,7 +379,7 @@ const EmiPayments = () => {
                   <th>AMOUNT</th>
                   <th>METHOD</th>
                   <th>STATUS</th>
-                  <th className="text-end pe-4">ACTIONS</th>
+                  <th className="text-end pe-4" style={{ width: '130px', minWidth: '130px' }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -456,54 +438,42 @@ const EmiPayments = () => {
 
                         <td>
                           {isPaid ? (
-                            <span className="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-pill fw-bold">
-                              ✓ Paid
+                            <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                              Paid
                             </span>
                           ) : isOverdue ? (
-                            <span className="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-25 px-2.5 py-1 rounded-pill fw-bold">
-                              🚨 Overdue
+                            <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2.5 py-1 rounded-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                              Overdue
                             </span>
                           ) : (
-                            <span className="badge bg-warning bg-opacity-15 text-dark border border-warning border-opacity-30 px-2.5 py-1 rounded-pill fw-bold">
-                              ⏰ Upcoming
+                            <span className="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-30 px-2.5 py-1 rounded-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                              Upcoming
                             </span>
                           )}
                         </td>
 
-                        <td className="text-end pe-4">
+                        <td className="text-end pe-4" style={{ width: '130px', minWidth: '130px' }}>
                           <div className="d-flex align-items-center justify-content-end gap-1.5">
                             {!isPaid && (
                               <button
                                 type="button"
-                                className="btn btn-success btn-sm rounded-3 fw-bold px-2.5 py-1.5 shadow-2xs d-flex align-items-center gap-1"
+                                className="btn btn-outline-success btn-sm rounded-2 fw-semibold px-2 py-1 d-inline-flex align-items-center gap-1"
+                                style={{ fontSize: '0.75rem', height: '28px' }}
                                 onClick={() => openMarkPaidModal(pay)}
                                 title="Mark as Paid"
                               >
-                                <MdCheck size={16} /> Paid
+                                <MdCheck size={14} /> Paid
                               </button>
                             )}
 
                             <button
                               type="button"
-                              className="btn btn-outline-primary btn-sm rounded-3 px-2 py-1.5 fw-bold d-flex align-items-center gap-1"
-                              onClick={() => setCommModal({
-                                open: true,
-                                customerId: pay.customerId,
-                                loanId: pay.loanId,
-                                templateKey: isOverdue ? 'overdue_reminder' : isPaid ? 'payment_received' : 'monthly_reminder'
-                              })}
-                              title="Send WhatsApp / Gmail Statement & Reminder"
-                            >
-                              <MdSend size={14} /> Send
-                            </button>
-
-                            <button
-                              type="button"
-                              className="btn btn-outline-danger btn-sm rounded-3 px-2 py-1.5"
+                              className="btn btn-outline-danger btn-sm rounded-2 d-inline-flex align-items-center justify-content-center"
+                              style={{ width: '28px', height: '28px', padding: 0 }}
                               onClick={() => setDeleteConfirmId(pay.id)}
                               title="Delete Record"
                             >
-                              <MdDelete size={16} />
+                              <MdDelete size={14} />
                             </button>
                           </div>
                         </td>
@@ -537,11 +507,11 @@ const EmiPayments = () => {
                       <div className="d-flex align-items-center justify-content-between mb-2">
                         <span className="font-monospace text-muted small fw-bold">{pay.id}</span>
                         {isPaid ? (
-                          <span className="badge bg-success text-white rounded-pill px-2.5 py-1 fw-bold">✓ Paid</span>
+                          <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 rounded-2 fw-semibold" style={{ fontSize: '0.72rem' }}>Paid</span>
                         ) : isOverdue ? (
-                          <span className="badge bg-danger text-white rounded-pill px-2.5 py-1 fw-bold">🚨 Overdue</span>
+                          <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-0.5 rounded-2 fw-semibold" style={{ fontSize: '0.72rem' }}>Overdue</span>
                         ) : (
-                          <span className="badge bg-warning text-dark rounded-pill px-2.5 py-1 fw-bold">⏰ Upcoming</span>
+                          <span className="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-30 px-2 py-0.5 rounded-2 fw-semibold" style={{ fontSize: '0.72rem' }}>Upcoming</span>
                         )}
                       </div>
 
@@ -566,37 +536,26 @@ const EmiPayments = () => {
                       </div>
                     </div>
 
-                    <div className="d-flex gap-2 pt-2 border-top">
+                    <div className="d-flex align-items-center gap-2 pt-2 border-top">
                       {!isPaid && (
                         <button
                           type="button"
-                          className="btn btn-success btn-sm rounded-3 flex-grow-1 fw-bold py-2 d-flex align-items-center justify-content-center gap-1 shadow-2xs"
+                          className="btn btn-outline-success btn-sm rounded-2 flex-grow-1 fw-semibold py-1.5 d-flex align-items-center justify-content-center gap-1"
+                          style={{ fontSize: '0.78rem' }}
                           onClick={() => openMarkPaidModal(pay)}
                         >
-                          <MdCheck size={16} /> Mark Paid
+                          <MdCheck size={15} /> Mark Paid
                         </button>
                       )}
 
                       <button
                         type="button"
-                        className="btn btn-outline-primary btn-sm rounded-3 flex-grow-1 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
-                        onClick={() => setCommModal({
-                          open: true,
-                          customerId: pay.customerId,
-                          loanId: pay.loanId,
-                          templateKey: isOverdue ? 'overdue_reminder' : isPaid ? 'payment_received' : 'monthly_reminder'
-                        })}
-                      >
-                        <MdSend size={14} /> Send
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn btn-outline-danger btn-sm rounded-3 px-2.5 py-2"
+                        className="btn btn-outline-danger btn-sm rounded-2 d-inline-flex align-items-center justify-content-center"
+                        style={{ width: isPaid ? '100%' : '32px', height: '32px', padding: 0 }}
                         onClick={() => setDeleteConfirmId(pay.id)}
                         title="Delete Record"
                       >
-                        <MdDelete size={16} />
+                        <MdDelete size={15} /> {isPaid ? <span className="ms-1 fw-semibold small">Delete</span> : null}
                       </button>
                     </div>
                   </div>
@@ -770,16 +729,7 @@ const EmiPayments = () => {
         </div>
       )}
 
-      {/* ── Send Statement / Communication Modal ── */}
-      {commModal.open && (
-        <SendStatementModal
-          isOpen={commModal.open}
-          onClose={() => setCommModal({ open: false, customerId: null, loanId: null, templateKey: 'monthly_reminder' })}
-          initialCustomerId={commModal.customerId}
-          initialLoanId={commModal.loanId}
-          initialTemplateKey={commModal.templateKey}
-        />
-      )}
+
 
       {/* ── Delete Confirmation Modal ── */}
       {deleteConfirmId && (

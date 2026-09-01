@@ -40,7 +40,6 @@ const FloatingActionButton = () => {
     customerId: '',
     type: 'Home Loan',
     totalAmount: '',
-    interestRate: '8.5',
     emiAmount: '',
     startDate: getLocalDateString(),
     tenureMonths: 12,
@@ -86,12 +85,10 @@ const FloatingActionButton = () => {
     const { name, value } = e.target;
     setLoanForm(prev => {
       const updated = { ...prev, [name]: value };
-      if (['totalAmount', 'interestRate', 'tenureMonths'].includes(name)) {
-        const autoEmi = loanStore.calculateEmi(
-          name === 'totalAmount' ? value : prev.totalAmount,
-          name === 'interestRate' ? value : prev.interestRate,
-          name === 'tenureMonths' ? value : prev.tenureMonths
-        );
+      if (['totalAmount', 'tenureMonths'].includes(name)) {
+        const p = Number(name === 'totalAmount' ? value : prev.totalAmount) || 0;
+        const n = Number(name === 'tenureMonths' ? value : prev.tenureMonths) || 1;
+        const autoEmi = loanStore.calculateEmi(p, n);
         if (autoEmi > 0) updated.emiAmount = autoEmi.toString();
       }
       if (name === 'startDate') {
@@ -115,10 +112,9 @@ const FloatingActionButton = () => {
   // 1. Save Customer
   const handleSaveCustomer = (e) => {
     e.preventDefault();
-    if (!custForm.name || !custForm.phone) return alert("Customer Name and Phone are required!");
+    if (!custForm.name?.trim()) return;
 
-    const newCust = loanStore.addCustomer(custForm);
-    alert(`✓ Successfully created Customer: ${newCust.name}`);
+    loanStore.addCustomer(custForm);
     setCustForm({ name: '', phone: '', email: '', address: '', panAadhar: '' });
     setActiveModal(null);
     setIsOpen(false);
@@ -127,26 +123,31 @@ const FloatingActionButton = () => {
   // 2. Save Loan
   const handleSaveLoan = (e) => {
     e.preventDefault();
-    if (!loanForm.customerId || !loanForm.loanName || !loanForm.totalAmount) {
-      return alert("Customer, Loan Name, and Principal Amount are required!");
+    if (!loanForm.loanName?.trim()) {
+      return;
     }
 
     const selectedCust = customers.find(c => c.id === loanForm.customerId);
-    const newLoan = loanStore.addLoan({
+    const finalCustId = loanForm.customerId || (selectedCust?.id || (customers[0]?.id || 'CUST-001'));
+    const finalCustName = selectedCust ? selectedCust.name : (customers[0]?.name || 'Borrower');
+    const totalAmt = loanForm.totalAmount !== '' && loanForm.totalAmount !== undefined ? Number(loanForm.totalAmount) : 0;
+    const calculatedEmi = loanForm.emiAmount !== '' && loanForm.emiAmount !== undefined
+      ? Number(loanForm.emiAmount)
+      : (loanStore.calculateEmi(totalAmt, loanForm.tenureMonths) || 0);
+
+    loanStore.saveLoan({
       ...loanForm,
-      customerName: selectedCust ? selectedCust.name : 'Borrower',
-      totalAmount: Number(loanForm.totalAmount),
-      interestRate: Number(loanForm.interestRate || 12),
+      customerId: finalCustId,
+      customerName: finalCustName,
+      totalAmount: totalAmt,
       tenureMonths: Number(loanForm.tenureMonths || 12),
-      emiAmount: Number(loanForm.emiAmount || 0),
+      emiAmount: calculatedEmi,
     });
 
-    alert(`✓ Successfully created Loan Account: ${newLoan.loanName} for ${newLoan.customerName}`);
     setLoanForm({
       customerId: '',
       loanName: '',
       totalAmount: '',
-      interestRate: '12',
       tenureMonths: '12',
       emiAmount: '',
       startDate: getLocalDateString(),
@@ -160,7 +161,7 @@ const FloatingActionButton = () => {
   // 3. Save EMI Payment
   const handleSavePayment = (e) => {
     e.preventDefault();
-    if (!paymentForm.loanId) return alert("Select an active loan account!");
+    if (!paymentForm.loanId) return;
 
     const selectedLoan = loans.find(l => l.id === paymentForm.loanId);
     if (!selectedLoan) return;
@@ -195,7 +196,6 @@ const FloatingActionButton = () => {
       });
     }
 
-    alert(`✓ Marked EMI Payment (₹${finalAmount.toLocaleString('en-IN')}) for "${selectedLoan.loanName}" as PAID! Next EMI due: ${nextDueDate}`);
     setActiveModal(null);
     setIsOpen(false);
   };
@@ -483,21 +483,16 @@ const FloatingActionButton = () => {
                       <input type="text" className="form-control" name="loanName" placeholder="e.g. HDFC Home Loan" value={loanForm.loanName} onChange={handleLoanFormChange} required />
                     </div>
 
-                    <div className="col-12 col-md-4">
+                    <div className="col-12 col-md-6">
                       <label className="form-label small fw-semibold text-muted">Loan Type</label>
                       <select className="form-select" name="type" value={loanForm.type} onChange={handleLoanFormChange}>
                         {LOAN_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
 
-                    <div className="col-12 col-md-4">
+                    <div className="col-12 col-md-6">
                       <label className="form-label small fw-semibold text-muted">Total Loan Amount (₹) *</label>
                       <input type="number" className="form-control fw-bold" name="totalAmount" placeholder="500000" value={loanForm.totalAmount} onChange={handleLoanFormChange} required />
-                    </div>
-
-                    <div className="col-12 col-md-4">
-                      <label className="form-label small fw-semibold text-muted">Interest Rate (% p.a.)</label>
-                      <input type="number" step="0.1" className="form-control" name="interestRate" placeholder="8.5" value={loanForm.interestRate} onChange={handleLoanFormChange} />
                     </div>
 
                     <div className="col-12 col-md-4">

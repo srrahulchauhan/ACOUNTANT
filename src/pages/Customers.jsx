@@ -94,11 +94,11 @@ const Customers = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) return alert('Please enter Customer Name!');
+    if (!formData.name?.trim()) return;
 
     loanStore.saveCustomer(formData);
-    alert(editingCustomer ? '✓ Customer updated successfully!' : '✓ New customer added successfully!');
     setShowAddModal(false);
+    loadData();
   };
 
   const handleDelete = (id) => {
@@ -107,7 +107,20 @@ const Customers = () => {
     if (selectedProfile && selectedProfile.id === id) {
       setSelectedProfile(null);
     }
-    alert('✓ Customer deleted.');
+    loadData();
+  };
+
+  const handleUpdateLoanStatus = (loanId, newStatus) => {
+    loanStore.updateLoanStatus(loanId, newStatus);
+    const updatedLoans = loanStore.getLoans();
+    setLoans(updatedLoans);
+    if (selectedProfile) {
+      const updatedCustLoans = updatedLoans.filter((l) => l.customerId === selectedProfile.id);
+      setSelectedProfile((prev) => ({
+        ...prev,
+        custLoans: updatedCustLoans,
+      }));
+    }
   };
 
   // Filter Customers
@@ -342,26 +355,38 @@ const Customers = () => {
                   <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 position-relative hover-lift transition-all">
                     
                     {/* Action Buttons */}
-                    <div className="position-absolute top-0 end-0 m-3 d-flex gap-1">
-                      <button className="btn btn-sm btn-light rounded-circle p-1.5 text-secondary border" title="Edit Customer" onClick={() => openEditModal(cust)}>
-                        <MdEdit size={16} />
+                    <div className="position-absolute top-0 end-0 m-3 d-flex gap-1.5">
+                      <button 
+                        type="button"
+                        className="btn btn-sm btn-light rounded-circle text-secondary border d-flex align-items-center justify-content-center" 
+                        style={{ width: '28px', height: '28px', padding: 0 }}
+                        title="Edit Customer" 
+                        onClick={() => openEditModal(cust)}
+                      >
+                        <MdEdit size={14} />
                       </button>
-                      <button className="btn btn-sm btn-light rounded-circle p-1.5 text-danger border" title="Delete Customer" onClick={() => setDeleteConfirmId(cust.id)}>
-                        <MdDelete size={16} />
+                      <button 
+                        type="button"
+                        className="btn btn-sm btn-light rounded-circle text-danger border d-flex align-items-center justify-content-center" 
+                        style={{ width: '28px', height: '28px', padding: 0 }}
+                        title="Delete Customer" 
+                        onClick={() => setDeleteConfirmId(cust.id)}
+                      >
+                        <MdDelete size={14} />
                       </button>
                     </div>
 
-                    <div className="d-flex align-items-center gap-3 mb-3">
+                    <div className="d-flex align-items-center gap-3 mb-3 pe-5">
                       <img
                         src={cust.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(cust.name)}&background=0d6efd&color=fff`}
                         alt={cust.name}
-                        className="rounded-circle border border-2 border-primary shadow-2xs"
-                        width="54"
-                        height="54"
+                        className="rounded-circle border border-2 border-primary shadow-2xs flex-shrink-0"
+                        width="50"
+                        height="50"
                         style={{ objectFit: 'cover' }}
                       />
-                      <div>
-                        <h6 className="fw-bold text-dark mb-0">{cust.name}</h6>
+                      <div className="overflow-hidden">
+                        <h6 className="fw-bold text-dark mb-0 text-truncate">{cust.name}</h6>
                         <span className="badge bg-primary bg-opacity-10 text-primary font-monospace" style={{ fontSize: '0.7rem' }}>
                           {cust.id}
                         </span>
@@ -586,7 +611,6 @@ const Customers = () => {
                             <th>Loan Name</th>
                             <th>Type</th>
                             <th>Total Amount</th>
-                            <th>Interest Rate</th>
                             <th>Monthly EMI</th>
                             <th>EMI Due Date</th>
 
@@ -596,13 +620,27 @@ const Customers = () => {
                         <tbody>
                           {selectedProfile.custLoans.map((l) => (
                             <tr key={l.id}>
-                              <td className="fw-bold text-dark">{l.loanName}</td>
+                              <td>
+                                <div className="fw-bold text-dark">{l.loanName}</div>
+                                <small className="text-muted font-monospace" style={{ fontSize: '0.7rem' }}>{l.id}</small>
+                              </td>
                               <td><span className="badge bg-light text-dark border">{l.type}</span></td>
                               <td className="fw-bold text-dark">₹{Number(l.totalAmount).toLocaleString('en-IN')}</td>
-                              <td>{l.interestRate}% p.a.</td>
                               <td className="fw-bold text-success">₹{Number(l.emiAmount).toLocaleString('en-IN')}</td>
                               <td className="fw-semibold text-primary">{formatIndianDate(l.dueDate)}</td>
-                              <td><span className="badge bg-success bg-opacity-10 text-success">{l.status}</span></td>
+                              <td>
+                                <select
+                                  className="form-select form-select-sm py-0 px-2 fw-medium border rounded-2 text-dark bg-white"
+                                  style={{ fontSize: '0.72rem', height: '26px', width: 'auto', minWidth: '105px', cursor: 'pointer' }}
+                                  value={l.status || 'Active'}
+                                  onChange={(e) => handleUpdateLoanStatus(l.id, e.target.value)}
+                                  title="Change Status"
+                                >
+                                  <option value="Active">Active</option>
+                                  <option value="Closed">Closed</option>
+                                  <option value="Permanently Closed">Permanent Close</option>
+                                </select>
+                              </td>
                             </tr>
                           ))}
                         </tbody>

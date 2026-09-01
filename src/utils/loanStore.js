@@ -75,8 +75,7 @@ const defaultLoans = [
     loanName: 'Jaipur Dream Villa Home Loan',
     type: 'Home Loan',
     totalAmount: 4500000,
-    interestRate: 8.5,
-    emiAmount: 39045,
+    emiAmount: 18750,
     startDate: '2025-01-15',
     tenureMonths: 240,
     dueDate: '2026-09-05',
@@ -90,8 +89,7 @@ const defaultLoans = [
     loanName: 'Hyundai SUV Car Loan',
     type: 'Car Loan',
     totalAmount: 1200000,
-    interestRate: 9.2,
-    emiAmount: 25040,
+    emiAmount: 20000,
     startDate: '2025-02-10',
     tenureMonths: 60,
     dueDate: '2026-08-29', // Due today
@@ -105,8 +103,7 @@ const defaultLoans = [
     loanName: 'Business Expansion Personal Loan',
     type: 'Personal Loan',
     totalAmount: 500000,
-    interestRate: 13.5,
-    emiAmount: 16960,
+    emiAmount: 13889,
     startDate: '2025-03-01',
     tenureMonths: 36,
     dueDate: '2026-08-15', // Overdue
@@ -120,8 +117,7 @@ const defaultLoans = [
     loanName: 'Higher Education Masters Loan',
     type: 'Education Loan',
     totalAmount: 800000,
-    interestRate: 7.9,
-    emiAmount: 16180,
+    emiAmount: 13333,
     startDate: '2025-03-10',
     tenureMonths: 60,
     dueDate: '2026-09-10',
@@ -135,8 +131,7 @@ const defaultLoans = [
     loanName: 'Corporate Platinum Card',
     type: 'Credit Card',
     totalAmount: 250000,
-    interestRate: 14.0,
-    emiAmount: 22400,
+    emiAmount: 20833,
     startDate: '2025-04-01',
     tenureMonths: 12,
     dueDate: '2026-09-01',
@@ -517,6 +512,15 @@ export const loanStore = {
     return updated;
   },
 
+  updateLoanStatus(loanId, status) {
+    this.init();
+    const list = this.getLoans();
+    const updated = list.map((l) => (l.id === loanId ? { ...l, status } : l));
+    localStorage.setItem(KEYS.LOANS, JSON.stringify(updated));
+    this.notify();
+    return updated;
+  },
+
   deleteLoan(loanId) {
     this.init();
     const list = this.getLoans().filter((l) => l.id !== loanId);
@@ -785,24 +789,20 @@ export const loanStore = {
     this.notify();
   },
 
-  // Helper EMI Calculator: EMI = [P x R x (1+R)^N]/[(1+R)^N-1]
-  calculateEmi(principal, annualRate, tenureMonths) {
+  // Helper EMI Calculator: EMI = Principal / Tenure (Months)
+  calculateEmi(principal, tenureMonths, legacyArg) {
     const p = Number(principal) || 0;
-    const r = (Number(annualRate) || 0) / 12 / 100;
-    const n = Number(tenureMonths) || 0;
+    // If called with 3 arguments (p, rate, n), use the last argument as tenure
+    const n = arguments.length >= 3 ? Number(legacyArg) || 1 : Number(tenureMonths) || 1;
     if (!p || !n) return 0;
-    if (!r) return Math.round(p / n);
-    const emi = (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-    return Math.round(emi);
+    return Math.round(p / n);
   },
 
   // Helper to generate full EMI schedule array
   generateEmiSchedule(loan) {
     const p = Number(loan.totalAmount) || 0;
-    const rate = Number(loan.interestRate) || 0;
-    const monthlyRate = rate / 12 / 100;
     const n = Number(loan.tenureMonths) || 12;
-    const emi = loan.emiAmount || this.calculateEmi(p, rate, n);
+    const emi = Number(loan.emiAmount) || (n > 0 ? Math.round(p / n) : 0);
 
     let balance = p;
     const schedule = [];
@@ -811,8 +811,7 @@ export const loanStore = {
     const payments = this.getPayments().filter((pay) => pay.loanId === loan.id && pay.status === 'Paid');
 
     for (let i = 1; i <= n; i++) {
-      const interest = monthlyRate ? Math.round(balance * monthlyRate) : 0;
-      const principal = Math.min(emi - interest, balance);
+      const principal = Math.min(emi, balance);
       balance = Math.max(0, balance - principal);
       curDate = addMonthsToDate(curDate, 1);
 
@@ -822,7 +821,6 @@ export const loanStore = {
         dueDate: curDate,
         emiAmount: emi,
         principalComponent: principal,
-        interestComponent: interest,
         remainingBalance: balance,
         status: isPaid ? 'Paid' : i === payments.length + 1 ? 'Upcoming' : 'Pending',
       });
