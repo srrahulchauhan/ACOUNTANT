@@ -109,7 +109,7 @@ const EmiPayments = () => {
   const totalCollected = payments.filter((p) => p.status === 'Paid').reduce((s, p) => s + Number(p.amount || 0), 0);
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh', paddingBottom: '100px' }}>
+    <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh', paddingBottom: '140px' }}>
       
       {/* ── Page Header ── */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -379,7 +379,7 @@ const EmiPayments = () => {
                   <th>AMOUNT</th>
                   <th>METHOD</th>
                   <th>STATUS</th>
-                  <th className="text-end pe-4" style={{ width: '130px', minWidth: '130px' }}>ACTIONS</th>
+                  <th className="text-end pe-4" style={{ width: '150px', minWidth: '150px' }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -452,18 +452,20 @@ const EmiPayments = () => {
                           )}
                         </td>
 
-                        <td className="text-end pe-4" style={{ width: '130px', minWidth: '130px' }}>
-                          <div className="d-flex align-items-center justify-content-end gap-1.5">
-                            {!isPaid && (
+                        <td className="text-end pe-4" style={{ width: '150px', minWidth: '150px' }}>
+                          <div className="d-flex align-items-center justify-content-end" style={{ gap: '10px' }}>
+                            {!isPaid ? (
                               <button
                                 type="button"
-                                className="btn btn-outline-success btn-sm rounded-2 fw-semibold px-2 py-1 d-inline-flex align-items-center gap-1"
-                                style={{ fontSize: '0.75rem', height: '28px' }}
+                                className="btn btn-outline-success btn-sm rounded-2 fw-semibold px-2.5 py-1 d-inline-flex align-items-center"
+                                style={{ fontSize: '0.75rem', height: '28px', gap: '6px' }}
                                 onClick={() => openMarkPaidModal(pay)}
                                 title="Mark as Paid"
                               >
-                                <MdCheck size={14} /> Paid
+                                <MdCheck size={14} /> <span>Paid</span>
                               </button>
+                            ) : (
+                              <div style={{ width: '68px' }}></div>
                             )}
 
                             <button
