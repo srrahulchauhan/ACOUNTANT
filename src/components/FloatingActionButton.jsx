@@ -5,6 +5,8 @@ import {
   MdBarChart, MdCalendarToday, MdDownload, MdReceiptLong, MdMoneyOff, MdClose
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
+import { bankStore } from '../utils/bankStore';
+import { customerBankStore } from '../utils/customerBankStore';
 import { getLocalDateString, addMonthsToDate } from '../utils/dateUtils';
 
 const LOAN_TYPES = [
@@ -19,6 +21,8 @@ const FloatingActionButton = () => {
   // Data lists for dropdowns
   const [customers, setCustomers] = useState([]);
   const [loans, setLoans] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [customerBankAccounts, setCustomerBankAccounts] = useState([]);
 
   // Customer Form State
   const [custForm, setCustForm] = useState({
@@ -55,13 +59,27 @@ const FloatingActionButton = () => {
     advanceMonths: 1,
     paidDate: getLocalDateString(),
     paymentMethod: 'UPI',
+    bankAccountId: '',
+    customerBankAccountId: '',
     notes: ''
   });
 
-  // Sync selectors data from loanStore
+  // Sync selectors data from loanStore & bankStore
   const loadSelectorData = () => {
-    setCustomers(loanStore.getCustomers());
-    setLoans(loanStore.getLoans());
+    const custs = loanStore.getCustomers();
+    const lns = loanStore.getLoans();
+    setCustomers(custs);
+    setLoans(lns);
+    const accs = bankStore.getBankAccounts(false).filter(a => a.status === 'Active');
+    setBankAccounts(accs);
+    if (accs.length > 0 && !paymentForm.bankAccountId) {
+      setPaymentForm(prev => ({ ...prev, bankAccountId: accs[0].id }));
+    }
+    if (lns.length > 0 && !paymentForm.loanId) {
+      const firstLoan = lns[0];
+      const custAccs = customerBankStore.getCustomerBankAccounts(firstLoan.customerId, false).filter(a => a.status === 'Active');
+      setCustomerBankAccounts(custAccs);
+    }
   };
 
   useEffect(() => {
@@ -171,6 +189,8 @@ const FloatingActionButton = () => {
     const advMonths = isAdvance ? Number(paymentForm.advanceMonths || 1) : 1;
     const nextDueDate = addMonthsToDate(selectedLoan.dueDate || getLocalDateString(), isAdvance ? advMonths + 1 : 1);
 
+    const selectedAcc = bankAccounts.find(a => a.id === paymentForm.bankAccountId) || bankAccounts[0];
+
     // Find if there is an upcoming payment record or create new
     const existingPayments = loanStore.getPayments().filter(p => p.loanId === selectedLoan.id && p.status !== 'Paid');
     if (existingPayments.length > 0) {
@@ -178,6 +198,8 @@ const FloatingActionButton = () => {
         paidDate: paymentForm.paidDate,
         amount: finalAmount,
         paymentMethod: isAdvance ? 'Advance Payment' : paymentForm.paymentMethod,
+        bankAccountId: selectedAcc?.id,
+        bankName: selectedAcc?.bankName,
         nextDueDate: nextDueDate,
         notes: paymentForm.notes || (isAdvance ? `Advance EMI payment for ${advMonths} month(s)` : 'Direct EMI Payment')
       });
@@ -191,9 +213,47 @@ const FloatingActionButton = () => {
         paidDate: paymentForm.paidDate,
         dueDate: selectedLoan.dueDate,
         paymentMethod: isAdvance ? 'Advance Payment' : paymentForm.paymentMethod,
+        bankAccountId: selectedAcc?.id,
+        bankName: selectedAcc?.bankName,
         notes: paymentForm.notes || (isAdvance ? `Advance EMI payment for ${advMonths} month(s)` : 'Direct EMI Payment'),
         status: 'Paid'
       });
+    }
+
+    // Automatically record money received into target Bank Account
+    bankStore.recordBankTransaction({
+      type: 'Credit',
+      amount: finalAmount,
+      category: 'EMI Collection',
+      paymentMethod: paymentForm.paymentMethod || 'UPI',
+      bankAccountId: selectedAcc?.id,
+      customerId: selectedLoan.customerId,
+      customerName: selectedLoan.customerName,
+      loanId: selectedLoan.id,
+      loanName: selectedLoan.loanName,
+      description: `EMI Payment for ${selectedLoan.loanName} (${selectedLoan.customerName})`,
+      date: paymentForm.paidDate,
+    });
+
+    // If customer bank account is selected, record the corresponding debit from customer account
+    if (paymentForm.customerBankAccountId) {
+      try {
+        customerBankStore.recordCustomerTransaction({
+          customerBankAccountId: paymentForm.customerBankAccountId,
+          customerId: selectedLoan.customerId,
+          customerName: selectedLoan.customerName,
+          type: 'Debit',
+          amount: finalAmount,
+          category: 'EMI Payment',
+          loanId: selectedLoan.id,
+          loanName: selectedLoan.loanName,
+          paymentMethod: isAdvance ? 'Advance Payment' : (paymentForm.paymentMethod || 'UPI'),
+          description: `EMI Payment for ${selectedLoan.loanName} (Paid to ${selectedAcc?.bankName || 'Company Account'})`,
+          date: paymentForm.paidDate,
+        });
+      } catch (err) {
+        console.error('Failed to deduct from customer bank account:', err);
+      }
     }
 
     setActiveModal(null);
@@ -577,10 +637,13 @@ const FloatingActionButton = () => {
                       onChange={e => {
                         const selectedId = e.target.value;
                         const l = loans.find(x => x.id === selectedId);
+                        const custAccs = l ? customerBankStore.getCustomerBankAccounts(l.customerId, false).filter(a => a.status === 'Active') : [];
+                        setCustomerBankAccounts(custAccs);
                         setPaymentForm({ 
                           ...paymentForm, 
                           loanId: selectedId, 
                           amount: l ? l.emiAmount : '',
+                          customerBankAccountId: custAccs[0]?.id || '',
                         });
                       }}
                       required
@@ -693,6 +756,41 @@ const FloatingActionButton = () => {
                         <option value="Cheque">Cheque</option>
                       </select>
                     </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold text-muted">Received in (Company Bank / Cash Account) *</label>
+                    <select 
+                      className="form-select fw-semibold" 
+                      value={paymentForm.bankAccountId} 
+                      onChange={e => setPaymentForm({ ...paymentForm, bankAccountId: e.target.value })}
+                      required
+                    >
+                      {bankAccounts.map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.logoIcon || '🏦'} {acc.bankName} ({bankStore.maskAccountNumber(acc.accountNumber)}) — Bal: ₹{Number(acc.currentBalance || 0).toLocaleString('en-IN')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold text-muted">
+                      Paid From (Customer Bank Account)
+                      {customerBankAccounts.length === 0 && <span className="text-warning ms-1">(No linked accounts)</span>}
+                    </label>
+                    <select
+                      className="form-select fw-semibold"
+                      value={paymentForm.customerBankAccountId}
+                      onChange={e => setPaymentForm({ ...paymentForm, customerBankAccountId: e.target.value })}
+                    >
+                      <option value="">-- Direct UPI / Cash / Outside Account --</option>
+                      {customerBankAccounts.map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.bankLogo || '🏦'} {acc.bankName} ({customerBankStore.maskAccountNumber(acc.accountNumber)}) — Bal: ₹{Number(acc.currentBalance || 0).toLocaleString('en-IN')}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="mb-2">

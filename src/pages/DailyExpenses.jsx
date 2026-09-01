@@ -12,6 +12,7 @@ import {
 } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
+import { bankStore } from '../utils/bankStore';
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, 
@@ -37,6 +38,7 @@ const getCategoryMeta = (catId) => {
 const DailyExpenses = () => {
   // State
   const [expenses, setExpenses] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [dailyBudget, setDailyBudget] = useState(1000); // Default ₹1,000/day
   const [editingBudget, setEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(1000);
@@ -56,6 +58,8 @@ const DailyExpenses = () => {
     amount: '',
     category: 'Food',
     date: getLocalDateString(),
+    bankAccountId: '',
+    paymentMethod: 'UPI',
     notes: ''
   });
 
@@ -64,7 +68,7 @@ const DailyExpenses = () => {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('Today'); // 'Today', 'This Week', 'This Month', 'All'
 
-  // Load from Local Storage
+  // Load from Local Storage & bankStore
   useEffect(() => {
     try {
       const savedExpenses = localStorage.getItem(LOCAL_STORAGE_EXPENSES_KEY);
@@ -81,6 +85,8 @@ const DailyExpenses = () => {
         setDailyBudget(b);
         setTempBudget(b);
       }
+
+      setBankAccounts(bankStore.getBankAccounts(false).filter(a => a.status === 'Active'));
     } catch (e) {
       console.error("Failed to load daily expenses data", e);
     }
@@ -103,10 +109,14 @@ const DailyExpenses = () => {
   // Open modal for new expense
   const handleOpenAddModal = (cat = 'Food') => {
     setEditingId(null);
+    const activeAccs = bankStore.getBankAccounts(false).filter(a => a.status === 'Active');
+    setBankAccounts(activeAccs);
     setFormData({
       amount: '',
       category: cat,
       date: getLocalDateString(),
+      bankAccountId: activeAccs[0]?.id || '',
+      paymentMethod: 'UPI',
       notes: ''
     });
     setShowFormModal(true);
@@ -115,10 +125,14 @@ const DailyExpenses = () => {
   // Open modal for editing
   const handleEditClick = (expense) => {
     setEditingId(expense.id);
+    const activeAccs = bankStore.getBankAccounts(false).filter(a => a.status === 'Active');
+    setBankAccounts(activeAccs);
     setFormData({
       amount: expense.amount.toString(),
       category: expense.category,
       date: expense.date,
+      bankAccountId: expense.bankAccountId || activeAccs[0]?.id || '',
+      paymentMethod: expense.paymentMethod || 'UPI',
       notes: expense.notes || ''
     });
     setShowFormModal(true);
@@ -141,10 +155,21 @@ const DailyExpenses = () => {
       return;
     }
 
+    const selectedAcc = bankAccounts.find(a => a.id === formData.bankAccountId) || bankAccounts[0];
+
     if (editingId) {
       const updated = expenses.map(item => {
         if (item.id === editingId) {
-          return { ...item, amount: val, category: formData.category, date: formData.date, notes: formData.notes };
+          return { 
+            ...item, 
+            amount: val, 
+            category: formData.category, 
+            date: formData.date, 
+            bankAccountId: selectedAcc?.id || '',
+            bankName: selectedAcc?.bankName || '',
+            paymentMethod: formData.paymentMethod,
+            notes: formData.notes 
+          };
         }
         return item;
       });
@@ -155,9 +180,24 @@ const DailyExpenses = () => {
         amount: val,
         category: formData.category,
         date: formData.date,
+        bankAccountId: selectedAcc?.id || '',
+        bankName: selectedAcc?.bankName || '',
+        paymentMethod: formData.paymentMethod,
         notes: formData.notes
       };
       saveExpensesToStorage([newExp, ...expenses]);
+
+      // Automatically record deduction in bankStore
+      bankStore.recordBankTransaction({
+        type: 'Debit',
+        amount: val,
+        category: 'Daily Expense',
+        paymentMethod: formData.paymentMethod || 'UPI',
+        bankAccountId: selectedAcc?.id,
+        expenseId: newExp.id,
+        description: `${formData.category} Expense: ${formData.notes || 'Daily Expense'}`,
+        date: formData.date,
+      });
     }
 
     setShowFormModal(false);
@@ -661,16 +701,50 @@ const DailyExpenses = () => {
                     </div>
                   </div>
 
-                  {/* Date */}
+                  {/* Date & Payment Method */}
+                  <div className="row g-2 mb-3">
+                    <div className="col-6">
+                      <label className="form-label text-muted fw-semibold small mb-1">Date</label>
+                      <input 
+                        type="date" 
+                        className="form-control" 
+                        value={formData.date} 
+                        onChange={e => setFormData({ ...formData, date: e.target.value })}
+                        required 
+                      />
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label text-muted fw-semibold small mb-1">Payment Method</label>
+                      <select 
+                        className="form-select"
+                        value={formData.paymentMethod}
+                        onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
+                      >
+                        <option value="UPI">UPI</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Net Banking">Net Banking</option>
+                        <option value="Debit Card">Debit Card</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Payment Account / Bank Source */}
                   <div className="mb-3">
-                    <label className="form-label text-muted fw-semibold small mb-1">Date</label>
-                    <input 
-                      type="date" 
-                      className="form-control" 
-                      value={formData.date} 
-                      onChange={e => setFormData({ ...formData, date: e.target.value })}
-                      required 
-                    />
+                    <label className="form-label text-muted fw-semibold small mb-1">Paid From (Bank / Cash Account) *</label>
+                    <select 
+                      className="form-select"
+                      value={formData.bankAccountId}
+                      onChange={e => setFormData({ ...formData, bankAccountId: e.target.value })}
+                      required
+                    >
+                      {bankAccounts.map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.logoIcon || '🏦'} {acc.bankName} ({bankStore.maskAccountNumber(acc.accountNumber)}) — Bal: ₹{Number(acc.currentBalance || 0).toLocaleString('en-IN')}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Notes */}

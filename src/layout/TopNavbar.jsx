@@ -25,7 +25,9 @@ const TopNavbar = ({ toggleSidebar }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const currentTitle = routeTitles[location.pathname] || 'RC Accountant Dashboard';
+  const [settings, setSettings] = useState(loanStore.getSettings());
+
+  const currentTitle = routeTitles[location.pathname] || 'R Accountant Dashboard';
 
   // Smart Search States
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +43,7 @@ const TopNavbar = ({ toggleSidebar }) => {
     setCustomers(loanStore.getCustomers());
     setLoans(loanStore.getLoans());
     setPayments(loanStore.getPayments());
+    setSettings(loanStore.getSettings());
   };
 
   useEffect(() => {
@@ -99,6 +102,9 @@ const TopNavbar = ({ toggleSidebar }) => {
     }
   };
 
+  const ownerDisplayName = settings.ownerName || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Rahul Chauhan');
+  const brandName = settings.companyName || 'R Accountant';
+
   return (
     <nav className="navbar navbar-expand bg-white border-bottom sticky-top px-3 py-2 justify-content-between shadow-sm" style={{ zIndex: 1030 }}>
       {/* Left: Hamburger (mobile), Logo & Company Name, Page Title */}
@@ -109,14 +115,14 @@ const TopNavbar = ({ toggleSidebar }) => {
 
         <div className="d-flex align-items-center gap-2">
           <div className="bg-primary bg-opacity-10 rounded-3 p-1.5 d-flex align-items-center justify-content-center" style={{ width: '38px', height: '38px' }}>
-            <img src={user.appLogo || logo} alt="RC Accountant" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src={settings.companyLogo || user.appLogo || logo} alt={brandName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div>
             <h5 className="mb-0 fw-bold text-dark d-flex align-items-center gap-2" style={{ letterSpacing: '-0.3px', fontSize: '1.05rem' }}>
-              <span>RC Accountant</span>
+              <span>{brandName}</span>
               <span className="text-muted fw-normal d-none d-sm-inline" style={{ fontSize: '0.85rem' }}>| {currentTitle}</span>
             </h5>
-            <small className="text-muted d-none d-sm-block" style={{ fontSize: '0.7rem' }}>Financial &amp; EMI Control Center</small>
+            <small className="text-muted d-none d-sm-block" style={{ fontSize: '0.7rem' }}>{settings.companyTagline || 'Smart Loan, EMI & Account Management'}</small>
           </div>
         </div>
 
@@ -193,7 +199,7 @@ const TopNavbar = ({ toggleSidebar }) => {
             aria-expanded="false"
           >
             <img
-              src={user.profilePic || `https://ui-avatars.com/api/?name=${user.firstName ? encodeURIComponent(user.firstName + ' ' + (user.lastName || '')) : 'Admin'}&background=0d6efd&color=fff`}
+              src={user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(ownerDisplayName)}&background=0d6efd&color=fff`}
               alt="Profile"
               className="rounded-circle border border-2 border-primary shadow-2xs"
               width="36"
@@ -201,15 +207,15 @@ const TopNavbar = ({ toggleSidebar }) => {
               style={{ objectFit: 'cover' }}
             />
             <div className="d-none d-md-block text-start" style={{ lineHeight: 1.2 }}>
-              <span className="fw-bold text-dark d-block small">{user.firstName || 'Admin'} {user.lastName || 'User'}</span>
-              <small className="text-muted" style={{ fontSize: '0.68rem' }}>Loan Manager</small>
+              <span className="fw-bold text-dark d-block small">{ownerDisplayName}</span>
+              <small className="text-muted" style={{ fontSize: '0.68rem' }}>Owner / Admin</small>
             </div>
           </button>
 
           <ul className="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2" aria-labelledby="profileDropdown">
             <li className="px-3 py-2 border-bottom">
-              <span className="fw-bold text-dark d-block">{user.firstName || 'Admin'} {user.lastName || ''}</span>
-              <small className="text-muted">{currentUser?.email || 'admin@equiloan.com'}</small>
+              <span className="fw-bold text-dark d-block">{ownerDisplayName}</span>
+              <small className="text-muted">{settings.email || currentUser?.email || 'rahul@raccountant.com'}</small>
             </li>
             <li>
               <button className="dropdown-item py-2 d-flex align-items-center gap-2 text-secondary" onClick={() => navigate('/settings')}>

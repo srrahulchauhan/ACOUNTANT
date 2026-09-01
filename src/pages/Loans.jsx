@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   MdSearch, MdAccountBalance, MdAddCircle, MdEdit, MdDelete, 
   MdReceipt, MdCalendarToday, MdInfo, MdVisibility, MdFastForward, MdUpdate,
-  MdSend, MdViewList, MdViewModule
+  MdSend, MdViewList, MdViewModule, MdHourglassEmpty
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
+import { bankStore } from '../utils/bankStore';
 import { getLocalDateString, addMonthsToDate, formatIndianDate } from '../utils/dateUtils';
 import SendStatementModal from '../components/SendStatementModal';
 
@@ -15,6 +16,7 @@ const Loans = () => {
   const [loans, setLoans] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -47,6 +49,8 @@ const Loans = () => {
     tenureMonths: 12,
     dueDate: addMonthsToDate(getLocalDateString(), 1),
     status: 'Active',
+    disburseFromBank: false,
+    bankAccountId: '',
     notes: '',
   });
 
@@ -54,6 +58,7 @@ const Loans = () => {
     setLoans(loanStore.getLoans());
     setCustomers(loanStore.getCustomers());
     setPayments(loanStore.getPayments());
+    setBankAccounts(bankStore.getBankAccounts(false).filter(a => a.status === 'Active'));
   };
 
   useEffect(() => {
@@ -133,7 +138,7 @@ const Loans = () => {
       ? Number(formData.emiAmount)
       : (loanStore.calculateEmi(totalAmt, formData.tenureMonths) || 0);
 
-    loanStore.saveLoan({
+    const newLoan = {
       ...formData,
       customerId: finalCustId,
       customerName: custName,
@@ -141,7 +146,26 @@ const Loans = () => {
       totalAmount: totalAmt,
       emiAmount: calculatedEmi,
       tenureMonths: Number(formData.tenureMonths || 12),
-    });
+    };
+
+    loanStore.saveLoan(newLoan);
+
+    // If disburse from bank is checked on a new loan, record the disbursement debit
+    if (!editingLoan && formData.disburseFromBank && totalAmt > 0) {
+      const selectedAcc = bankAccounts.find(a => a.id === formData.bankAccountId) || bankAccounts[0];
+      bankStore.recordBankTransaction({
+        type: 'Debit',
+        amount: totalAmt,
+        category: 'Loan Disbursement',
+        paymentMethod: 'Bank Transfer',
+        bankAccountId: selectedAcc?.id,
+        customerId: finalCustId,
+        customerName: custName,
+        loanName: formData.loanName,
+        description: `Principal Disbursement for ${formData.loanName} (${custName})`,
+        date: formData.startDate || getLocalDateString(),
+      });
+    }
 
     setShowAddModal(false);
     setEditingLoan(null);
@@ -637,6 +661,43 @@ const Loans = () => {
                       </div>
                       <small className="text-muted d-block mt-1" style={{ fontSize: '0.68rem' }}>Click "+1 Mo" to auto-continue next month's EMI date</small>
                     </div>
+
+                    {!editingLoan && (
+                      <div className="col-12">
+                        <div className="p-3 bg-light rounded-3 border">
+                          <div className="form-check form-switch mb-2">
+                            <input 
+                              className="form-check-input" 
+                              type="checkbox" 
+                              id="disburseSwitch" 
+                              checked={formData.disburseFromBank || false} 
+                              onChange={(e) => setFormData({ ...formData, disburseFromBank: e.target.checked })} 
+                            />
+                            <label className="form-check-label fw-bold text-dark small" htmlFor="disburseSwitch">
+                              🏦 Record Initial Loan Disbursement from Bank / Cash Account
+                            </label>
+                          </div>
+
+                          {formData.disburseFromBank && (
+                            <div className="mt-2">
+                              <label className="form-label small fw-semibold text-muted mb-1">Disburse Principal From Account</label>
+                              <select 
+                                className="form-select form-select-sm fw-semibold"
+                                value={formData.bankAccountId}
+                                onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
+                                required={formData.disburseFromBank}
+                              >
+                                {bankAccounts.map(acc => (
+                                  <option key={acc.id} value={acc.id}>
+                                    {acc.logoIcon || '🏦'} {acc.bankName} ({bankStore.maskAccountNumber(acc.accountNumber)}) — Bal: ₹{Number(acc.currentBalance || 0).toLocaleString('en-IN')}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="col-12">
                       <label className="form-label small fw-semibold text-muted">Loan Notes & Terms</label>

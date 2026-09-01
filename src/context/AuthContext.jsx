@@ -48,12 +48,12 @@ export const AuthProvider = ({ children }) => {
   const verifyPasscode = async (passcode) => {
     if (passcode === '20002') {
       const user = {
-        uid: 'rc_passcode_user',
-        firstName: 'RC',
-        lastName: 'Accountant',
-        email: 'admin@rcaccountant.com',
-        phone: '+91 98765 43210',
-        role: 'admin',
+        uid: 'r_accountant_owner',
+        firstName: 'Rahul',
+        lastName: 'Chauhan',
+        email: 'rahul@raccountant.com',
+        phone: '',
+        role: 'Owner / Admin',
         passcodeAuth: true,
         createdAt: new Date().toISOString()
       };

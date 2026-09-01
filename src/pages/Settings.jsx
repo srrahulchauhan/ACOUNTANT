@@ -3,9 +3,11 @@ import {
   MdSettings, MdSave, MdDownload, 
   MdUploadFile, MdRefresh, MdFileUpload, MdSecurity,
   MdNotifications, MdEmail, MdSend, MdMessage, MdEdit,
-  MdRestore, MdAccessTime
+  MdRestore, MdAccessTime, MdCloudSync, MdCode, MdCheckCircle
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
+import { bankStore } from '../utils/bankStore';
+import { googleSheetsSync } from '../utils/googleSheetsSync';
 
 const TEMPLATE_KEYS = [
   { key: 'monthly_reminder', label: 'Monthly EMI Reminder', icon: '📅' },
@@ -19,17 +21,22 @@ const TEMPLATE_KEYS = [
 
 const Settings = () => {
   const [settings, setSettings] = useState({
-    companyName: '',
-    companyTagline: '',
+    companyName: 'R Accountant',
+    ownerName: 'Rahul Chauhan',
+    companyTagline: 'Smart Loan, EMI & Account Management',
     companyLogo: '',
-    email: '',
     phone: '',
+    email: '',
     address: '',
     gstNumber: '',
+    panNumber: '',
+    bankDetails: '',
+    upiId: '',
+    invoiceFooterMessage: 'Thank you for your business. For any questions, please contact Rahul Chauhan (R Accountant).',
     currencySymbol: '₹',
     autoSendReminders: true,
-    whatsappSenderName: 'RC Accountant Accounts',
-    emailSenderName: 'RC Accountant Billing',
+    whatsappSenderName: 'R Accountant',
+    emailSenderName: 'R Accountant',
     reminderDaysBefore: '3',
     quietHoursStart: '21:00',
     quietHoursEnd: '09:00',
@@ -38,6 +45,11 @@ const Settings = () => {
     enableSmsReminders: false,
   });
 
+  const [googleSheetUrl, setGoogleSheetUrl] = useState('');
+  const [syncingSheets, setSyncingSheets] = useState(false);
+  const [showAppsScriptModal, setShowAppsScriptModal] = useState(false);
+  const [syncLogs, setSyncLogs] = useState([]);
+
   const [templates, setTemplates] = useState({});
   const [activeTmplKey, setActiveTmplKey] = useState('monthly_reminder');
   const [tmplSubject, setTmplSubject] = useState('');
@@ -45,6 +57,8 @@ const Settings = () => {
 
   useEffect(() => {
     setSettings(loanStore.getSettings());
+    setGoogleSheetUrl(googleSheetsSync.getWebhookUrl());
+    setSyncLogs(googleSheetsSync.getSyncLogs());
     const t = loanStore.getCommunicationTemplates();
     setTemplates(t);
     if (t.monthly_reminder) {
@@ -125,6 +139,36 @@ const Settings = () => {
     }
   };
 
+  const handleSaveGoogleSheetUrl = () => {
+    googleSheetsSync.setWebhookUrl(googleSheetUrl);
+    alert('✓ Google Sheets Webhook URL saved successfully!');
+  };
+
+  const handleSyncAllGoogleSheets = async () => {
+    if (!googleSheetUrl) {
+      alert('Please enter your Google Apps Script Webhook URL first.');
+      return;
+    }
+    setSyncingSheets(true);
+    const allData = {
+      bankAccounts: bankStore.getBankAccounts(true),
+      bankTransactions: bankStore.getBankTransactions(),
+      bankTransfers: bankStore.getBankTransfers(),
+      customers: loanStore.getCustomers(),
+      loans: loanStore.getLoans(),
+      payments: loanStore.getPayments(),
+      expenses: JSON.parse(localStorage.getItem('daily_expenses_tracker') || '[]'),
+    };
+    const res = await googleSheetsSync.syncAllToGoogleSheet(allData);
+    setSyncingSheets(false);
+    setSyncLogs(googleSheetsSync.getSyncLogs());
+    if (res.success) {
+      alert('✓ ' + res.message);
+    } else {
+      alert('❌ ' + res.message);
+    }
+  };
+
   return (
     <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh' }}>
       
@@ -134,7 +178,7 @@ const Settings = () => {
           <h4 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
             <MdSettings className="text-primary" /> System Settings &amp; Configuration
           </h4>
-          <p className="text-muted small mb-0">Manage company branding, Gmail &amp; WhatsApp communication gateways, and notification preferences</p>
+          <p className="text-muted small mb-0">Manage company branding, Google Sheets live sync, communication gateways, and data backups</p>
         </div>
       </div>
 
@@ -144,57 +188,161 @@ const Settings = () => {
           {/* Left Column: Branding & Communication Gateways */}
           <div className="col-12 col-lg-8">
             
-            {/* Company Branding */}
+            {/* Company Profile Section */}
             <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
-              <h5 className="fw-bold text-dark mb-4 border-bottom pb-2">Company Branding &amp; Letterhead Setup</h5>
+              <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+                <div>
+                  <h5 className="fw-bold text-dark mb-0">🏢 Company Profile &amp; Letterhead Details</h5>
+                  <small className="text-muted">Used on Statements, Reports, Payment Receipts, Navbar &amp; Exports</small>
+                </div>
+                <span className="badge bg-primary bg-opacity-10 text-primary px-3 py-1.5 rounded-pill font-monospace small">
+                  R Accountant
+                </span>
+              </div>
 
               <div className="row g-3">
+                {/* Logo & Avatar */}
                 <div className="col-12 text-center mb-3">
                   <div className="position-relative d-inline-block">
                     {settings.companyLogo ? (
-                      <img src={settings.companyLogo} alt="Logo" className="rounded-3 border p-1 shadow-2xs" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+                      <img src={settings.companyLogo} alt="Business Logo" className="rounded-3 border p-1 shadow-2xs" style={{ width: 90, height: 90, objectFit: 'contain' }} />
                     ) : (
-                      <div className="rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 d-flex align-items-center justify-content-center mx-auto text-primary fw-bold" style={{ width: 80, height: 80, fontSize: '1.8rem' }}>
-                        🏦
+                      <div className="rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 d-flex align-items-center justify-content-center mx-auto text-primary fw-bold" style={{ width: 90, height: 90, fontSize: '2rem' }}>
+                        RA
                       </div>
                     )}
-                    <label htmlFor="logoInput" className="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0 p-1 shadow" style={{ width: 28, height: 28, cursor: 'pointer' }} title="Change Logo">
-                      <MdFileUpload size={16} />
+                    <label htmlFor="logoInput" className="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0 p-1 shadow" style={{ width: 30, height: 30, cursor: 'pointer' }} title="Upload Business Logo">
+                      <MdFileUpload size={18} />
                     </label>
                     <input id="logoInput" type="file" accept="image/*" className="d-none" onChange={handleLogoUpload} />
                   </div>
-                  <div className="text-muted small mt-1" style={{ fontSize: '0.7rem' }}>Company Logo for PDF Statements</div>
+                  <div className="text-muted small mt-1" style={{ fontSize: '0.72rem' }}>Business Logo (PNG / JPG / SVG)</div>
                 </div>
 
+                {/* Business Name */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-muted">Company / Brand Name</label>
-                  <input type="text" className="form-control" name="companyName" value={settings.companyName} onChange={handleChange} required />
+                  <label className="form-label small fw-semibold text-muted">Business Name *</label>
+                  <input type="text" className="form-control fw-bold" name="companyName" value={settings.companyName} onChange={handleChange} required placeholder="R Accountant" />
                 </div>
 
+                {/* Owner / Admin Name */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-muted">Tagline</label>
-                  <input type="text" className="form-control" name="companyTagline" value={settings.companyTagline} onChange={handleChange} />
+                  <label className="form-label small fw-semibold text-muted">Owner / Admin Name *</label>
+                  <input type="text" className="form-control fw-bold" name="ownerName" value={settings.ownerName} onChange={handleChange} required placeholder="Rahul Chauhan" />
                 </div>
 
-                <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-muted">Official Email Address</label>
-                  <input type="email" className="form-control" name="email" value={settings.email} onChange={handleChange} />
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-muted">Customer Helpline Phone</label>
-                  <input type="text" className="form-control" name="phone" value={settings.phone} onChange={handleChange} />
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-muted">GST / Tax Registration Number</label>
-                  <input type="text" className="form-control font-monospace text-uppercase" name="gstNumber" value={settings.gstNumber} onChange={handleChange} />
-                </div>
-
+                {/* Tagline */}
                 <div className="col-12">
-                  <label className="form-label small fw-semibold text-muted">Company Full Address</label>
-                  <textarea className="form-control" rows="2" name="address" value={settings.address} onChange={handleChange}></textarea>
+                  <label className="form-label small fw-semibold text-muted">Business Tagline</label>
+                  <input type="text" className="form-control" name="companyTagline" value={settings.companyTagline} onChange={handleChange} placeholder="Smart Loan, EMI & Account Management" />
                 </div>
+
+                {/* Mobile & Email */}
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">Mobile Number</label>
+                  <input type="text" className="form-control" name="phone" value={settings.phone} onChange={handleChange} placeholder="+91 98765 43210" />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">Email Address</label>
+                  <input type="email" className="form-control" name="email" value={settings.email} onChange={handleChange} placeholder="rahul@raccountant.com" />
+                </div>
+
+                {/* GST & PAN */}
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">GST Number</label>
+                  <input type="text" className="form-control font-monospace text-uppercase" name="gstNumber" value={settings.gstNumber} onChange={handleChange} placeholder="07AAAAA0000A1Z5" />
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">PAN Number</label>
+                  <input type="text" className="form-control font-monospace text-uppercase" name="panNumber" value={settings.panNumber} onChange={handleChange} placeholder="ABCDE1234F" />
+                </div>
+
+                {/* Office Address */}
+                <div className="col-12">
+                  <label className="form-label small fw-semibold text-muted">Office Address</label>
+                  <textarea className="form-control" rows="2" name="address" value={settings.address} onChange={handleChange} placeholder="Enter full office / business street address..."></textarea>
+                </div>
+
+                {/* Bank Details & UPI ID */}
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">Company Bank Details</label>
+                  <input type="text" className="form-control" name="bankDetails" value={settings.bankDetails} onChange={handleChange} placeholder="HDFC Bank • A/C: 502000... • IFSC: HDFC0001234" />
+                  <small className="text-muted d-block mt-0.5" style={{ fontSize: '0.68rem' }}>Displayed on invoices &amp; repayment slips</small>
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-muted">UPI ID for Payments</label>
+                  <input type="text" className="form-control font-monospace" name="upiId" value={settings.upiId} onChange={handleChange} placeholder="rahul@okhdfcbank" />
+                  <small className="text-muted d-block mt-0.5" style={{ fontSize: '0.68rem' }}>Direct UPI address for borrower collections</small>
+                </div>
+
+                {/* Invoice Footer Message */}
+                <div className="col-12">
+                  <label className="form-label small fw-semibold text-muted">Invoice / Statement Footer Message</label>
+                  <input type="text" className="form-control" name="invoiceFooterMessage" value={settings.invoiceFooterMessage} onChange={handleChange} placeholder="Thank you for your business. For any queries, please contact us." />
+                </div>
+              </div>
+            </div>
+
+            {/* Google Sheets Real-time Online Sync Section */}
+            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+              <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                  <MdCloudSync className="text-success" size={24} /> Google Sheets Online Sync
+                </h5>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm rounded-3 fw-bold d-flex align-items-center gap-1"
+                  onClick={() => setShowAppsScriptModal(true)}
+                >
+                  <MdCode size={16} /> View Apps Script Code
+                </button>
+              </div>
+
+              <p className="text-muted small mb-3">
+                Connect your Google Spreadsheet to automatically backup all banking and accounting data into separate tabs: <strong className="text-dark">"Bank Accounts"</strong>, <strong className="text-dark">"Bank Transactions"</strong>, and <strong className="text-dark">"Bank Transfers"</strong>.
+              </p>
+
+              <div className="p-3 bg-light rounded-3 border mb-3">
+                <label className="form-label small fw-bold text-dark mb-1">Google Apps Script Webhook URL</label>
+                <div className="input-group">
+                  <input 
+                    type="url" 
+                    className="form-control font-monospace small" 
+                    placeholder="https://script.google.com/macros/s/AKfycbx.../exec"
+                    value={googleSheetUrl}
+                    onChange={(e) => setGoogleSheetUrl(e.target.value)}
+                  />
+                  <button 
+                    type="button" 
+                    className="btn btn-primary fw-bold"
+                    onClick={handleSaveGoogleSheetUrl}
+                  >
+                    Save URL
+                  </button>
+                </div>
+                <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                  Deploy Apps Script as Web App with "Execute as: Me" &amp; "Who has access: Anyone".
+                </small>
+              </div>
+
+              <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <button 
+                  type="button" 
+                  className="btn btn-success rounded-3 fw-bold px-3 py-2 d-flex align-items-center gap-1.5 shadow-2xs"
+                  onClick={handleSyncAllGoogleSheets}
+                  disabled={syncingSheets}
+                >
+                  <MdCloudSync size={18} /> {syncingSheets ? 'Syncing with Google Sheets...' : 'Sync All Data to Google Sheets Now'}
+                </button>
+
+                {syncLogs.length > 0 && (
+                  <small className="text-muted">
+                    Last sync: <strong>{new Date(syncLogs[0].time).toLocaleTimeString('en-IN')}</strong> ({syncLogs[0].tabName})
+                  </small>
+                )}
               </div>
             </div>
 
@@ -331,14 +479,14 @@ const Settings = () => {
               </h5>
 
               <p className="small text-muted mb-4">
-                All customer files, loan contracts, communication logs, and template settings are saved locally in your browser's <strong className="text-dark">localStorage</strong>.
+                All customer files, loan contracts, bank accounts, transactions, and settings are saved in your browser's <strong className="text-dark">localStorage</strong> and online via Google Sheets.
               </p>
 
               <div className="d-flex flex-column gap-3">
                 {/* Export Backup */}
                 <div className="p-3 bg-light rounded-3 border">
                   <h6 className="fw-bold text-dark small mb-1">Export Complete JSON Backup</h6>
-                  <p className="text-muted" style={{ fontSize: '0.75rem' }}>Download a complete offline JSON file including communication logs and templates</p>
+                  <p className="text-muted" style={{ fontSize: '0.75rem' }}>Download a complete offline JSON file including bank accounts, transfers, logs, and loans</p>
                   <button type="button" className="btn btn-outline-success btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-1.5" onClick={() => loanStore.exportBackup()}>
                     <MdDownload size={18} /> Download Backup (.json)
                   </button>
@@ -367,6 +515,53 @@ const Settings = () => {
           </div>
         </div>
       </form>
+
+      {/* Apps Script Template Modal */}
+      {showAppsScriptModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 1080 }} tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header border-0 bg-light py-3 px-4">
+                <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                  <MdCode className="text-success" /> Google Apps Script Backend Code
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setShowAppsScriptModal(false)}></button>
+              </div>
+
+              <div className="modal-body p-4">
+                <p className="text-muted small mb-2">
+                  1. Open your Google Spreadsheet &gt; click <strong>Extensions &gt; Apps Script</strong>.<br />
+                  2. Replace any existing code with the snippet below &gt; click <strong>Deploy &gt; New deployment &gt; Web app</strong>.<br />
+                  3. Set <em>"Execute as: Me"</em> and <em>"Who has access: Anyone"</em>.<br />
+                  4. Copy the resulting Web app URL and paste it into the Webhook URL field above.
+                </p>
+
+                <textarea
+                  className="form-control font-monospace p-3 bg-light border text-dark"
+                  rows="14"
+                  readOnly
+                  style={{ fontSize: '0.78rem' }}
+                  value={googleSheetsSync.getAppsScriptTemplate()}
+                />
+              </div>
+
+              <div className="modal-footer border-0 bg-light py-3 px-4">
+                <button
+                  type="button"
+                  className="btn btn-primary rounded-3 px-4 fw-bold"
+                  onClick={() => {
+                    navigator.clipboard.writeText(googleSheetsSync.getAppsScriptTemplate());
+                    alert('✓ Apps Script code copied to clipboard!');
+                  }}
+                >
+                  📋 Copy Code to Clipboard
+                </button>
+                <button type="button" className="btn btn-secondary rounded-3 px-4 fw-semibold" onClick={() => setShowAppsScriptModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

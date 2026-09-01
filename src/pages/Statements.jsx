@@ -87,13 +87,13 @@ const Statements = () => {
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(13, 110, 253);
-    doc.text(settings.companyName || 'RC Accountant Services Ltd.', 14, 20);
+    doc.text(settings.companyName || 'R Accountant', 14, 20);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    doc.text(settings.address || 'Financial Tower, Cyber City, Haryana', 14, 26);
-    doc.text(`Email: ${settings.email || 'support@equiloan.com'} | Phone: ${settings.phone || '+91 1800 200 9999'}`, 14, 31);
+    doc.text(`Managed by: ${settings.ownerName || 'Rahul Chauhan'} • ${settings.companyTagline || 'Smart Loan, EMI & Account Management'}`, 14, 26);
+    doc.text(`Email: ${settings.email || 'rahul@raccountant.com'} | Phone: ${settings.phone || '+91 98765 43210'} | GST: ${settings.gstNumber || 'N/A'}`, 14, 31);
 
     doc.setLineWidth(0.5);
     doc.setDrawColor(200);
@@ -232,14 +232,25 @@ const Statements = () => {
         <div className="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4">
           <div>
             <div className="d-flex align-items-center gap-2 mb-1">
-              <div className="bg-primary text-white rounded-3 p-2 fw-bold" style={{ fontSize: '1.2rem' }}>
-                EL
+              {settings.companyLogo ? (
+                <img src={settings.companyLogo} alt="Logo" className="rounded-3 border p-1 shadow-2xs" style={{ width: 45, height: 45, objectFit: 'contain' }} />
+              ) : (
+                <div className="bg-primary text-white rounded-3 p-2 fw-bold" style={{ fontSize: '1.2rem' }}>
+                  RA
+                </div>
+              )}
+              <div>
+                <h4 className="fw-bold text-primary mb-0">{settings.companyName || 'R Accountant'}</h4>
+                <small className="text-dark fw-semibold">Managed by: {settings.ownerName || 'Rahul Chauhan'}</small>
               </div>
-              <h4 className="fw-bold text-primary mb-0">{settings.companyName || 'RC Accountant Services Ltd.'}</h4>
             </div>
-            <small className="text-muted d-block">{settings.companyTagline || 'Smart EMI & Asset Finance Management'}</small>
-            <small className="text-muted d-block">{settings.address}</small>
-            <small className="text-muted d-block">Phone: {settings.phone} | GST: {settings.gstNumber}</small>
+            <small className="text-muted d-block">{settings.companyTagline || 'Smart Loan, EMI & Account Management'}</small>
+            {settings.address && <small className="text-muted d-block">{settings.address}</small>}
+            <small className="text-muted d-block">
+              {settings.phone && `Phone: ${settings.phone} • `}
+              {settings.email && `Email: ${settings.email} • `}
+              {settings.gstNumber && `GST: ${settings.gstNumber}`}
+            </small>
           </div>
           <div className="text-end">
             <h5 className="fw-bold text-dark mb-1">STATEMENT OF ACCOUNT</h5>
@@ -351,9 +362,9 @@ const Statements = () => {
         </div>
 
         {/* Statement Footer */}
-        <div className="border-top pt-3 text-muted small d-flex justify-content-between align-items-center">
-          <span>This is a computer-generated account statement and does not require a physical signature.</span>
-          <span className="fw-bold text-dark">RC Accountant Financial Management System</span>
+        <div className="border-top pt-3 text-muted small d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span>{settings.invoiceFooterMessage || 'This is a computer-generated account statement and does not require a physical signature.'}</span>
+          <span className="fw-bold text-dark">© 2026 {settings.companyName || 'R Accountant'}. Managed by {settings.ownerName || 'Rahul Chauhan'}.</span>
         </div>
       </div>
 

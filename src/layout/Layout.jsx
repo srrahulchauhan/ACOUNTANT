@@ -4,10 +4,18 @@ import TopNavbar from './TopNavbar';
 import Sidebar from './Sidebar';
 import ScrollArrows from '../components/ScrollArrows';
 import FloatingActionButton from '../components/FloatingActionButton';
+import { loanStore } from '../utils/loanStore';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [settings, setSettings] = useState(loanStore.getSettings());
+
+  useEffect(() => {
+    const handleUpdate = () => setSettings(loanStore.getSettings());
+    window.addEventListener('loanStoreUpdated', handleUpdate);
+    return () => window.removeEventListener('loanStoreUpdated', handleUpdate);
+  }, []);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -66,10 +74,17 @@ const Layout = () => {
         <TopNavbar toggleSidebar={toggleSidebar} />
 
         <div
-          className="flex-grow-1 position-relative"
+          className="flex-grow-1 position-relative d-flex flex-column justify-content-between"
           style={{ overflowY: 'auto', overflowX: 'hidden' }}
         >
-          <Outlet />
+          <div className="flex-grow-1">
+            <Outlet />
+          </div>
+
+          <footer className="py-2.5 px-4 bg-white border-top text-center text-muted small" style={{ fontSize: '0.78rem' }}>
+            <span>© 2026 {settings.companyName || 'R Accountant'}. Managed by {settings.ownerName || 'Rahul Chauhan'}.</span>
+          </footer>
+
           <ScrollArrows />
           <FloatingActionButton />
         </div>

@@ -64,17 +64,22 @@ const defaultCommunicationTemplates = {
 };
 
 const defaultSettings = {
-  companyName: 'RC Accountant Services Ltd.',
-  companyTagline: 'Smart Financial & EMI Asset Management',
+  companyName: 'R Accountant',
+  ownerName: 'Rahul Chauhan',
+  companyTagline: 'Smart Loan, EMI & Account Management',
   companyLogo: '',
-  email: 'support@rcaccountant.com',
-  phone: '+91 1800 200 9999',
-  address: 'Suite 405, Financial Tower, Cyber City, Gurugram, Haryana - 122002',
-  gstNumber: '07AAAAA0000A1Z5',
+  phone: '',
+  email: '',
+  address: '',
+  gstNumber: '',
+  panNumber: '',
+  bankDetails: '',
+  upiId: '',
+  invoiceFooterMessage: 'Thank you for your business. For any questions, please contact Rahul Chauhan (R Accountant).',
   currencySymbol: '₹',
   autoSendReminders: true,
-  whatsappSenderName: 'RC Accountant Accounts',
-  emailSenderName: 'RC Accountant Billing',
+  whatsappSenderName: 'R Accountant',
+  emailSenderName: 'R Accountant',
   reminderDaysBefore: '3',
   quietHoursStart: '21:00',
   quietHoursEnd: '09:00',
@@ -412,7 +417,18 @@ export const loanStore = {
   getSettings() {
     this.init();
     try {
-      return JSON.parse(localStorage.getItem(KEYS.SETTINGS)) || defaultSettings;
+      const stored = JSON.parse(localStorage.getItem(KEYS.SETTINGS)) || {};
+      const merged = { ...defaultSettings, ...stored };
+      if (!merged.companyName || merged.companyName.includes('EquiLoan') || merged.companyName.includes('RC Accountant')) {
+        merged.companyName = 'R Accountant';
+      }
+      if (!merged.ownerName) {
+        merged.ownerName = 'Rahul Chauhan';
+      }
+      if (!merged.companyTagline) {
+        merged.companyTagline = 'Smart Loan, EMI & Account Management';
+      }
+      return merged;
     } catch {
       return defaultSettings;
     }
@@ -484,9 +500,16 @@ export const loanStore = {
   exportBackup() {
     this.init();
     const data = {
+      bankAccounts: JSON.parse(localStorage.getItem('rc_bank_accounts_data') || '[]'),
+      bankTransactions: JSON.parse(localStorage.getItem('rc_bank_transactions_data') || '[]'),
+      bankTransfers: JSON.parse(localStorage.getItem('rc_bank_transfers_data') || '[]'),
+      customerBankAccounts: JSON.parse(localStorage.getItem('rc_customer_bank_accounts_data') || '[]'),
+      customerBankTransactions: JSON.parse(localStorage.getItem('rc_customer_bank_transactions_data') || '[]'),
+      customerBankTransfers: JSON.parse(localStorage.getItem('rc_customer_bank_transfers_data') || '[]'),
       customers: this.getCustomers(),
       loans: this.getLoans(),
       payments: this.getPayments(),
+      expenses: JSON.parse(localStorage.getItem('daily_expenses_tracker') || '[]'),
       reminders: this.getReminders(),
       settings: this.getSettings(),
       communications: this.getCommunications(),
@@ -497,7 +520,7 @@ export const loanStore = {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `RC_Accountant_Backup_${getLocalDateString()}.json`;
+    a.download = `RC_Accountant_Complete_Backup_${getLocalDateString()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   },
@@ -505,6 +528,13 @@ export const loanStore = {
   importBackup(jsonData) {
     try {
       const parsed = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+      if (parsed.bankAccounts) localStorage.setItem('rc_bank_accounts_data', JSON.stringify(parsed.bankAccounts));
+      if (parsed.bankTransactions) localStorage.setItem('rc_bank_transactions_data', JSON.stringify(parsed.bankTransactions));
+      if (parsed.bankTransfers) localStorage.setItem('rc_bank_transfers_data', JSON.stringify(parsed.bankTransfers));
+      if (parsed.customerBankAccounts) localStorage.setItem('rc_customer_bank_accounts_data', JSON.stringify(parsed.customerBankAccounts));
+      if (parsed.customerBankTransactions) localStorage.setItem('rc_customer_bank_transactions_data', JSON.stringify(parsed.customerBankTransactions));
+      if (parsed.customerBankTransfers) localStorage.setItem('rc_customer_bank_transfers_data', JSON.stringify(parsed.customerBankTransfers));
+      if (parsed.expenses) localStorage.setItem('daily_expenses_tracker', JSON.stringify(parsed.expenses));
       if (parsed.customers) localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(parsed.customers));
       if (parsed.loans) localStorage.setItem(KEYS.LOANS, JSON.stringify(parsed.loans));
       if (parsed.payments) localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(parsed.payments));
@@ -513,6 +543,8 @@ export const loanStore = {
       if (parsed.communications) localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify(parsed.communications));
       if (parsed.templates) localStorage.setItem(KEYS.COMM_TEMPLATES, JSON.stringify(parsed.templates));
       this.notify();
+      window.dispatchEvent(new Event('bankStoreUpdated'));
+      window.dispatchEvent(new Event('customerBankStoreUpdated'));
       return true;
     } catch (e) {
       console.error('Import error:', e);

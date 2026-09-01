@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   MdPeople, MdAccountBalance, MdAttachMoney, MdAccountBalanceWallet,
   MdPayment, MdHourglassEmpty, MdWarning, MdEventAvailable,
-  MdCheckCircle, MdSend, MdAddCircle, MdCalendarToday, MdReceiptLong, MdBarChart, MdArrowForward
+  MdCheckCircle, MdSend, MdAddCircle, MdCalendarToday, MdReceiptLong, MdBarChart, MdArrowForward,
+  MdSwapHoriz, MdTrendingUp, MdTrendingDown
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
+import { bankStore } from '../utils/bankStore';
 import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
 import AnimatedNumber from '../components/AnimatedNumber';
+import { Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartLegend } from 'chart.js';
+
+ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +22,8 @@ const Dashboard = () => {
   const [loans, setLoans] = useState([]);
   const [payments, setPayments] = useState([]);
   const [reminders, setReminders] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [bankTransactions, setBankTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPayModal, setSelectedPayModal] = useState(null);
 
@@ -24,17 +32,60 @@ const Dashboard = () => {
     setLoans(loanStore.getLoans());
     setPayments(loanStore.getPayments());
     setReminders(loanStore.getReminders());
+    setBankAccounts(bankStore.getBankAccounts(false).filter(a => a.status === 'Active'));
+    setBankTransactions(bankStore.getBankTransactions());
     setLoading(false);
   };
 
   useEffect(() => {
     loadData();
     window.addEventListener('loanStoreUpdated', loadData);
-    return () => window.removeEventListener('loanStoreUpdated', loadData);
+    window.addEventListener('bankStoreUpdated', loadData);
+    return () => {
+      window.removeEventListener('loanStoreUpdated', loadData);
+      window.removeEventListener('bankStoreUpdated', loadData);
+    };
   }, []);
 
   const todayStr = getLocalDateString();
   const currentMonthStr = todayStr.substring(0, 7); // YYYY-MM
+
+  // Banking Metrics
+  const combinedBankBalance = useMemo(() => {
+    return bankAccounts.reduce((sum, a) => sum + Number(a.currentBalance || 0), 0);
+  }, [bankAccounts]);
+
+  const bankInstitutionalTotal = useMemo(() => {
+    return bankAccounts
+      .filter((a) => a.accountType !== 'Cash')
+      .reduce((sum, a) => sum + Number(a.currentBalance || 0), 0);
+  }, [bankAccounts]);
+
+  const cashVaultTotal = useMemo(() => {
+    return bankAccounts
+      .filter((a) => a.accountType === 'Cash')
+      .reduce((sum, a) => sum + Number(a.currentBalance || 0), 0);
+  }, [bankAccounts]);
+
+  // Low balance alerts (< ₹5,000)
+  const lowBalanceAccounts = useMemo(() => {
+    return bankAccounts.filter((a) => Number(a.currentBalance || 0) < 5000);
+  }, [bankAccounts]);
+
+  // Cash vs Bank Balance Chart Data
+  const cashVsBankChartData = useMemo(() => {
+    return {
+      labels: ['Bank Accounts', 'Cash in Hand'],
+      datasets: [
+        {
+          data: [bankInstitutionalTotal, cashVaultTotal],
+          backgroundColor: ['#0d6efd', '#10b981'],
+          borderWidth: 2,
+          borderColor: '#ffffff',
+        },
+      ],
+    };
+  }, [bankInstitutionalTotal, cashVaultTotal]);
 
   // KPI Calculations
   const totalCustomers = customers.length;
@@ -89,11 +140,49 @@ const Dashboard = () => {
 
   // Loan Balance by Loan Type Data
   const loanTypes = ['Home Loan', 'Car Loan', 'Personal Loan', 'Education Loan', 'Credit Card'];
-  const loanTypeBreakdown = loanTypes.map(type => {
-    const list = loans.filter(l => l.type === type);
+  const loanTypeBreakdown = loanTypes.map((type) => {
+    const list = loans.filter((l) => l.type === type);
     const amount = list.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
     return { type, count: list.length, amount };
   });
+
+  // Dynamic Monthly Analytics from real payments
+  const monthlyAnalyticsData = React.useMemo(() => {
+    const months = [];
+    const now = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = d.getFullYear();
+      const monthNum = String(d.getMonth() + 1).padStart(2, '0');
+      const yearMonth = `${year}-${monthNum}`;
+      const monthLabel = d.toLocaleString('en-IN', { month: 'short' });
+
+      const collected = (payments || [])
+        .filter((p) => p && p.status === 'Paid' && p.paidDate && p.paidDate.startsWith(yearMonth))
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+      months.push({
+        month: monthLabel,
+        yearMonth,
+        amount: collected,
+        active: i === 0,
+      });
+    }
+
+    const maxAmt = Math.max(...months.map((m) => m.amount), 0);
+
+    return months.map((m) => {
+      let height = '6px';
+      if (maxAmt > 0 && m.amount > 0) {
+        height = `${Math.max(15, Math.round((m.amount / maxAmt) * 90))}%`;
+      }
+      return {
+        ...m,
+        height,
+      };
+    });
+  }, [payments]);
 
   return (
     <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh' }}>
@@ -102,30 +191,74 @@ const Dashboard = () => {
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
           <h4 className="fw-bold text-dark mb-1">Financial Overview Dashboard</h4>
-          <p className="text-muted small mb-0">Real-time loan portfolio monitoring and EMI collection metrics</p>
+          <p className="text-muted small mb-0">Real-time banking liquidity, loan portfolio monitoring, and EMI collection metrics</p>
         </div>
         <div className="d-flex flex-wrap gap-2">
-          <button className="btn btn-outline-primary btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold hover-lift" onClick={() => navigate('/customers')}>
-            <MdPeople size={18} /> Add Customer
+          <button className="btn btn-outline-primary btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold hover-lift" onClick={() => navigate('/bank-accounts')}>
+            <MdAccountBalance size={18} /> Add Bank Account
           </button>
-          <button className="btn btn-outline-success btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold hover-lift" onClick={() => navigate('/loans')}>
-            <MdAccountBalance size={18} /> Add Loan
+          <button className="btn btn-outline-info btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold hover-lift" onClick={() => navigate('/bank-accounts')}>
+            <MdSwapHoriz size={18} /> Transfer Funds
+          </button>
+          <button className="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold hover-lift" onClick={() => navigate('/bank-accounts')}>
+            <MdReceiptLong size={18} /> View Bank Statement
           </button>
           <button 
             className="btn btn-outline-warning btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-semibold text-dark hover-lift" 
             onClick={() => window.dispatchEvent(new CustomEvent('openRecordPaymentModal'))}
             title="Record EMI / Advance Payment"
           >
-            <MdPayment size={18} /> Record Payment
+            <MdPayment size={18} /> Record Transaction
           </button>
           <button className="btn btn-primary btn-sm rounded-3 d-flex align-items-center gap-1.5 px-3 py-2 fw-bold shadow-sm hover-lift" onClick={() => navigate('/calendar')}>
-            <MdCalendarToday size={18} /> View Calendar
+            <MdCalendarToday size={18} /> Calendar
           </button>
         </div>
       </div>
 
-      {/* 8 Dashboard Summary Cards */}
+      {/* Low Balance Warning Banner */}
+      {lowBalanceAccounts.length > 0 && (
+        <div className="alert alert-warning border-0 shadow-sm rounded-4 mb-4 p-3 d-flex align-items-center justify-content-between animate-fadeIn" style={{ background: '#fffbeb', borderLeft: '5px solid #f59e0b' }}>
+          <div className="d-flex align-items-center gap-3">
+            <div className="bg-warning bg-opacity-20 text-warning p-2 rounded-circle">
+              <MdWarning size={24} className="text-dark" />
+            </div>
+            <div>
+              <h6 className="fw-bold text-dark mb-0">⚠️ Low Account Balance Notice</h6>
+              <p className="small text-secondary mb-0">
+                {lowBalanceAccounts.map(a => `${a.bankName} (₹${Number(a.currentBalance || 0).toLocaleString('en-IN')})`).join(', ')} is running below the minimum threshold (₹5,000).
+              </p>
+            </div>
+          </div>
+          <button className="btn btn-warning btn-sm text-dark fw-bold rounded-pill px-3 shadow-2xs" onClick={() => navigate('/bank-accounts')}>Manage Accounts</button>
+        </div>
+      )}
+
+      {/* Primary KPI Summary Cards */}
       <div className="row g-3 mb-4">
+        {/* Card 0: Total Combined Bank & Cash Balance */}
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div 
+            className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 hover-lift transition-all" 
+            onClick={() => navigate('/bank-accounts')}
+            style={{ cursor: 'pointer', borderTop: '4px solid #1a4f9c' }}
+            title="Click to manage Bank Accounts"
+          >
+            <div className="d-flex justify-content-between align-items-start">
+              <div>
+                <small className="text-muted fw-semibold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Total Combined Balance</small>
+                <h3 className="fw-bold text-dark my-1">
+                  {loading ? <div className="skeleton" style={{ width: '90px', height: '28px' }}></div> : <AnimatedNumber value={combinedBankBalance} prefix="₹" isCurrency={true} />}
+                </h3>
+                <small className="text-primary fw-semibold">{bankAccounts.length} Active Accounts (Banks + Cash)</small>
+              </div>
+              <div className="rounded-3 p-2.5" style={{ background: 'rgba(26, 79, 156, 0.12)', color: '#1a4f9c' }}>
+                <MdAccountBalanceWallet size={24} />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Card 1: Total Customers */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div 
@@ -172,30 +305,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Card 3: Total Loan Amount */}
-        <div className="col-12 col-sm-6 col-xl-3">
-          <div 
-            className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 hover-lift transition-all" 
-            onClick={() => navigate('/loans')}
-            style={{ cursor: 'pointer' }}
-            title="Click to view Loan Capital details"
-          >
-            <div className="d-flex justify-content-between align-items-start">
-              <div>
-                <small className="text-muted fw-semibold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Total Loan Capital</small>
-                <h3 className="fw-bold text-dark my-1">
-                  {loading ? <div className="skeleton" style={{ width: '100px', height: '28px' }}></div> : <AnimatedNumber value={totalLoanAmount} prefix="₹" isCurrency={true} />}
-                </h3>
-                <small className="text-primary fw-semibold">Disbursed Principal</small>
-              </div>
-              <div className="bg-success bg-opacity-10 text-success rounded-3 p-2.5">
-                <MdAttachMoney size={24} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Total Outstanding Balance */}
+        {/* Card 3: Total Outstanding Balance */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div 
             className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 hover-lift transition-all" 
@@ -209,7 +319,7 @@ const Dashboard = () => {
                 <h3 className="fw-bold text-dark my-1">
                   {loading ? <div className="skeleton" style={{ width: '100px', height: '28px' }}></div> : <AnimatedNumber value={totalOutstandingBalance} prefix="₹" isCurrency={true} />}
                 </h3>
-                <small className="text-secondary fw-semibold">Principal Remaining</small>
+                <small className="text-danger fw-semibold">Principal Remaining</small>
               </div>
               <div className="bg-secondary bg-opacity-10 text-secondary rounded-3 p-2.5">
                 <MdAccountBalanceWallet size={24} />
@@ -217,7 +327,6 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Second KPI Mini Row */}
@@ -435,6 +544,88 @@ const Dashboard = () => {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Recent Bank Transactions Table */}
+      <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+              <MdReceiptLong className="text-primary" /> Recent Bank &amp; Cash Transactions
+            </h5>
+            <small className="text-muted">Live audit ledger of latest inflows, disbursements, expenses, and inter-bank transfers</small>
+          </div>
+          <button className="btn btn-sm btn-outline-primary rounded-3 fw-bold d-flex align-items-center gap-1" onClick={() => navigate('/bank-accounts')}>
+            View Full Bank Statement <MdArrowForward />
+          </button>
+        </div>
+
+        <div className="table-responsive">
+          <table className="table table-hover align-middle mb-0">
+            <thead className="bg-light text-muted small text-uppercase" style={{ fontSize: '0.72rem' }}>
+              <tr>
+                <th className="py-2.5 px-3">Date</th>
+                <th>Bank Account</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Method</th>
+                <th className="text-end">Amount</th>
+                <th className="text-end px-3">Running Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bankTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-4 text-muted small">
+                    No bank transactions recorded yet. They will appear here automatically when payments, expenses, or transfers occur.
+                  </td>
+                </tr>
+              ) : (
+                bankTransactions.slice(0, 5).map((t) => (
+                  <tr key={t.id}>
+                    <td className="px-3">
+                      <span className="badge bg-light text-dark border px-2 py-1 font-monospace">
+                        {formatIndianDate(t.date)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="fw-bold text-dark d-block small">{t.bankName}</span>
+                      <small className="text-muted font-monospace" style={{ fontSize: '0.68rem' }}>
+                        {bankStore.maskAccountNumber(t.accountNumber)}
+                      </small>
+                    </td>
+                    <td>
+                      <span className="text-dark small d-block">{t.description}</span>
+                      {t.referenceNumber && (
+                        <small className="text-muted font-monospace" style={{ fontSize: '0.68rem' }}>Ref: {t.referenceNumber}</small>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge rounded-pill ${t.type === 'Credit' || t.type === 'Transfer In' ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: '0.68rem' }}>
+                        {t.type}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="badge bg-light text-secondary border px-2 py-0.5 rounded-pill" style={{ fontSize: '0.68rem' }}>
+                        {t.paymentMethod || 'UPI'}
+                      </span>
+                    </td>
+                    <td className="text-end">
+                      <span className={`fw-bold font-monospace ${t.type === 'Credit' || t.type === 'Transfer In' ? 'text-success' : 'text-danger'}`}>
+                        {t.type === 'Credit' || t.type === 'Transfer In' ? '+' : '-'}₹{Number(t.amount).toLocaleString('en-IN')}
+                      </span>
+                    </td>
+                    <td className="text-end px-3">
+                      <span className="fw-bold text-dark font-monospace">
+                        ₹{Number(t.balanceAfter || 0).toLocaleString('en-IN')}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

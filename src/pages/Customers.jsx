@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   MdSearch, MdPersonAdd, MdEdit, MdDelete, MdPhone, MdEmail, 
   MdHome, MdAccountBalance, MdPayment, MdFileUpload, MdBadge, MdWork,
-  MdSend, MdChat, MdHistory, MdViewList, MdViewModule, MdVisibility
+  MdSend, MdChat, MdHistory, MdViewList, MdViewModule, MdVisibility,
+  MdAccountBalanceWallet
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
+import { customerBankStore } from '../utils/customerBankStore';
 import { formatIndianDate } from '../utils/dateUtils';
 import SendStatementModal from '../components/SendStatementModal';
-
+import CustomerBankManager from '../components/CustomerBankManager';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -29,6 +31,7 @@ const Customers = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [profileActiveTab, setProfileActiveTab] = useState('overview'); // 'overview' | 'bankAccounts'
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [commModal, setCommModal] = useState({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' });
 
@@ -55,8 +58,30 @@ const Customers = () => {
   useEffect(() => {
     loadData();
     window.addEventListener('loanStoreUpdated', loadData);
-    return () => window.removeEventListener('loanStoreUpdated', loadData);
+    window.addEventListener('customerBankStoreUpdated', loadData);
+    return () => {
+      window.removeEventListener('loanStoreUpdated', loadData);
+      window.removeEventListener('customerBankStoreUpdated', loadData);
+    };
   }, []);
+
+  const openProfileModal = (cust, initialTab = 'overview') => {
+    const custLoans = loans.filter((l) => l.customerId === cust.id);
+    const totalLoanAmt = custLoans.reduce((s, l) => s + Number(l.totalAmount || 0), 0);
+    const custPayments = payments.filter((p) => p.customerId === cust.id && p.status === 'Paid');
+    const totalPaidAmt = custPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const outstandingBalance = Math.max(0, totalLoanAmt - totalPaidAmt);
+    const totalMonthlyEmi = custLoans.reduce((s, l) => s + Number(l.emiAmount || 0), 0);
+
+    setProfileActiveTab(initialTab);
+    setSelectedProfile({
+      ...cust,
+      custLoans,
+      totalLoanAmt,
+      outstandingBalance,
+      totalMonthlyEmi,
+    });
+  };
 
   const openAddModal = () => {
     setEditingCustomer(null);
@@ -291,6 +316,15 @@ const Customers = () => {
                           <div className="d-flex align-items-center justify-content-end gap-1.5">
                             <button
                               type="button"
+                              className="btn btn-outline-info btn-sm rounded-3 px-2 py-1.5 fw-bold d-flex align-items-center gap-1 text-dark"
+                              onClick={() => openProfileModal(cust, 'bankAccounts')}
+                              title="Customer Bank Accounts & Statement"
+                            >
+                              <MdAccountBalance size={14} className="text-primary" /> Banks
+                            </button>
+
+                            <button
+                              type="button"
                               className="btn btn-outline-success btn-sm rounded-3 px-2 py-1.5 fw-bold d-flex align-items-center gap-1"
                               onClick={() => setCommModal({ open: true, customerId: cust.id, loanId: custLoans[0]?.id || null, templateKey: 'loan_statement' })}
                               title="Send Statement via WhatsApp / Gmail"
@@ -301,7 +335,7 @@ const Customers = () => {
                             <button
                               type="button"
                               className="btn btn-outline-primary btn-sm rounded-3 px-2 py-1.5 fw-semibold d-flex align-items-center gap-1"
-                              onClick={() => setSelectedProfile({ ...cust, custLoans, totalLoanAmt, outstandingBalance, totalMonthlyEmi })}
+                              onClick={() => openProfileModal(cust, 'overview')}
                               title="View Profile"
                             >
                               <MdVisibility size={15} />
@@ -427,7 +461,15 @@ const Customers = () => {
                       </div>
                     </div>
 
-                    <div className="d-flex gap-2 mt-auto">
+                    <div className="d-flex flex-wrap gap-2 mt-auto">
+                      <button
+                        className="btn btn-outline-info btn-sm rounded-3 fw-bold py-2 d-flex align-items-center justify-content-center gap-1 text-dark"
+                        style={{ flex: '1 1 auto' }}
+                        title="Customer Bank Accounts & Statements"
+                        onClick={() => openProfileModal(cust, 'bankAccounts')}
+                      >
+                        <MdAccountBalance size={15} className="text-primary" /> Banks
+                      </button>
                       <button
                         className="btn btn-outline-success btn-sm rounded-3 fw-bold py-2 d-flex align-items-center justify-content-center gap-1"
                         style={{ flex: '0 0 auto' }}
@@ -437,8 +479,9 @@ const Customers = () => {
                         <MdSend size={15} /> Send
                       </button>
                       <button
-                        className="btn btn-outline-primary btn-sm rounded-3 flex-grow-1 fw-bold py-2"
-                        onClick={() => setSelectedProfile({ ...cust, custLoans, totalLoanAmt, outstandingBalance, totalMonthlyEmi })}
+                        className="btn btn-primary btn-sm rounded-3 fw-bold py-2 shadow-2xs"
+                        style={{ flex: '1 1 auto' }}
+                        onClick={() => openProfileModal(cust, 'overview')}
                       >
                         View Profile
                       </button>
@@ -558,97 +601,136 @@ const Customers = () => {
               </div>
 
               <div className="modal-body p-4 bg-light">
-                {/* Info Cards Row */}
-                <div className="row g-3 mb-4">
-                  <div className="col-12 col-md-3">
-                    <div className="p-3 bg-white rounded-3 border shadow-2xs">
-                      <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Total Linked Loans</small>
-                      <h4 className="fw-bold text-dark mb-0">{selectedProfile.custLoans.length} Accounts</h4>
-                    </div>
+                
+                {/* Modal Tab Switcher */}
+                <div className="d-flex align-items-center justify-content-between mb-4 border-bottom pb-2">
+                  <div className="btn-group bg-white p-1 rounded-pill shadow-2xs border">
+                    <button 
+                      type="button"
+                      className={`btn btn-sm rounded-pill px-3.5 fw-bold ${profileActiveTab === 'overview' ? 'btn-primary shadow-sm' : 'btn-light text-secondary border-0'}`}
+                      onClick={() => setProfileActiveTab('overview')}
+                    >
+                      👤 Profile &amp; Loans Overview
+                    </button>
+                    <button 
+                      type="button"
+                      className={`btn btn-sm rounded-pill px-3.5 fw-bold ${profileActiveTab === 'bankAccounts' ? 'btn-primary shadow-sm' : 'btn-light text-secondary border-0'}`}
+                      onClick={() => setProfileActiveTab('bankAccounts')}
+                    >
+                      🏦 Bank Accounts &amp; Statements
+                    </button>
                   </div>
-                  <div className="col-12 col-md-3">
-                    <div className="p-3 bg-white rounded-3 border shadow-2xs">
-                      <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Total Loan Amount</small>
-                      <h4 className="fw-bold text-primary mb-0">₹{selectedProfile.totalLoanAmt.toLocaleString('en-IN')}</h4>
-                    </div>
-                  </div>
-                  <div className="col-12 col-md-3">
-                    <div className="p-3 bg-white rounded-3 border shadow-2xs">
-                      <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Total Monthly EMI</small>
-                      <h4 className="fw-bold text-success mb-0">₹{selectedProfile.totalMonthlyEmi.toLocaleString('en-IN')}</h4>
-                    </div>
-                  </div>
-                  <div className="col-12 col-md-3">
-                    <div className="p-3 bg-white rounded-3 border shadow-2xs">
-                      <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Outstanding Balance</small>
-                      <h4 className="fw-bold text-danger mb-0">₹{selectedProfile.outstandingBalance.toLocaleString('en-IN')}</h4>
-                    </div>
-                  </div>
+
+                  <span className="badge bg-light text-dark border px-3 py-1.5 rounded-pill font-monospace small">
+                    {profileActiveTab === 'overview' ? `${selectedProfile.custLoans.length} Loans` : 'Multi-Account Vault'}
+                  </span>
                 </div>
 
-                {/* Profile Details */}
-                <div className="card border-0 shadow-sm rounded-3 p-3 bg-white mb-4">
-                  <h6 className="fw-bold text-dark border-bottom pb-2 mb-3">KYC & Personal Information</h6>
-                  <div className="row g-3 small">
-                    <div className="col-6 col-md-3"><strong>Phone:</strong> {selectedProfile.phone || '-'}</div>
-                    <div className="col-6 col-md-3"><strong>Email:</strong> {selectedProfile.email || '-'}</div>
-                    <div className="col-6 col-md-3"><strong>PAN / Aadhaar:</strong> <span className="font-monospace fw-bold">{selectedProfile.panAadhaar || '-'}</span></div>
-                    <div className="col-6 col-md-3"><strong>DOB:</strong> {formatIndianDate(selectedProfile.dob)}</div>
-                    <div className="col-6 col-md-3"><strong>Monthly Income:</strong> ₹{Number(selectedProfile.monthlyIncome || 0).toLocaleString('en-IN')}</div>
-                    <div className="col-12 col-md-9"><strong>Residential Address:</strong> {selectedProfile.address || '-'}</div>
-                  </div>
-                </div>
-
-                {/* Linked Loans Table */}
-                <div className="card border-0 shadow-sm rounded-3 p-3 bg-white">
-                  <h6 className="fw-bold text-dark mb-3">Linked EMI Loans & Payment Schedule</h6>
-                  {selectedProfile.custLoans.length === 0 ? (
-                    <p className="text-muted small mb-0">No active loans linked to this customer profile.</p>
-                  ) : (
-                    <div className="table-responsive">
-                      <table className="table table-hover align-middle mb-0 small">
-                        <thead className="bg-light">
-                          <tr>
-                            <th>Loan Name</th>
-                            <th>Type</th>
-                            <th>Total Amount</th>
-                            <th>Monthly EMI</th>
-                            <th>EMI Due Date</th>
-
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedProfile.custLoans.map((l) => (
-                            <tr key={l.id}>
-                              <td>
-                                <div className="fw-bold text-dark">{l.loanName}</div>
-                                <small className="text-muted font-monospace" style={{ fontSize: '0.7rem' }}>{l.id}</small>
-                              </td>
-                              <td><span className="badge bg-light text-dark border">{l.type}</span></td>
-                              <td className="fw-bold text-dark">₹{Number(l.totalAmount).toLocaleString('en-IN')}</td>
-                              <td className="fw-bold text-success">₹{Number(l.emiAmount).toLocaleString('en-IN')}</td>
-                              <td className="fw-semibold text-primary">{formatIndianDate(l.dueDate)}</td>
-                              <td>
-                                <select
-                                  className="form-select form-select-sm py-0 px-2 fw-medium border rounded-2 text-dark bg-white"
-                                  style={{ fontSize: '0.72rem', height: '26px', width: 'auto', minWidth: '105px', cursor: 'pointer' }}
-                                  value={l.status || 'Active'}
-                                  onChange={(e) => handleUpdateLoanStatus(l.id, e.target.value)}
-                                  title="Change Status"
-                                >
-                                  <option value="Active">Active</option>
-                                  <option value="Closed">Closed</option>
-                                  <option value="Permanently Closed">Permanent Close</option>
-                                </select>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                {/* TAB 1: OVERVIEW & LOANS */}
+                {profileActiveTab === 'overview' && (
+                  <div>
+                    {/* Info Cards Row */}
+                    <div className="row g-3 mb-4">
+                      <div className="col-12 col-md-3">
+                        <div className="p-3 bg-white rounded-3 border shadow-2xs">
+                          <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Total Linked Loans</small>
+                          <h4 className="fw-bold text-dark mb-0">{selectedProfile.custLoans.length} Accounts</h4>
+                        </div>
+                      </div>
+                      <div className="col-12 col-md-3">
+                        <div className="p-3 bg-white rounded-3 border shadow-2xs">
+                          <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Total Loan Amount</small>
+                          <h4 className="fw-bold text-primary mb-0">₹{selectedProfile.totalLoanAmt.toLocaleString('en-IN')}</h4>
+                        </div>
+                      </div>
+                      <div className="col-12 col-md-3">
+                        <div className="p-3 bg-white rounded-3 border shadow-2xs">
+                          <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Total Monthly EMI</small>
+                          <h4 className="fw-bold text-success mb-0">₹{selectedProfile.totalMonthlyEmi.toLocaleString('en-IN')}</h4>
+                        </div>
+                      </div>
+                      <div className="col-12 col-md-3">
+                        <div className="p-3 bg-white rounded-3 border shadow-2xs">
+                          <small className="text-muted d-block text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>Outstanding Balance</small>
+                          <h4 className="fw-bold text-danger mb-0">₹{selectedProfile.outstandingBalance.toLocaleString('en-IN')}</h4>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Profile Details */}
+                    <div className="card border-0 shadow-sm rounded-3 p-3 bg-white mb-4">
+                      <h6 className="fw-bold text-dark border-bottom pb-2 mb-3">KYC &amp; Personal Information</h6>
+                      <div className="row g-3 small">
+                        <div className="col-6 col-md-3"><strong>Phone:</strong> {selectedProfile.phone || '-'}</div>
+                        <div className="col-6 col-md-3"><strong>Email:</strong> {selectedProfile.email || '-'}</div>
+                        <div className="col-6 col-md-3"><strong>PAN / Aadhaar:</strong> <span className="font-monospace fw-bold">{selectedProfile.panAadhaar || '-'}</span></div>
+                        <div className="col-6 col-md-3"><strong>DOB:</strong> {formatIndianDate(selectedProfile.dob)}</div>
+                        <div className="col-6 col-md-3"><strong>Monthly Income:</strong> ₹{Number(selectedProfile.monthlyIncome || 0).toLocaleString('en-IN')}</div>
+                        <div className="col-12 col-md-9"><strong>Residential Address:</strong> {selectedProfile.address || '-'}</div>
+                      </div>
+                    </div>
+
+                    {/* Linked Loans Table */}
+                    <div className="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                      <h6 className="fw-bold text-dark mb-3">Linked EMI Loans &amp; Payment Schedule</h6>
+                      {selectedProfile.custLoans.length === 0 ? (
+                        <p className="text-muted small mb-0">No active loans linked to this customer profile.</p>
+                      ) : (
+                        <div className="table-responsive">
+                          <table className="table table-hover align-middle mb-0 small">
+                            <thead className="bg-light">
+                              <tr>
+                                <th>Loan Name</th>
+                                <th>Type</th>
+                                <th>Total Amount</th>
+                                <th>Monthly EMI</th>
+                                <th>EMI Due Date</th>
+                                <th>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedProfile.custLoans.map((l) => (
+                                <tr key={l.id}>
+                                  <td>
+                                    <div className="fw-bold text-dark">{l.loanName}</div>
+                                    <small className="text-muted font-monospace" style={{ fontSize: '0.7rem' }}>{l.id}</small>
+                                  </td>
+                                  <td><span className="badge bg-light text-dark border">{l.type}</span></td>
+                                  <td className="fw-bold text-dark">₹{Number(l.totalAmount).toLocaleString('en-IN')}</td>
+                                  <td className="fw-bold text-success">₹{Number(l.emiAmount).toLocaleString('en-IN')}</td>
+                                  <td className="fw-semibold text-primary">{formatIndianDate(l.dueDate)}</td>
+                                  <td>
+                                    <select
+                                      className="form-select form-select-sm py-0 px-2 fw-medium border rounded-2 text-dark bg-white"
+                                      style={{ fontSize: '0.72rem', height: '26px', width: 'auto', minWidth: '105px', cursor: 'pointer' }}
+                                      value={l.status || 'Active'}
+                                      onChange={(e) => handleUpdateLoanStatus(l.id, e.target.value)}
+                                      title="Change Status"
+                                    >
+                                      <option value="Active">Active</option>
+                                      <option value="Closed">Closed</option>
+                                      <option value="Permanently Closed">Permanent Close</option>
+                                    </select>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: BANK ACCOUNTS & STATEMENT */}
+                {profileActiveTab === 'bankAccounts' && (
+                  <CustomerBankManager 
+                    customer={selectedProfile} 
+                    loans={selectedProfile.custLoans} 
+                    payments={payments} 
+                  />
+                )}
+
               </div>
 
               <div className="modal-footer border-0 bg-light py-3 px-4 d-flex justify-content-between">

@@ -66,10 +66,10 @@ const Login = () => {
         {/* Brand Header */}
         <div className="text-center mb-4">
           <div className="d-inline-flex align-items-center justify-content-center bg-white bg-opacity-10 backdrop-blur rounded-4 p-3 mb-3 border border-light border-opacity-10 shadow-lg" style={{ width: '84px', height: '84px' }}>
-            <img src={logo} alt="RC Accountant" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src={logo} alt="R Accountant" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <h3 className="fw-bold mb-1 text-white" style={{ letterSpacing: '-0.5px' }}>RC Accountant</h3>
-          <p className="text-slate-400 small mb-0" style={{ color: '#94a3b8' }}>Secure Passcode Verification</p>
+          <h3 className="fw-bold mb-1 text-white" style={{ letterSpacing: '-0.5px' }}>R Accountant</h3>
+          <p className="text-slate-400 small mb-0" style={{ color: '#94a3b8' }}>Smart Loan, EMI &amp; Account Management</p>
         </div>
 
         {/* Lock Card */}
@@ -197,7 +197,7 @@ const Login = () => {
 
         <div className="text-center mt-4">
           <small style={{ color: '#64748b', fontSize: '0.78rem' }}>
-            RC Accountant Personal & Loan Financial System • Encrypted Access
+            © 2026 R Accountant. Managed by Rahul Chauhan.
           </small>
         </div>
 
