@@ -460,7 +460,8 @@ const Loans = () => {
                             <option value="Permanently Closed">Permanent Close</option>
                           </select>
                         </div>
-                      </div>    </div>
+                      </div>
+                    </div>
 
                     {/* Financial Numbers */}
                     <div className="p-3 bg-light rounded-3 mb-3 border">
