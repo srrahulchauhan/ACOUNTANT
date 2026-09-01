@@ -3,11 +3,9 @@ import {
   MdSettings, MdSave, MdDownload, 
   MdUploadFile, MdRefresh, MdFileUpload, MdSecurity,
   MdNotifications, MdEmail, MdSend, MdMessage, MdEdit,
-  MdRestore, MdAccessTime, MdCloudSync, MdCode, MdCheckCircle
+  MdRestore, MdAccessTime, MdCheckCircle
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { bankStore } from '../utils/bankStore';
-import { googleSheetsSync } from '../utils/googleSheetsSync';
 
 const TEMPLATE_KEYS = [
   { key: 'monthly_reminder', label: 'Monthly EMI Reminder', icon: '📅' },
@@ -45,11 +43,6 @@ const Settings = () => {
     enableSmsReminders: false,
   });
 
-  const [googleSheetUrl, setGoogleSheetUrl] = useState('');
-  const [syncingSheets, setSyncingSheets] = useState(false);
-  const [showAppsScriptModal, setShowAppsScriptModal] = useState(false);
-  const [syncLogs, setSyncLogs] = useState([]);
-
   const [templates, setTemplates] = useState({});
   const [activeTmplKey, setActiveTmplKey] = useState('monthly_reminder');
   const [tmplSubject, setTmplSubject] = useState('');
@@ -57,8 +50,6 @@ const Settings = () => {
 
   useEffect(() => {
     setSettings(loanStore.getSettings());
-    setGoogleSheetUrl(googleSheetsSync.getWebhookUrl());
-    setSyncLogs(googleSheetsSync.getSyncLogs());
     const t = loanStore.getCommunicationTemplates();
     setTemplates(t);
     if (t.monthly_reminder) {
@@ -139,36 +130,6 @@ const Settings = () => {
     }
   };
 
-  const handleSaveGoogleSheetUrl = () => {
-    googleSheetsSync.setWebhookUrl(googleSheetUrl);
-    alert('✓ Google Sheets Webhook URL saved successfully!');
-  };
-
-  const handleSyncAllGoogleSheets = async () => {
-    if (!googleSheetUrl) {
-      alert('Please enter your Google Apps Script Webhook URL first.');
-      return;
-    }
-    setSyncingSheets(true);
-    const allData = {
-      bankAccounts: bankStore.getBankAccounts(true),
-      bankTransactions: bankStore.getBankTransactions(),
-      bankTransfers: bankStore.getBankTransfers(),
-      customers: loanStore.getCustomers(),
-      loans: loanStore.getLoans(),
-      payments: loanStore.getPayments(),
-      expenses: JSON.parse(localStorage.getItem('daily_expenses_tracker') || '[]'),
-    };
-    const res = await googleSheetsSync.syncAllToGoogleSheet(allData);
-    setSyncingSheets(false);
-    setSyncLogs(googleSheetsSync.getSyncLogs());
-    if (res.success) {
-      alert('✓ ' + res.message);
-    } else {
-      alert('❌ ' + res.message);
-    }
-  };
-
   return (
     <div className="container-fluid py-4 px-3 px-md-4 bg-light page-transition" style={{ minHeight: '100vh' }}>
       
@@ -178,7 +139,7 @@ const Settings = () => {
           <h4 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
             <MdSettings className="text-primary" /> System Settings &amp; Configuration
           </h4>
-          <p className="text-muted small mb-0">Manage company branding, Google Sheets live sync, communication gateways, and data backups</p>
+          <p className="text-muted small mb-0">Manage company branding, notification preferences, communication templates, and data backups</p>
         </div>
       </div>
 
@@ -283,66 +244,6 @@ const Settings = () => {
                   <label className="form-label small fw-semibold text-muted">Invoice / Statement Footer Message</label>
                   <input type="text" className="form-control" name="invoiceFooterMessage" value={settings.invoiceFooterMessage} onChange={handleChange} placeholder="Thank you for your business. For any queries, please contact us." />
                 </div>
-              </div>
-            </div>
-
-            {/* Google Sheets Real-time Online Sync Section */}
-            <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
-              <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                  <MdCloudSync className="text-success" size={24} /> Google Sheets Online Sync
-                </h5>
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-sm rounded-3 fw-bold d-flex align-items-center gap-1"
-                  onClick={() => setShowAppsScriptModal(true)}
-                >
-                  <MdCode size={16} /> View Apps Script Code
-                </button>
-              </div>
-
-              <p className="text-muted small mb-3">
-                Connect your Google Spreadsheet to automatically backup all banking and accounting data into separate tabs: <strong className="text-dark">"Bank Accounts"</strong>, <strong className="text-dark">"Bank Transactions"</strong>, and <strong className="text-dark">"Bank Transfers"</strong>.
-              </p>
-
-              <div className="p-3 bg-light rounded-3 border mb-3">
-                <label className="form-label small fw-bold text-dark mb-1">Google Apps Script Webhook URL</label>
-                <div className="input-group">
-                  <input 
-                    type="url" 
-                    className="form-control font-monospace small" 
-                    placeholder="https://script.google.com/macros/s/AKfycbx.../exec"
-                    value={googleSheetUrl}
-                    onChange={(e) => setGoogleSheetUrl(e.target.value)}
-                  />
-                  <button 
-                    type="button" 
-                    className="btn btn-primary fw-bold"
-                    onClick={handleSaveGoogleSheetUrl}
-                  >
-                    Save URL
-                  </button>
-                </div>
-                <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                  Deploy Apps Script as Web App with "Execute as: Me" &amp; "Who has access: Anyone".
-                </small>
-              </div>
-
-              <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                <button 
-                  type="button" 
-                  className="btn btn-success rounded-3 fw-bold px-3 py-2 d-flex align-items-center gap-1.5 shadow-2xs"
-                  onClick={handleSyncAllGoogleSheets}
-                  disabled={syncingSheets}
-                >
-                  <MdCloudSync size={18} /> {syncingSheets ? 'Syncing with Google Sheets...' : 'Sync All Data to Google Sheets Now'}
-                </button>
-
-                {syncLogs.length > 0 && (
-                  <small className="text-muted">
-                    Last sync: <strong>{new Date(syncLogs[0].time).toLocaleTimeString('en-IN')}</strong> ({syncLogs[0].tabName})
-                  </small>
-                )}
               </div>
             </div>
 
@@ -479,14 +380,14 @@ const Settings = () => {
               </h5>
 
               <p className="small text-muted mb-4">
-                All customer files, loan contracts, bank accounts, transactions, and settings are saved in your browser's <strong className="text-dark">localStorage</strong> and online via Google Sheets.
+                All customer files, loan contracts, and settings are saved securely in your browser's <strong className="text-dark">local storage</strong>. Use the backup tools below to export or restore your data.
               </p>
 
               <div className="d-flex flex-column gap-3">
                 {/* Export Backup */}
                 <div className="p-3 bg-light rounded-3 border">
                   <h6 className="fw-bold text-dark small mb-1">Export Complete JSON Backup</h6>
-                  <p className="text-muted" style={{ fontSize: '0.75rem' }}>Download a complete offline JSON file including bank accounts, transfers, logs, and loans</p>
+                  <p className="text-muted" style={{ fontSize: '0.75rem' }}>Download a complete offline JSON file including all customers, loans, payments, and settings</p>
                   <button type="button" className="btn btn-outline-success btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-1.5" onClick={() => loanStore.exportBackup()}>
                     <MdDownload size={18} /> Download Backup (.json)
                   </button>
@@ -515,53 +416,6 @@ const Settings = () => {
           </div>
         </div>
       </form>
-
-      {/* Apps Script Template Modal */}
-      {showAppsScriptModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 1080 }} tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-              <div className="modal-header border-0 bg-light py-3 px-4">
-                <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-                  <MdCode className="text-success" /> Google Apps Script Backend Code
-                </h5>
-                <button type="button" className="btn-close" onClick={() => setShowAppsScriptModal(false)}></button>
-              </div>
-
-              <div className="modal-body p-4">
-                <p className="text-muted small mb-2">
-                  1. Open your Google Spreadsheet &gt; click <strong>Extensions &gt; Apps Script</strong>.<br />
-                  2. Replace any existing code with the snippet below &gt; click <strong>Deploy &gt; New deployment &gt; Web app</strong>.<br />
-                  3. Set <em>"Execute as: Me"</em> and <em>"Who has access: Anyone"</em>.<br />
-                  4. Copy the resulting Web app URL and paste it into the Webhook URL field above.
-                </p>
-
-                <textarea
-                  className="form-control font-monospace p-3 bg-light border text-dark"
-                  rows="14"
-                  readOnly
-                  style={{ fontSize: '0.78rem' }}
-                  value={googleSheetsSync.getAppsScriptTemplate()}
-                />
-              </div>
-
-              <div className="modal-footer border-0 bg-light py-3 px-4">
-                <button
-                  type="button"
-                  className="btn btn-primary rounded-3 px-4 fw-bold"
-                  onClick={() => {
-                    navigator.clipboard.writeText(googleSheetsSync.getAppsScriptTemplate());
-                    alert('✓ Apps Script code copied to clipboard!');
-                  }}
-                >
-                  📋 Copy Code to Clipboard
-                </button>
-                <button type="button" className="btn btn-secondary rounded-3 px-4 fw-semibold" onClick={() => setShowAppsScriptModal(false)}>Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

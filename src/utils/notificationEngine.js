@@ -1,5 +1,4 @@
 import { getLocalDateString, formatIndianDate } from './dateUtils';
-import { bankStore } from './bankStore';
 
 const today = () => getLocalDateString();
 
@@ -25,61 +24,6 @@ const uid = (prefix) => `${prefix}_${++_idCounter}_${Date.now()}`;
 export const buildNotifications = (payments = [], loans = [], customers = []) => {
   const notifs = [];
   const todayStr = today();
-
-  // ── 0. Low Bank Balance Alerts ─────────────────────────────
-  try {
-    const bankAccounts = bankStore.getBankAccounts(false).filter(a => a.status === 'Active');
-    bankAccounts.forEach(acc => {
-      if (Number(acc.currentBalance || 0) < 5000) {
-        notifs.push({
-          id: uid('lowbal_' + acc.id),
-          category: 'banking',
-          priority: 1,
-          icon: '⚠️',
-          color: '#f59e0b',
-          bg: 'rgba(245,158,11,0.08)',
-          border: '#f59e0b',
-          title: `Low Balance Alert — ${acc.bankName}`,
-          message: `${acc.bankName} balance is low: ${fmtAmt(acc.currentBalance)}`,
-          customerName: acc.accountHolderName,
-          loanName: null,
-          amount: acc.currentBalance,
-          dueDate: null,
-          time: todayStr,
-          read: false,
-          actions: [],
-        });
-      }
-    });
-
-    // Unusual High-Value Transaction Alert (Last 3 days > ₹50,000)
-    const recentTxns = bankStore.getBankTransactions();
-    recentTxns
-      .filter(t => t.date && daysDiff(t.date) >= -3 && Number(t.amount || 0) >= 50000)
-      .slice(0, 3)
-      .forEach(t => {
-        notifs.push({
-          id: uid('hightxn_' + t.id),
-          category: 'banking',
-          priority: 2,
-          icon: '💳',
-          color: '#3b82f6',
-          bg: 'rgba(59,130,246,0.07)',
-          border: '#3b82f6',
-          title: `High-Value Transaction: ${fmtAmt(t.amount)}`,
-          message: `${t.type} of ${fmtAmt(t.amount)} on ${t.bankName} (${t.description})`,
-          customerName: t.customerName || null,
-          loanName: t.loanName || null,
-          amount: t.amount,
-          dueDate: t.date,
-          time: t.date,
-          read: false,
-          actions: [],
-        });
-      });
-  } catch (e) {
-    console.error('Banking notification error:', e);
-  }
 
   // ── 1. Overdue EMI alerts ──────────────────────────────────
   payments
@@ -361,7 +305,6 @@ export const buildNotifications = (payments = [], loans = [], customers = []) =>
 
 export const NOTIF_CATEGORIES = [
   { key: 'all',       label: 'All',       icon: '🔔' },
-  { key: 'banking',   label: 'Banking',   icon: '🏦' },
   { key: 'emiDue',    label: 'EMI Due',   icon: '📅' },
   { key: 'overdue',   label: 'Overdue',   icon: '🚨' },
   { key: 'payments',  label: 'Payments',  icon: '✅' },

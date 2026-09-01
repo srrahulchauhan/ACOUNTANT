@@ -6,10 +6,8 @@ import {
   MdAccountBalanceWallet
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { customerBankStore } from '../utils/customerBankStore';
 import { formatIndianDate } from '../utils/dateUtils';
 import SendStatementModal from '../components/SendStatementModal';
-import CustomerBankManager from '../components/CustomerBankManager';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -31,7 +29,7 @@ const Customers = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [selectedProfile, setSelectedProfile] = useState(null);
-  const [profileActiveTab, setProfileActiveTab] = useState('overview'); // 'overview' | 'bankAccounts'
+  const [profileActiveTab, setProfileActiveTab] = useState('overview'); // 'overview'
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [commModal, setCommModal] = useState({ open: false, customerId: null, loanId: null, templateKey: 'loan_statement' });
 
@@ -58,10 +56,8 @@ const Customers = () => {
   useEffect(() => {
     loadData();
     window.addEventListener('loanStoreUpdated', loadData);
-    window.addEventListener('customerBankStoreUpdated', loadData);
     return () => {
       window.removeEventListener('loanStoreUpdated', loadData);
-      window.removeEventListener('customerBankStoreUpdated', loadData);
     };
   }, []);
 
@@ -607,22 +603,14 @@ const Customers = () => {
                   <div className="btn-group bg-white p-1 rounded-pill shadow-2xs border">
                     <button 
                       type="button"
-                      className={`btn btn-sm rounded-pill px-3.5 fw-bold ${profileActiveTab === 'overview' ? 'btn-primary shadow-sm' : 'btn-light text-secondary border-0'}`}
-                      onClick={() => setProfileActiveTab('overview')}
+                      className={`btn btn-sm rounded-pill px-3.5 fw-bold btn-primary shadow-sm`}
                     >
                       👤 Profile &amp; Loans Overview
-                    </button>
-                    <button 
-                      type="button"
-                      className={`btn btn-sm rounded-pill px-3.5 fw-bold ${profileActiveTab === 'bankAccounts' ? 'btn-primary shadow-sm' : 'btn-light text-secondary border-0'}`}
-                      onClick={() => setProfileActiveTab('bankAccounts')}
-                    >
-                      🏦 Bank Accounts &amp; Statements
                     </button>
                   </div>
 
                   <span className="badge bg-light text-dark border px-3 py-1.5 rounded-pill font-monospace small">
-                    {profileActiveTab === 'overview' ? `${selectedProfile.custLoans.length} Loans` : 'Multi-Account Vault'}
+                    {selectedProfile.custLoans.length} Loans
                   </span>
                 </div>
 
@@ -722,14 +710,6 @@ const Customers = () => {
                   </div>
                 )}
 
-                {/* TAB 2: BANK ACCOUNTS & STATEMENT */}
-                {profileActiveTab === 'bankAccounts' && (
-                  <CustomerBankManager 
-                    customer={selectedProfile} 
-                    loans={selectedProfile.custLoans} 
-                    payments={payments} 
-                  />
-                )}
 
               </div>
 

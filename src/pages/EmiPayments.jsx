@@ -7,8 +7,6 @@ import {
   MdPhone, MdAccountBalance, MdCheck
 } from 'react-icons/md';
 import { loanStore } from '../utils/loanStore';
-import { bankStore } from '../utils/bankStore';
-import { customerBankStore } from '../utils/customerBankStore';
 import { getLocalDateString, formatIndianDate, addMonthsToDate } from '../utils/dateUtils';
 
 const fmtAmt = (a) => a != null ? '₹' + Number(a).toLocaleString('en-IN') : '₹0';
@@ -19,8 +17,6 @@ const EmiPayments = () => {
   const [payments, setPayments] = useState([]);
   const [loans, setLoans] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [bankAccounts, setBankAccounts] = useState([]);
-  const [customerBankAccounts, setCustomerBankAccounts] = useState([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(location.state?.status || '');
@@ -40,8 +36,6 @@ const EmiPayments = () => {
   const [paidDetails, setPaidDetails] = useState({
     paidDate: getLocalDateString(),
     paymentMethod: 'UPI',
-    bankAccountId: '',
-    customerBankAccountId: '',
     paymentType: 'Regular',
     amount: '',
     advanceMonths: 1,
@@ -55,34 +49,21 @@ const EmiPayments = () => {
     setPayments(loanStore.getPayments());
     setLoans(loanStore.getLoans());
     setCustomers(loanStore.getCustomers());
-    setBankAccounts(bankStore.getBankAccounts(false).filter(a => a.status === 'Active'));
   };
 
   useEffect(() => {
     loadData();
     window.addEventListener('loanStoreUpdated', loadData);
-    window.addEventListener('bankStoreUpdated', loadData);
-    window.addEventListener('customerBankStoreUpdated', loadData);
     return () => {
       window.removeEventListener('loanStoreUpdated', loadData);
-      window.removeEventListener('bankStoreUpdated', loadData);
-      window.removeEventListener('customerBankStoreUpdated', loadData);
     };
   }, []);
 
   const openMarkPaidModal = (pay) => {
-    const activeAccs = bankStore.getBankAccounts(false).filter(a => a.status === 'Active');
-    const custAccs = customerBankStore.getCustomerBankAccounts(pay.customerId, false).filter(a => a.status === 'Active');
-    
-    setBankAccounts(activeAccs);
-    setCustomerBankAccounts(custAccs);
     setMarkingPayment(pay);
-    
     setPaidDetails({
       paidDate: getLocalDateString(),
       paymentMethod: pay.paymentMethod || 'UPI',
-      bankAccountId: activeAccs[0]?.id || '',
-      customerBankAccountId: custAccs[0]?.id || '',
       paymentType: 'Regular',
       amount: pay.amount,
       advanceMonths: 1,
@@ -96,51 +77,11 @@ const EmiPayments = () => {
     if (!markingPayment) return;
 
     const amt = Number(paidDetails.amount || markingPayment.amount);
-    const selectedAcc = bankAccounts.find(a => a.id === paidDetails.bankAccountId) || bankAccounts[0];
 
     loanStore.markPaymentAsPaid(markingPayment.id, {
       ...paidDetails,
       amount: amt,
-      bankAccountId: selectedAcc?.id,
-      bankName: selectedAcc?.bankName
     });
-
-    // Automatically record money received into target Bank Account
-    bankStore.recordBankTransaction({
-      type: 'Credit',
-      amount: amt,
-      category: 'EMI Collection',
-      paymentMethod: paidDetails.paymentMethod || 'UPI',
-      bankAccountId: selectedAcc?.id,
-      customerId: markingPayment.customerId,
-      customerName: markingPayment.customerName,
-      loanId: markingPayment.loanId,
-      loanName: markingPayment.loanName,
-      description: `EMI Payment for ${markingPayment.loanName || 'Loan'} (${markingPayment.customerName})`,
-      date: paidDetails.paidDate || getLocalDateString(),
-    });
-
-    // If a Customer Bank Account was selected, record the corresponding debit from customer account
-    if (paidDetails.customerBankAccountId) {
-      try {
-        customerBankStore.recordCustomerTransaction({
-          customerBankAccountId: paidDetails.customerBankAccountId,
-          customerId: markingPayment.customerId,
-          customerName: markingPayment.customerName,
-          type: 'Debit',
-          amount: amt,
-          category: 'EMI Payment',
-          loanId: markingPayment.loanId,
-          loanName: markingPayment.loanName,
-          paymentId: markingPayment.id,
-          paymentMethod: paidDetails.paymentMethod || 'UPI',
-          description: `EMI Payment for ${markingPayment.loanName || 'Loan'} (Paid to ${selectedAcc?.bankName || 'Company Account'})`,
-          date: paidDetails.paidDate || getLocalDateString(),
-        });
-      } catch (err) {
-        console.error('Failed to deduct from customer bank account:', err);
-      }
-    }
 
     setMarkingPayment(null);
   };
@@ -764,45 +705,6 @@ const EmiPayments = () => {
                     </div>
                   </div>
 
-                  {/* Received In Bank Account */}
-                  <div className="mb-3">
-                    <label className="form-label small fw-semibold text-muted">Received In (Company Bank / Cash Account) *</label>
-                    <select
-                      className="form-select fw-semibold"
-                      value={paidDetails.bankAccountId}
-                      onChange={(e) => setPaidDetails({ ...paidDetails, bankAccountId: e.target.value })}
-                      required
-                    >
-                      {bankAccounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.logoIcon || '🏦'} {acc.bankName} ({bankStore.maskAccountNumber(acc.accountNumber)}) — Bal: ₹{Number(acc.currentBalance || 0).toLocaleString('en-IN')}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Customer Bank Account Selector */}
-                  <div className="mb-3">
-                    <label className="form-label small fw-semibold text-muted">
-                      Paid From (Customer Bank Account)
-                      {customerBankAccounts.length === 0 && <span className="text-warning ms-1">(No linked accounts)</span>}
-                    </label>
-                    <select
-                      className="form-select fw-semibold"
-                      value={paidDetails.customerBankAccountId}
-                      onChange={(e) => setPaidDetails({ ...paidDetails, customerBankAccountId: e.target.value })}
-                    >
-                      <option value="">-- Cash / Direct UPI / Outside Account --</option>
-                      {customerBankAccounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.bankLogo || '🏦'} {acc.bankName} ({customerBankStore.maskAccountNumber(acc.accountNumber)}) — Bal: ₹{Number(acc.currentBalance || 0).toLocaleString('en-IN')}
-                        </option>
-                      ))}
-                    </select>
-                    <small className="text-muted d-block mt-0.5" style={{ fontSize: '0.68rem' }}>
-                      If selected, will automatically deduct ₹{paidDetails.amount || markingPayment.amount} from customer's account ledger
-                    </small>
-                  </div>
 
                   <div className="mb-3">
                     <label className="form-label small fw-semibold text-muted">Next Due Date *</label>

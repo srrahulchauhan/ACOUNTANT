@@ -183,9 +183,6 @@ export const loanStore = {
     localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(updated));
     this.notify();
 
-    // Async sync to Google Sheet (Tab: Customers)
-    googleSheetsSync.sendToGoogleSheet(actionType, 'Customers', targetCust);
-
     return updated;
   },
 
@@ -202,9 +199,6 @@ export const loanStore = {
     localStorage.setItem(KEYS.PAYMENTS, JSON.stringify(payments));
 
     this.notify();
-
-    // Async sync deletion to Google Sheet (Tab: Customers)
-    googleSheetsSync.sendToGoogleSheet('DELETE', 'Customers', { id: customerId });
   },
 
 
@@ -500,12 +494,6 @@ export const loanStore = {
   exportBackup() {
     this.init();
     const data = {
-      bankAccounts: JSON.parse(localStorage.getItem('rc_bank_accounts_data') || '[]'),
-      bankTransactions: JSON.parse(localStorage.getItem('rc_bank_transactions_data') || '[]'),
-      bankTransfers: JSON.parse(localStorage.getItem('rc_bank_transfers_data') || '[]'),
-      customerBankAccounts: JSON.parse(localStorage.getItem('rc_customer_bank_accounts_data') || '[]'),
-      customerBankTransactions: JSON.parse(localStorage.getItem('rc_customer_bank_transactions_data') || '[]'),
-      customerBankTransfers: JSON.parse(localStorage.getItem('rc_customer_bank_transfers_data') || '[]'),
       customers: this.getCustomers(),
       loans: this.getLoans(),
       payments: this.getPayments(),
@@ -528,12 +516,6 @@ export const loanStore = {
   importBackup(jsonData) {
     try {
       const parsed = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
-      if (parsed.bankAccounts) localStorage.setItem('rc_bank_accounts_data', JSON.stringify(parsed.bankAccounts));
-      if (parsed.bankTransactions) localStorage.setItem('rc_bank_transactions_data', JSON.stringify(parsed.bankTransactions));
-      if (parsed.bankTransfers) localStorage.setItem('rc_bank_transfers_data', JSON.stringify(parsed.bankTransfers));
-      if (parsed.customerBankAccounts) localStorage.setItem('rc_customer_bank_accounts_data', JSON.stringify(parsed.customerBankAccounts));
-      if (parsed.customerBankTransactions) localStorage.setItem('rc_customer_bank_transactions_data', JSON.stringify(parsed.customerBankTransactions));
-      if (parsed.customerBankTransfers) localStorage.setItem('rc_customer_bank_transfers_data', JSON.stringify(parsed.customerBankTransfers));
       if (parsed.expenses) localStorage.setItem('daily_expenses_tracker', JSON.stringify(parsed.expenses));
       if (parsed.customers) localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(parsed.customers));
       if (parsed.loans) localStorage.setItem(KEYS.LOANS, JSON.stringify(parsed.loans));
@@ -543,8 +525,6 @@ export const loanStore = {
       if (parsed.communications) localStorage.setItem(KEYS.COMMUNICATIONS, JSON.stringify(parsed.communications));
       if (parsed.templates) localStorage.setItem(KEYS.COMM_TEMPLATES, JSON.stringify(parsed.templates));
       this.notify();
-      window.dispatchEvent(new Event('bankStoreUpdated'));
-      window.dispatchEvent(new Event('customerBankStoreUpdated'));
       return true;
     } catch (e) {
       console.error('Import error:', e);

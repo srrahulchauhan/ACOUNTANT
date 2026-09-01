@@ -12,7 +12,6 @@ import {
 } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { getLocalDateString, formatIndianDate } from '../utils/dateUtils';
-import { bankStore } from '../utils/bankStore';
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, 
@@ -38,7 +37,6 @@ const getCategoryMeta = (catId) => {
 const DailyExpenses = () => {
   // State
   const [expenses, setExpenses] = useState([]);
-  const [bankAccounts, setBankAccounts] = useState([]);
   const [dailyBudget, setDailyBudget] = useState(1000); // Default ₹1,000/day
   const [editingBudget, setEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(1000);
@@ -58,7 +56,6 @@ const DailyExpenses = () => {
     amount: '',
     category: 'Food',
     date: getLocalDateString(),
-    bankAccountId: '',
     paymentMethod: 'UPI',
     notes: ''
   });
@@ -109,13 +106,10 @@ const DailyExpenses = () => {
   // Open modal for new expense
   const handleOpenAddModal = (cat = 'Food') => {
     setEditingId(null);
-    const activeAccs = bankStore.getBankAccounts(false).filter(a => a.status === 'Active');
-    setBankAccounts(activeAccs);
     setFormData({
       amount: '',
       category: cat,
       date: getLocalDateString(),
-      bankAccountId: activeAccs[0]?.id || '',
       paymentMethod: 'UPI',
       notes: ''
     });
@@ -125,13 +119,10 @@ const DailyExpenses = () => {
   // Open modal for editing
   const handleEditClick = (expense) => {
     setEditingId(expense.id);
-    const activeAccs = bankStore.getBankAccounts(false).filter(a => a.status === 'Active');
-    setBankAccounts(activeAccs);
     setFormData({
       amount: expense.amount.toString(),
       category: expense.category,
       date: expense.date,
-      bankAccountId: expense.bankAccountId || activeAccs[0]?.id || '',
       paymentMethod: expense.paymentMethod || 'UPI',
       notes: expense.notes || ''
     });
@@ -155,8 +146,6 @@ const DailyExpenses = () => {
       return;
     }
 
-    const selectedAcc = bankAccounts.find(a => a.id === formData.bankAccountId) || bankAccounts[0];
-
     if (editingId) {
       const updated = expenses.map(item => {
         if (item.id === editingId) {
@@ -165,8 +154,6 @@ const DailyExpenses = () => {
             amount: val, 
             category: formData.category, 
             date: formData.date, 
-            bankAccountId: selectedAcc?.id || '',
-            bankName: selectedAcc?.bankName || '',
             paymentMethod: formData.paymentMethod,
             notes: formData.notes 
           };
@@ -180,24 +167,10 @@ const DailyExpenses = () => {
         amount: val,
         category: formData.category,
         date: formData.date,
-        bankAccountId: selectedAcc?.id || '',
-        bankName: selectedAcc?.bankName || '',
         paymentMethod: formData.paymentMethod,
         notes: formData.notes
       };
       saveExpensesToStorage([newExp, ...expenses]);
-
-      // Automatically record deduction in bankStore
-      bankStore.recordBankTransaction({
-        type: 'Debit',
-        amount: val,
-        category: 'Daily Expense',
-        paymentMethod: formData.paymentMethod || 'UPI',
-        bankAccountId: selectedAcc?.id,
-        expenseId: newExp.id,
-        description: `${formData.category} Expense: ${formData.notes || 'Daily Expense'}`,
-        date: formData.date,
-      });
     }
 
     setShowFormModal(false);
@@ -730,22 +703,6 @@ const DailyExpenses = () => {
                     </div>
                   </div>
 
-                  {/* Payment Account / Bank Source */}
-                  <div className="mb-3">
-                    <label className="form-label text-muted fw-semibold small mb-1">Paid From (Bank / Cash Account) *</label>
-                    <select 
-                      className="form-select"
-                      value={formData.bankAccountId}
-                      onChange={e => setFormData({ ...formData, bankAccountId: e.target.value })}
-                      required
-                    >
-                      {bankAccounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.logoIcon || '🏦'} {acc.bankName} ({bankStore.maskAccountNumber(acc.accountNumber)}) — Bal: ₹{Number(acc.currentBalance || 0).toLocaleString('en-IN')}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
 
                   {/* Notes */}
                   <div className="mb-3">
