@@ -218,67 +218,38 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Card 5: This Month EMI Collection */}
-        <div className="col-12 col-sm-6 col-xl-3">
-          <div 
-            className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 hover-lift transition-all" 
-            onClick={() => navigate('/emi-payments', { state: { status: 'Paid' } })}
-            style={{ cursor: 'pointer' }}
-            title="Click to view Paid EMI Collections"
-          >
-            <div className="d-flex justify-content-between align-items-start">
+      </div>
+
+      {/* Second KPI Mini Row */}
+      <div className="row g-3 mb-4">
+        {/* This Month's Collection */}
+        <div className="col-12 col-sm-6 col-xl-4">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex align-items-center justify-content-between">
               <div>
                 <small className="text-muted fw-semibold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>This Month Collection</small>
-                <h3 className="fw-bold text-success my-1">
-                  {loading ? <div className="skeleton" style={{ width: '80px', height: '28px' }}></div> : <AnimatedNumber value={thisMonthCollection} prefix="₹" isCurrency={true} />}
+                <h3 className="fw-bold text-dark my-1">
+                  {loading ? <div className="skeleton" style={{ width: '80px', height: '28px' }}></div> : <AnimatedNumber value={thisMonthCollection} isCurrency />}
                 </h3>
-                <small className="text-success fw-semibold">Collected this month</small>
+                <small className="text-success fw-semibold">Current Calendar Month</small>
               </div>
               <div className="bg-success bg-opacity-10 text-success rounded-3 p-2.5">
-                <MdPayment size={24} />
+                <MdCheckCircle size={24} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Card 6: Pending EMI Amount */}
-        <div className="col-12 col-sm-6 col-xl-3">
-          <div 
-            className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 hover-lift transition-all" 
-            onClick={() => navigate('/emi-payments', { state: { status: 'Upcoming' } })}
-            style={{ cursor: 'pointer' }}
-            title="Click to view Pending/Upcoming EMI dues"
-          >
-            <div className="d-flex justify-content-between align-items-start">
-              <div>
-                <small className="text-muted fw-semibold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Pending EMI Amount</small>
-                <h3 className="fw-bold text-warning my-1">
-                  {loading ? <div className="skeleton" style={{ width: '80px', height: '28px' }}></div> : <AnimatedNumber value={pendingEmiAmount} prefix="₹" isCurrency={true} />}
-                </h3>
-                <small className="text-warning fw-semibold">Upcoming / Due</small>
-              </div>
-              <div className="bg-warning bg-opacity-10 text-dark rounded-3 p-2.5">
-                <MdHourglassEmpty size={24} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 7: Overdue EMI Amount */}
-        <div className="col-12 col-sm-6 col-xl-3">
-          <div 
-            className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 hover-lift transition-all" 
-            onClick={() => navigate('/emi-payments', { state: { status: 'Overdue' } })}
-            style={{ cursor: 'pointer' }}
-            title="Click to view Overdue Accounts"
-          >
-            <div className="d-flex justify-content-between align-items-start">
+        {/* Overdue Amount */}
+        <div className="col-12 col-sm-6 col-xl-4">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex align-items-center justify-content-between">
               <div>
                 <small className="text-muted fw-semibold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Overdue EMI Amount</small>
                 <h3 className="fw-bold text-danger my-1">
-                  {loading ? <div className="skeleton" style={{ width: '80px', height: '28px' }}></div> : <AnimatedNumber value={overdueEmiAmount} prefix="₹" isCurrency={true} />}
+                  {loading ? <div className="skeleton" style={{ width: '80px', height: '28px' }}></div> : <AnimatedNumber value={overdueEmiAmount} isCurrency />}
                 </h3>
-                <small className="text-danger fw-semibold">{overduePayments.length} Accounts Overdue</small>
+                <small className="text-danger fw-semibold">{overduePayments.length} Installments Overdue</small>
               </div>
               <div className="bg-danger bg-opacity-10 text-danger rounded-3 p-2.5">
                 <MdWarning size={24} />
@@ -287,16 +258,10 @@ const Dashboard = () => {
           </div>
         </div>
 
-
-        {/* Card 8: Upcoming EMI Due Today */}
-        <div className="col-12 col-sm-6 col-xl-3">
-          <div 
-            className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 hover-lift transition-all" 
-            onClick={() => navigate('/calendar')}
-            style={{ cursor: 'pointer' }}
-            title="Click to view Calendar due today"
-          >
-            <div className="d-flex justify-content-between align-items-start">
+        {/* Due Today */}
+        <div className="col-12 col-sm-12 col-xl-4">
+          <div className="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+            <div className="d-flex align-items-center justify-content-between">
               <div>
                 <small className="text-muted fw-semibold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Due Today</small>
                 <h3 className="fw-bold text-primary my-1">
@@ -312,7 +277,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-
       {/* Main Charts & Analytics Row */}
       <div className="row g-4 mb-4">
         {/* EMI Collection Breakdown Card */}
@@ -326,23 +290,19 @@ const Dashboard = () => {
               <span className="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1.5 fw-semibold">Live Real-time</span>
             </div>
 
-            {/* Visual Bar Graph simulation */}
+            {/* Visual Bar Graph - 100% Real Live Dynamic Data */}
             <div className="d-flex align-items-end justify-content-between gap-2 mt-4 pt-3" style={{ height: '220px' }}>
-              {[
-                { month: 'Mar', amount: 35000, height: '40%' },
-                { month: 'Apr', amount: 48000, height: '55%' },
-                { month: 'May', amount: 62000, height: '70%' },
-                { month: 'Jun', amount: 75000, height: '85%' },
-                { month: 'Jul', amount: 64000, height: '72%' },
-                { month: 'Aug', amount: thisMonthCollection || 97265, height: '95%', active: true },
-              ].map((bar, idx) => (
+              {monthlyAnalyticsData.map((bar, idx) => (
                 <div key={idx} className="d-flex flex-column align-items-center flex-grow-1 h-100 justify-content-end">
-                  <span className="small fw-bold text-muted mb-1" style={{ fontSize: '0.7rem' }}>₹{(bar.amount / 1000).toFixed(0)}k</span>
+                  <span className="small fw-bold text-muted mb-1 font-monospace" style={{ fontSize: '0.72rem' }}>
+                    {bar.amount > 0 ? (bar.amount >= 1000 ? `₹${(bar.amount / 1000).toFixed(bar.amount % 1000 === 0 ? 0 : 1)}k` : `₹${bar.amount}`) : '₹0'}
+                  </span>
                   <div 
-                    className={`w-100 rounded-top-3 transition-all ${bar.active ? 'bg-primary shadow' : 'bg-primary bg-opacity-25'}`}
-                    style={{ height: bar.height, transition: 'all 0.3s ease' }}
+                    className={`w-100 rounded-top-3 transition-all ${bar.amount > 0 ? (bar.active ? 'bg-primary shadow' : 'bg-primary bg-opacity-40') : 'bg-secondary bg-opacity-15'}`}
+                    style={{ height: bar.height, transition: 'all 0.3s ease', minHeight: '6px' }}
+                    title={`${bar.month}: ₹${bar.amount.toLocaleString('en-IN')}`}
                   ></div>
-                  <span className="small fw-semibold text-secondary mt-2">{bar.month}</span>
+                  <span className={`small mt-2 ${bar.active ? 'fw-bold text-primary' : 'fw-semibold text-secondary'}`}>{bar.month}</span>
                 </div>
               ))}
             </div>
